@@ -18,7 +18,7 @@ EXPONENTIAL_BACKOFF_BASE = 2
 SERVICE_SCHEMA = vol.Schema(
     {
         vol.Required(ATTR_SERVICE): str,
-        vol.Required(ATTR_RETRIES, default=6): int,
+        vol.Required(ATTR_RETRIES, default=7): int,
     },
     extra=vol.ALLOW_EXTRA,
 )

@@ -55,7 +55,7 @@ async def test_success(hass: HomeAssistant, freezer) -> None:
 
 @pytest.mark.parametrize(
     ["retries"],
-    [(6,), (3,), (10,)],
+    [(7,), (3,), (10,)],
     ids=["default", "3-retries", "10-retries"],
 )
 async def test_failure(hass: HomeAssistant, freezer, retries) -> None:
@@ -64,7 +64,7 @@ async def test_failure(hass: HomeAssistant, freezer, retries) -> None:
     freezer.move_to(now)
     calls = await async_setup(hass)
     data = {}
-    if retries != 6:
+    if retries != 7:
         data[ATTR_RETRIES] = retries
     await async_call(hass, data)
     for i in range(20):
