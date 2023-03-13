@@ -6,12 +6,13 @@ from typing import Any
 
 import pytest
 
+from homeassistant.const import ATTR_SERVICE
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.setup import async_setup_component
 
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
-from custom_components.retry.const import DOMAIN, RETRIES, RETRY_SERVICE, SERVICE
+from custom_components.retry.const import ATTR_RETRIES, DOMAIN, SERVICE
 
 
 async def async_setup(hass: HomeAssistant, raises: bool = True) -> list[ServiceCall]:
@@ -35,7 +36,7 @@ async def async_setup(hass: HomeAssistant, raises: bool = True) -> list[ServiceC
 
 async def async_call(hass: HomeAssistant, data: dict[str, Any]) -> None:
     """Call a service via the retry service."""
-    data[RETRY_SERVICE] = f"{DOMAIN}.test"
+    data[ATTR_SERVICE] = f"{DOMAIN}.test"
     await hass.services.async_call(DOMAIN, SERVICE, data, True)
 
 
@@ -64,7 +65,7 @@ async def test_failure(hass: HomeAssistant, freezer, retries) -> None:
     calls = await async_setup(hass)
     data = {}
     if retries != 6:
-        data[RETRIES] = retries
+        data[ATTR_RETRIES] = retries
     await async_call(hass, data)
     for i in range(20):
         if i < retries:
@@ -93,6 +94,6 @@ async def test_template(
     """Test retry_service with template."""
     calls = await async_setup(hass, False)
     await hass.services.async_call(
-        DOMAIN, SERVICE, {RETRY_SERVICE: '{{ "retry.test" }}'}, True
+        DOMAIN, SERVICE, {ATTR_SERVICE: '{{ "retry.test" }}'}, True
     )
     assert len(calls) == 1
