@@ -49,6 +49,11 @@ Notes:
 
 Otherwise, download `retry.zip` from the [latest release](https://github.com/amitfin/retry/releases), extract and copy the content under `custom_components`.
 
+Home Assistant restart is required once the integration is installed, and then the following line should be added to `configuration.yaml` (which requires another restart):
+```
+retry:
+```
+
 ## Contributions are welcome!
 
 If you want to contribute to this please read the [Contribution guidelines](CONTRIBUTING.md)
