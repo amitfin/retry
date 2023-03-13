@@ -1,0 +1,13 @@
+{
+  "domain": "retry",
+  "name": "Retry",
+  "codeowners": [
+    "@amitfin"
+  ],
+  "documentation": "https://github.com/amitfin/retry",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/amitfin/retry/issues",
+  "quality_scale": "platinum",
+  "version": "1.0.0"
+}

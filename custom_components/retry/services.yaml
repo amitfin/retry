@@ -1,0 +1,10 @@
+call:
+  name: Call Service
+  description: Retry a service call on failure.
+  fields:
+    retry_service:
+      description: The service to retry on failure.
+      example: homeassistant.turn_on
+    retries:
+      description: Max amount of calls (defualt is 6).
+      example: 3
