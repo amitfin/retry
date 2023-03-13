@@ -6,7 +6,7 @@ import voluptuous as vol
 from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import InvalidStateError
-from homeassistant.helpers import event
+from homeassistant.helpers import event, template
 from homeassistant.helpers.service import async_extract_referenced_entity_ids
 from homeassistant.helpers.typing import ConfigType
 import homeassistant.util.dt as dt_util
@@ -30,7 +30,10 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
     async def async_call(service_call: ServiceCall) -> None:
         """Call service with background retries."""
         data = service_call.data.copy()
-        domain, service = data[RETRY_SERVICE].split(".")
+        retry_service = template.Template(data[RETRY_SERVICE], hass).async_render(
+            parse_result=False
+        )
+        domain, service = retry_service.split(".")
         del data[RETRY_SERVICE]
         max_retries = data[RETRIES]
         del data[RETRIES]
