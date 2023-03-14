@@ -16,7 +16,7 @@ async def test_simple(hass: HomeAssistant) -> None:
         DOMAIN, context={"source": SOURCE_USER}, data=[]
     )
     assert result.get("type") == FlowResultType.CREATE_ENTRY
-    assert result.get("title") == DOMAIN
+    assert result.get("title") == DOMAIN.title()
 
 
 async def test_already_setup(hass: HomeAssistant) -> None:

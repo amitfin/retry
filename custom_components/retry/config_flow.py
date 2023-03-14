@@ -23,6 +23,6 @@ class RetryConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_show_form(step_id="user")
 
         return self.async_create_entry(
-            title=DOMAIN,
+            title=DOMAIN.title(),
             data={},
         )
