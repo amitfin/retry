@@ -3,16 +3,21 @@ from __future__ import annotations
 
 import datetime
 from typing import Any
+import voluptuous as vol
 
 import pytest
 
-from homeassistant.const import ATTR_SERVICE
+from homeassistant.const import ATTR_ENTITY_ID, ATTR_SERVICE
 from homeassistant.core import HomeAssistant, ServiceCall, callback
+from homeassistant.exceptions import ServiceNotFound
+from homeassistant.helpers import config_validation as cv
 from homeassistant.setup import async_setup_component
 
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.retry.const import ATTR_RETRIES, DOMAIN, SERVICE
+
+TEST_SERVICE = "test_service"
 
 
 async def async_setup(hass: HomeAssistant, raises: bool = True) -> list[ServiceCall]:
@@ -29,14 +34,23 @@ async def async_setup(hass: HomeAssistant, raises: bool = True) -> list[ServiceC
         if raises:
             raise Exception()  # pylint: disable=broad-exception-raised
 
-    hass.services.async_register(DOMAIN, "test", async_service)
+    hass.services.async_register(
+        DOMAIN,
+        TEST_SERVICE,
+        async_service,
+        vol.Schema(
+            {
+                vol.Optional(ATTR_ENTITY_ID): cv.entity_ids,
+            }
+        ),
+    )
 
     return calls
 
 
 async def async_call(hass: HomeAssistant, data: dict[str, Any]) -> None:
     """Call a service via the retry service."""
-    data[ATTR_SERVICE] = f"{DOMAIN}.test"
+    data[ATTR_SERVICE] = f"{DOMAIN}.{TEST_SERVICE}"
     await hass.services.async_call(DOMAIN, SERVICE, data, True)
 
 
@@ -45,7 +59,7 @@ async def test_success(hass: HomeAssistant, freezer) -> None:
     now = datetime.datetime.fromisoformat("2000-01-01")
     freezer.move_to(now)
     calls = await async_setup(hass, False)
-    await async_call(hass, {"entity_id": ["sun.sun", "sun.sun"]})
+    await async_call(hass, {ATTR_ENTITY_ID: ["sun.sun", "sun.sun"]})
     now += datetime.timedelta(hours=1)
     freezer.move_to(now)
     async_fire_time_changed(hass)
@@ -84,7 +98,7 @@ async def test_entity_unavaliable(
     """Test entity is not avaliable."""
     entity = "sun.moon"
     await async_setup(hass, False)
-    await async_call(hass, {"entity_id": entity})
+    await async_call(hass, {ATTR_ENTITY_ID: entity})
     assert f"{entity} is not avaliable" in caplog.text
 
 
@@ -94,6 +108,26 @@ async def test_template(
     """Test retry_service with template."""
     calls = await async_setup(hass, False)
     await hass.services.async_call(
-        DOMAIN, SERVICE, {ATTR_SERVICE: '{{ "retry.test" }}'}, True
+        DOMAIN, SERVICE, {ATTR_SERVICE: '{{ "retry.test_service" }}'}, True
     )
     assert len(calls) == 1
+
+
+async def test_invalid_service(
+    hass: HomeAssistant,
+) -> None:
+    """Test invalid service."""
+    await async_setup(hass)
+    with pytest.raises(ServiceNotFound):
+        await hass.services.async_call(
+            DOMAIN, SERVICE, {ATTR_SERVICE: "invalid.service"}, True
+        )
+
+
+async def test_invalid_schema(
+    hass: HomeAssistant,
+) -> None:
+    """Test invalid schema."""
+    await async_setup(hass)
+    with pytest.raises(vol.Invalid):
+        await async_call(hass, {"invalid_field": ""})

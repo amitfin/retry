@@ -3,8 +3,21 @@ call:
   description: Retry a service call on failure.
   fields:
     service:
+      name: Retrying Service
       description: The service to retry on failure.
       example: homeassistant.turn_on
+      required: true
+      selector:
+        text:
     retries:
+      name: Retries
       description: Max amount of calls (defualt is 7).
+      advanced: true
       example: 3
+      default: 7
+      selector:
+        number:
+          min: 1
+          max: 100
+          unit_of_measurement: retries
+          mode: box

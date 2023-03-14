@@ -5,8 +5,8 @@ import datetime
 import voluptuous as vol
 from homeassistant.const import ATTR_SERVICE, STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant, ServiceCall, callback
-from homeassistant.exceptions import InvalidStateError
-from homeassistant.helpers import event, template
+from homeassistant.exceptions import InvalidStateError, ServiceNotFound
+from homeassistant.helpers import config_validation as cv, event, template
 from homeassistant.helpers.service import async_extract_referenced_entity_ids
 from homeassistant.helpers.typing import ConfigType
 import homeassistant.util.dt as dt_util
@@ -17,8 +17,8 @@ EXPONENTIAL_BACKOFF_BASE = 2
 
 SERVICE_SCHEMA = vol.Schema(
     {
-        vol.Required(ATTR_SERVICE): str,
-        vol.Required(ATTR_RETRIES, default=7): int,
+        vol.Required(ATTR_SERVICE): cv.string,
+        vol.Required(ATTR_RETRIES, default=7): cv.positive_int,
     },
     extra=vol.ALLOW_EXTRA,
 )
@@ -30,13 +30,22 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
     async def async_call(service_call: ServiceCall) -> None:
         """Call service with background retries."""
         data = service_call.data.copy()
+
         retry_service = template.Template(data[ATTR_SERVICE], hass).async_render(
             parse_result=False
         )
-        domain, service = retry_service.split(".")
+        domain, service = retry_service.lower().split(".")
         del data[ATTR_SERVICE]
+        if not hass.services.has_service(domain, service):
+            raise ServiceNotFound(domain, service)
+
         max_retries = data[ATTR_RETRIES]
         del data[ATTR_RETRIES]
+
+        schema = hass.services.async_services()[domain][service].schema
+        if schema:
+            schema(data)
+
         retries = 1
         delay = 1
         call = f"{domain}.{service}(data={data})"
