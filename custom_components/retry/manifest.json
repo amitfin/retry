@@ -4,6 +4,7 @@
   "codeowners": [
     "@amitfin"
   ],
+  "config_flow": true,
   "documentation": "https://github.com/amitfin/retry",
   "integration_type": "service",
   "iot_class": "calculated",

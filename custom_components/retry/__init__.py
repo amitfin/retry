@@ -3,12 +3,12 @@ from __future__ import annotations
 
 import datetime
 import voluptuous as vol
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_SERVICE, STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import InvalidStateError, ServiceNotFound
 from homeassistant.helpers import config_validation as cv, event, template
 from homeassistant.helpers.service import async_extract_referenced_entity_ids
-from homeassistant.helpers.typing import ConfigType
 import homeassistant.util.dt as dt_util
 
 from .const import ATTR_RETRIES, DOMAIN, LOGGER, SERVICE
@@ -24,7 +24,7 @@ SERVICE_SCHEMA = vol.Schema(
 )
 
 
-async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
+async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
     """Set up domain."""
 
     async def async_call(service_call: ServiceCall) -> None:
@@ -91,5 +91,10 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
         await async_retry()
 
     hass.services.async_register(DOMAIN, SERVICE, async_call, SERVICE_SCHEMA)
+    return True
 
+
+async def async_unload_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
+    """Unload a config entry."""
+    hass.services.async_remove(DOMAIN, SERVICE)
     return True
