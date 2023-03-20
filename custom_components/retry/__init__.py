@@ -4,10 +4,11 @@ from __future__ import annotations
 import datetime
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import ATTR_SERVICE, STATE_UNAVAILABLE, STATE_UNKNOWN
+from homeassistant.const import ATTR_SERVICE
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import InvalidStateError, ServiceNotFound
 from homeassistant.helpers import config_validation as cv, event, template
+from homeassistant.helpers.entity_component import DATA_INSTANCES
 from homeassistant.helpers.service import async_extract_referenced_entity_ids
 import homeassistant.util.dt as dt_util
 
@@ -54,10 +55,17 @@ async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
 
         async def async_check_entities_avaliability() -> None:
             """Verify that all entities are avaliable."""
-            for entity in service_entities:
-                state = hass.states.get(entity)
-                if state is None or state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
-                    raise InvalidStateError(f"{entity} is not avaliable")
+            for entity_id in service_entities:
+                available = False
+                entity_domain = entity_id.split(".")[0]
+                if (
+                    entity_comp := hass.data.get(DATA_INSTANCES, {}).get(entity_domain)
+                ) is not None and (
+                    entity_obj := entity_comp.get_entity(entity_id)
+                ) is not None:
+                    available = entity_obj.available
+                if not available:
+                    raise InvalidStateError(f"{entity_id} is not available")
 
         @callback
         async def async_retry(*_) -> bool:
@@ -101,6 +109,6 @@ async def async_unload_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
 
 def exception_string(ex: Exception):
     """Convert exception to string, including exception chaining."""
-    return f"{ex.__class__.__name__}: {ex}" + (
+    return f"({ex.__class__.__name__}) {ex}" + (
         f" [from] {exception_string(ex.__cause__)}" if ex.__cause__ else ""
     )

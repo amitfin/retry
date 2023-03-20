@@ -28,9 +28,10 @@ async def async_setup(hass: HomeAssistant, raises: bool = True) -> list[ServiceC
     config_entry = MockConfigEntry(domain=DOMAIN)
     config_entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(config_entry.entry_id)
+    assert await async_setup_component(
+        hass, "script", {"script": {"test": {"sequence": []}}}
+    )
     await hass.async_block_till_done()
-
-    assert await async_setup_component(hass, "sun", {})
 
     calls = []
 
@@ -66,7 +67,7 @@ async def test_success(hass: HomeAssistant, freezer) -> None:
     now = datetime.datetime.fromisoformat("2000-01-01")
     freezer.move_to(now)
     calls = await async_setup(hass, False)
-    await async_call(hass, {ATTR_ENTITY_ID: ["sun.sun", "sun.sun"]})
+    await async_call(hass, {ATTR_ENTITY_ID: ["script.test", "script.test"]})
     now += datetime.timedelta(hours=1)
     freezer.move_to(now)
     async_fire_time_changed(hass)
@@ -98,15 +99,15 @@ async def test_failure(hass: HomeAssistant, freezer, retries) -> None:
     assert len(calls) == retries
 
 
-async def test_entity_unavaliable(
+async def test_entity_unavailable(
     hass: HomeAssistant,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test entity is not avaliable."""
-    entity = "sun.moon"
+    entity = "script.invalid"
     await async_setup(hass, False)
     await async_call(hass, {ATTR_ENTITY_ID: entity})
-    assert f"{entity} is not avaliable" in caplog.text
+    assert f"{entity} is not available" in caplog.text
 
 
 async def test_template(
