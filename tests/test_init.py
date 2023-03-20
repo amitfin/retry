@@ -103,7 +103,7 @@ async def test_entity_unavailable(
     hass: HomeAssistant,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test entity is not avaliable."""
+    """Test entity is not available."""
     entity = "script.invalid"
     await async_setup(hass, False)
     await async_call(hass, {ATTR_ENTITY_ID: entity})

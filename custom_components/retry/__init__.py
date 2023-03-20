@@ -53,8 +53,8 @@ async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
         call = f"{domain}.{service}(data={service_data})"
         LOGGER.debug("Calling: %s", call)
 
-        async def async_check_entities_avaliability() -> None:
-            """Verify that all entities are avaliable."""
+        async def async_check_entities_availability() -> None:
+            """Verify that all entities are available."""
             for entity_id in service_entities:
                 available = False
                 entity_domain = entity_id.split(".")[0]
@@ -77,7 +77,7 @@ async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
                 await hass.services.async_call(
                     domain, service, service_data.copy(), True, service_call.context
                 )
-                await async_check_entities_avaliability()
+                await async_check_entities_availability()
                 LOGGER.debug("Succeeded: %s", call)
                 return
             except Exception as ex:  # pylint: disable=broad-except
