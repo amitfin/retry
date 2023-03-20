@@ -4,7 +4,7 @@ from __future__ import annotations
 import datetime
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import ATTR_SERVICE, STATE_UNAVAILABLE
+from homeassistant.const import ATTR_SERVICE, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import InvalidStateError, ServiceNotFound
 from homeassistant.helpers import config_validation as cv, event, template
@@ -29,34 +29,34 @@ async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
 
     async def async_call(service_call: ServiceCall) -> None:
         """Call service with background retries."""
-        data = service_call.data.copy()
+        entities = async_extract_referenced_entity_ids(hass, service_call)
+        service_entities = entities.referenced | entities.indirectly_referenced
 
-        retry_service = template.Template(data[ATTR_SERVICE], hass).async_render(
-            parse_result=False
-        )
+        service_data = service_call.data.copy()
+        retry_service = template.Template(
+            service_data[ATTR_SERVICE], hass
+        ).async_render(parse_result=False)
         domain, service = retry_service.lower().split(".")
-        del data[ATTR_SERVICE]
+        del service_data[ATTR_SERVICE]
         if not hass.services.has_service(domain, service):
             raise ServiceNotFound(domain, service)
-
-        max_retries = data[ATTR_RETRIES]
-        del data[ATTR_RETRIES]
+        max_retries = service_data[ATTR_RETRIES]
+        del service_data[ATTR_RETRIES]
 
         schema = hass.services.async_services()[domain][service].schema
         if schema:
-            schema(data)
+            schema(service_data)
 
         retries = 1
         delay = 1
-        call = f"{domain}.{service}(data={data})"
+        call = f"{domain}.{service}(data={service_data})"
         LOGGER.debug("Calling: %s", call)
 
         async def async_check_entities_avaliability() -> None:
             """Verify that all entities are avaliable."""
-            entities = async_extract_referenced_entity_ids(hass, service_call)
-            for entity in entities.referenced | entities.indirectly_referenced:
+            for entity in service_entities:
                 state = hass.states.get(entity)
-                if state is None or state.state == STATE_UNAVAILABLE:
+                if state is None or state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
                     raise InvalidStateError(f"{entity} is not avaliable")
 
         @callback
@@ -67,18 +67,17 @@ async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
             nonlocal delay
             try:
                 await hass.services.async_call(
-                    domain, service, data, True, service_call.context
+                    domain, service, service_data.copy(), True, service_call.context
                 )
                 await async_check_entities_avaliability()
                 LOGGER.debug("Succeeded: %s", call)
                 return
             except Exception as ex:  # pylint: disable=broad-except
                 LOGGER.warning(
-                    "%s attempt #%d failed: (%s) %s",
+                    "%s attempt #%d failed: %s",
                     call,
                     retries,
-                    ex.__class__.__name__,
-                    ex,
+                    exception_string(ex),
                 )
             if retries == max_retries:
                 LOGGER.error("Failed: %s", call)
@@ -98,3 +97,10 @@ async def async_unload_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
     """Unload a config entry."""
     hass.services.async_remove(DOMAIN, SERVICE)
     return True
+
+
+def exception_string(ex: Exception):
+    """Convert exception to string, including exception chaining."""
+    return f"{ex.__class__.__name__}: {ex}" + (
+        f" [from] {exception_string(ex.__cause__)}" if ex.__cause__ else ""
+    )
