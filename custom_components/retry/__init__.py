@@ -56,15 +56,13 @@ async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
         async def async_check_entities_availability() -> None:
             """Verify that all entities are available."""
             for entity_id in service_entities:
-                available = False
-                entity_domain = entity_id.split(".")[0]
+                ent_domain = entity_id.split(".")[0]
                 if (
-                    entity_comp := hass.data.get(DATA_INSTANCES, {}).get(entity_domain)
-                ) is not None and (
-                    entity_obj := entity_comp.get_entity(entity_id)
-                ) is not None:
-                    available = entity_obj.available
-                if not available:
+                    (entity_comp := hass.data.get(DATA_INSTANCES, {}).get(ent_domain))
+                    is None
+                    or (entity_obj := entity_comp.get_entity(entity_id)) is None
+                    or not entity_obj.available
+                ):
                     raise InvalidStateError(f"{entity_id} is not available")
 
         @callback
