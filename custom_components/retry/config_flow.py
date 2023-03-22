@@ -22,6 +22,10 @@ class RetryConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is None:
             return self.async_show_form(step_id="user")
 
+        return await self.async_step_import()
+
+    async def async_step_import(self, _=None):
+        """Occurs when an entry is setup through config."""
         return self.async_create_entry(
             title=DOMAIN.title(),
             data={},

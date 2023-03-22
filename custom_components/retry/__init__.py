@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import datetime
 import voluptuous as vol
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
 from homeassistant.const import ATTR_SERVICE
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import (
@@ -14,6 +14,7 @@ from homeassistant.exceptions import (
 from homeassistant.helpers import config_validation as cv, event, template
 from homeassistant.helpers.entity_component import DATA_INSTANCES
 from homeassistant.helpers.service import async_extract_referenced_entity_ids
+from homeassistant.helpers.typing import ConfigType
 import homeassistant.util.dt as dt_util
 
 from .const import ATTR_RETRIES, DOMAIN, LOGGER, SERVICE
@@ -104,6 +105,17 @@ async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
         await async_retry()
 
     hass.services.async_register(DOMAIN, SERVICE, async_call, SERVICE_SCHEMA)
+    return True
+
+
+async def async_setup(hass: HomeAssistant, _: ConfigType) -> bool:
+    """Create config entry from configuration.yaml."""
+    if not hass.config_entries.async_entries(DOMAIN):
+        hass.async_create_task(
+            hass.config_entries.flow.async_init(
+                DOMAIN, context={"source": SOURCE_IMPORT}
+            )
+        )
     return True
 
 
