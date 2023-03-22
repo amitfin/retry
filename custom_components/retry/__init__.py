@@ -6,7 +6,11 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_SERVICE
 from homeassistant.core import HomeAssistant, ServiceCall, callback
-from homeassistant.exceptions import InvalidStateError, ServiceNotFound
+from homeassistant.exceptions import (
+    HomeAssistantError,
+    InvalidStateError,
+    ServiceNotFound,
+)
 from homeassistant.helpers import config_validation as cv, event, template
 from homeassistant.helpers.entity_component import DATA_INSTANCES
 from homeassistant.helpers.service import async_extract_referenced_entity_ids
@@ -72,18 +76,22 @@ async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
             nonlocal retries
             nonlocal delay
             try:
-                await hass.services.async_call(
-                    domain, service, service_data.copy(), True, service_call.context
-                )
+                if (
+                    await hass.services.async_call(
+                        domain, service, service_data.copy(), True, service_call.context
+                    )
+                    is False
+                ):
+                    raise HomeAssistantError("ServiceRegistry.async_call failed")
                 await async_check_entities_availability()
                 LOGGER.debug("Succeeded: %s", call)
                 return
-            except Exception as ex:  # pylint: disable=broad-except
+            except Exception:  # pylint: disable=broad-except
                 LOGGER.warning(
-                    "%s attempt #%d failed: %s",
+                    "%s attempt #%d failed",
                     call,
                     retries,
-                    exception_string(ex),
+                    exc_info=True,
                 )
             if retries == max_retries:
                 LOGGER.error("Failed: %s", call)
@@ -103,10 +111,3 @@ async def async_unload_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
     """Unload a config entry."""
     hass.services.async_remove(DOMAIN, SERVICE)
     return True
-
-
-def exception_string(ex: Exception):
-    """Convert exception to string, including exception chaining."""
-    return f"({ex.__class__.__name__}) {ex}" + (
-        f" [from] {exception_string(ex.__cause__)}" if ex.__cause__ else ""
-    )
