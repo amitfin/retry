@@ -157,7 +157,7 @@ async def test_unload(hass: HomeAssistant) -> None:
 
 
 async def test_configuration_yaml(hass: HomeAssistant) -> None:
-    """Test initialization via configuration.yaml"""
+    """Test initialization via configuration.yaml."""
     assert not hass.services.has_service(DOMAIN, SERVICE)
     assert await async_setup_component(hass, DOMAIN, {})
     await hass.async_block_till_done()
