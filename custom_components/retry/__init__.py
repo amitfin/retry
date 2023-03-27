@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import datetime
 import voluptuous as vol
+from homeassistant.components.group import DOMAIN as GROUP_DOMAIN
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
-from homeassistant.const import ATTR_SERVICE
+from homeassistant.const import ATTR_ENTITY_ID, ATTR_SERVICE
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import (
     HomeAssistantError,
@@ -12,7 +13,7 @@ from homeassistant.exceptions import (
     ServiceNotFound,
 )
 from homeassistant.helpers import config_validation as cv, event, template
-from homeassistant.helpers.entity_component import DATA_INSTANCES
+from homeassistant.helpers.entity_component import DATA_INSTANCES, entity
 from homeassistant.helpers.service import async_extract_referenced_entity_ids
 from homeassistant.helpers.typing import ConfigType
 import homeassistant.util.dt as dt_util
@@ -33,10 +34,40 @@ SERVICE_SCHEMA = vol.Schema(
 async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
     """Set up domain."""
 
+    def get_entity(entity_id: str) -> entity.Entity | None:
+        """Get entity object."""
+        entity_domain = entity_id.split(".")[0]
+        entity_comp = hass.data.get(DATA_INSTANCES, {}).get(entity_domain)
+        return entity_comp.get_entity(entity_id) if entity_comp else None
+
+    def expand_group(entity_id: str) -> list[str]:
+        """Return group memeber ids (when a group)."""
+        entity_ids = []
+        entity_obj = get_entity(entity_id)
+        if (
+            entity_obj is not None
+            and entity_obj.platform is not None
+            and entity_obj.platform.platform_name == GROUP_DOMAIN
+        ):
+            for member_id in entity_obj.extra_state_attributes.get(ATTR_ENTITY_ID, []):
+                entity_ids.extend(expand_group(member_id))
+        else:
+            entity_ids.append(entity_id)
+        return entity_ids
+
+    def service_entity_ids(service_call: ServiceCall) -> list[str]:
+        """Get entity ids for a service call."""
+        entity_ids = []
+        service_entities = async_extract_referenced_entity_ids(hass, service_call)
+        for entity_id in (
+            service_entities.referenced | service_entities.indirectly_referenced
+        ):
+            entity_ids.extend(expand_group(entity_id))
+        return entity_ids
+
     async def async_call(service_call: ServiceCall) -> None:
         """Call service with background retries."""
-        entities = async_extract_referenced_entity_ids(hass, service_call)
-        service_entities = entities.referenced | entities.indirectly_referenced
+        service_entities = service_entity_ids(service_call)
 
         service_data = service_call.data.copy()
         retry_service = template.Template(
@@ -61,13 +92,7 @@ async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
         async def async_check_entities_availability() -> None:
             """Verify that all entities are available."""
             for entity_id in service_entities:
-                ent_domain = entity_id.split(".")[0]
-                if (
-                    (entity_comp := hass.data.get(DATA_INSTANCES, {}).get(ent_domain))
-                    is None
-                    or (entity_obj := entity_comp.get_entity(entity_id)) is None
-                    or not entity_obj.available
-                ):
+                if (ent_obj := get_entity(entity_id)) is None or not ent_obj.available:
                     raise InvalidStateError(f"{entity_id} is not available")
 
         @callback

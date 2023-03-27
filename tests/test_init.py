@@ -11,6 +11,8 @@ from homeassistant.const import (
     ATTR_ENTITY_ID,
     ATTR_SERVICE,
     CONF_ENTITIES,
+    CONF_NAME,
+    CONF_PLATFORM,
 )
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import ServiceNotFound
@@ -126,6 +128,27 @@ async def test_group_entity_unavailable(
     )
     await hass.async_block_till_done()
     await async_call(hass, {ATTR_ENTITY_ID: "group.test"})
+    assert f"{entity} is not available" in caplog.text
+
+
+async def test_group_platform_entity_unavailable(
+    hass: HomeAssistant,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test entity is not available."""
+    entity = "light.invalid"
+    await async_setup(hass, False)
+    assert await async_setup_component(
+        hass,
+        "light",
+        {
+            "light": [
+                {CONF_NAME: "test", CONF_PLATFORM: "group", CONF_ENTITIES: [entity]}
+            ]
+        },
+    )
+    await hass.async_block_till_done()
+    await async_call(hass, {ATTR_ENTITY_ID: "light.test"})
     assert f"{entity} is not available" in caplog.text
 
 
