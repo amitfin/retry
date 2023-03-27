@@ -7,7 +7,11 @@ import voluptuous as vol
 
 import pytest
 
-from homeassistant.const import ATTR_ENTITY_ID, ATTR_SERVICE
+from homeassistant.const import (
+    ATTR_ENTITY_ID,
+    ATTR_SERVICE,
+    CONF_ENTITIES,
+)
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import ServiceNotFound
 from homeassistant.helpers import config_validation as cv
@@ -107,6 +111,21 @@ async def test_entity_unavailable(
     entity = "script.invalid"
     await async_setup(hass, False)
     await async_call(hass, {ATTR_ENTITY_ID: entity})
+    assert f"{entity} is not available" in caplog.text
+
+
+async def test_group_entity_unavailable(
+    hass: HomeAssistant,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test entity is not available."""
+    entity = "light.invalid"
+    await async_setup(hass, False)
+    assert await async_setup_component(
+        hass, "group", {"group": {"test": {CONF_ENTITIES: [entity]}}}
+    )
+    await hass.async_block_till_done()
+    await async_call(hass, {ATTR_ENTITY_ID: "group.test"})
     assert f"{entity} is not available" in caplog.text
 
 
