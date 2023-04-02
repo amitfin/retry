@@ -13,7 +13,8 @@ from homeassistant.exceptions import (
     ServiceNotFound,
 )
 from homeassistant.helpers import config_validation as cv, event, template
-from homeassistant.helpers.entity_component import DATA_INSTANCES, entity
+from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.entity_component import DATA_INSTANCES
 from homeassistant.helpers.service import async_extract_referenced_entity_ids
 from homeassistant.helpers.typing import ConfigType
 import homeassistant.util.dt as dt_util
@@ -34,7 +35,7 @@ SERVICE_SCHEMA = vol.Schema(
 async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
     """Set up domain."""
 
-    def get_entity(entity_id: str) -> entity.Entity | None:
+    def get_entity(entity_id: str) -> Entity | None:
         """Get entity object."""
         entity_domain = entity_id.split(".")[0]
         entity_comp = hass.data.get(DATA_INSTANCES, {}).get(entity_domain)
