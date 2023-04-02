@@ -103,6 +103,8 @@ async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
             nonlocal retries
             nonlocal delay
             try:
+                if retries > 1:
+                    LOGGER.info("Calling: %s", call)
                 if (
                     await hass.services.async_call(
                         domain, service, service_data.copy(), True, service_call.context
@@ -111,7 +113,10 @@ async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
                 ):
                     raise HomeAssistantError("ServiceRegistry.async_call failed")
                 await async_check_entities_availability()
-                LOGGER.debug("Succeeded: %s", call)
+                if retries == 1:
+                    LOGGER.debug("Succeeded: %s", call)
+                else:
+                    LOGGER.info("Succeeded: %s", call)
                 return
             except Exception:  # pylint: disable=broad-except
                 LOGGER.warning(
