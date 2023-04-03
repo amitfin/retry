@@ -40,14 +40,14 @@ target:
 ```
 The `retries` parameter is not passed to the inner service call.
 
-The service implements exponential backoff mechanism. This is the delay times of the first 7 attempts: [0, 1, 2, 4, 8, 16, 32] (each delay is twice than the previous one). The following are the offsets from the initial call [0, 1, 3, 7, 15, 31, 63].
+The service implements exponential backoff mechanism. These are the delay times of the first 7 attempts: [0, 1, 2, 4, 8, 16, 32] (each delay is twice than the previous one). The following are the offsets from the initial call [0, 1, 3, 7, 15, 31, 63].
 
 Notes:
 1. The service does not propagate inner service failures (exceptions) since the retries are done in the background. However, the service logs a warning when the inner function fails (on every attempt). It also logs an error when the maximum amount of retries is reached.
 2. This service can be used for absolute state changes (like turning on the lights). But it has limitations by nature. For example, it shouldn't be used for sequence of actions, when the order matters.
 
 ## Install
-[HACS custom repositories](https://hacs.xyz/docs/faq/custom_repositories/) is the preferred and easier way to install the component.
+HACS is the preferred and easier way to install the component, and can be done via [this link](https://my.home-assistant.io/redirect/hacs_repository/?owner=amitfin&repository=retry&category=integration).
 
 Otherwise, download `retry.zip` from the [latest release](https://github.com/amitfin/retry/releases), extract and copy the content under `custom_components`.
 
@@ -56,6 +56,8 @@ Home Assistant restart is required once the integration files were copied (eithe
 Adding Retry integration to your Home Assistant instance can be done via the user interface, by using this My button:
 
 [![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=retry)
+
+It's also possible to add the integration via `configuration.yaml` by adding the single line `retry:`.
 
 ## Contributions are welcome!
 
