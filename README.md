@@ -27,7 +27,7 @@ It's possible to add any other data parameters needed by the inner service call.
 
 The inner service call will get called again if one of the following happens:
 1. The inner service call raised an exception.
-2. One of the target entitles is unavailable.
+2. One of the target entities is unavailable. Note that this is important since HA silently skips unavailable entities ([here](https://github.com/home-assistant/core/blob/580b20b0a83c561986e7571b83df4a4bcb158392/homeassistant/helpers/service.py#L763)).
 
 By default there are 7 retries. It can be changed by passing the optional parameter `retries`:
 ```
