@@ -24,7 +24,12 @@ from pytest_homeassistant_custom_component.common import (
     async_fire_time_changed,
 )
 
-from custom_components.retry.const import ATTR_RETRIES, DOMAIN, SERVICE
+from custom_components.retry.const import (
+    ATTR_EXPECTED_STATE,
+    ATTR_RETRIES,
+    DOMAIN,
+    SERVICE,
+)
 
 TEST_SERVICE = "test_service"
 
@@ -65,7 +70,7 @@ async def async_setup(hass: HomeAssistant, raises: bool = True) -> list[ServiceC
 async def async_call(hass: HomeAssistant, data: dict[str, Any]) -> None:
     """Call a service via the retry service."""
     data[ATTR_SERVICE] = f"{DOMAIN}.{TEST_SERVICE}"
-    await hass.services.async_call(DOMAIN, SERVICE, data, True)
+    assert await hass.services.async_call(DOMAIN, SERVICE, data, True)
 
 
 async def test_success(hass: HomeAssistant, freezer) -> None:
@@ -114,6 +119,25 @@ async def test_entity_unavailable(
     await async_setup(hass, False)
     await async_call(hass, {ATTR_ENTITY_ID: entity})
     assert f"{entity} is not available" in caplog.text
+
+
+async def test_entity_wrong_state(
+    hass: HomeAssistant,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test entity has the wrong state."""
+    await async_setup(hass, False)
+    assert await hass.services.async_call(
+        DOMAIN,
+        SERVICE,
+        {
+            ATTR_SERVICE: "script.turn_off",
+            ATTR_ENTITY_ID: "script.test",
+            ATTR_EXPECTED_STATE: "{{ 'on' }}",
+        },
+        True,
+    )
+    assert 'script.test state is "off" but expecting "on"' in caplog.text
 
 
 async def test_group_entity_unavailable(

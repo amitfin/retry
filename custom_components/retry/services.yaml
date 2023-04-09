@@ -20,3 +20,10 @@ call:
           max: 100
           unit_of_measurement: retries
           mode: box
+    expected_state:
+      name: Expected State
+      description: The expected state of the entities after the service call.
+      advanced: true
+      example: "on"
+      selector:
+        text:

@@ -19,7 +19,7 @@ from homeassistant.helpers.service import async_extract_referenced_entity_ids
 from homeassistant.helpers.typing import ConfigType
 import homeassistant.util.dt as dt_util
 
-from .const import ATTR_RETRIES, DOMAIN, LOGGER, SERVICE
+from .const import ATTR_EXPECTED_STATE, ATTR_RETRIES, DOMAIN, LOGGER, SERVICE
 
 EXPONENTIAL_BACKOFF_BASE = 2
 
@@ -27,6 +27,7 @@ SERVICE_SCHEMA = vol.Schema(
     {
         vol.Required(ATTR_SERVICE): cv.string,
         vol.Required(ATTR_RETRIES, default=7): cv.positive_int,
+        vol.Optional(ATTR_EXPECTED_STATE): cv.string,
     },
     extra=vol.ALLOW_EXTRA,
 )
@@ -80,6 +81,12 @@ async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
             raise ServiceNotFound(domain, service)
         max_retries = service_data[ATTR_RETRIES]
         del service_data[ATTR_RETRIES]
+        expected_state = service_data.get(ATTR_EXPECTED_STATE)
+        if expected_state:
+            expected_state = template.Template(expected_state, hass).async_render(
+                parse_result=False
+            )
+            del service_data[ATTR_EXPECTED_STATE]
 
         schema = hass.services.async_services()[domain][service].schema
         if schema:
@@ -92,9 +99,15 @@ async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
 
         async def async_check_entities_availability() -> None:
             """Verify that all entities are available."""
+            nonlocal expected_state
             for entity_id in service_entities:
                 if (ent_obj := get_entity(entity_id)) is None or not ent_obj.available:
                     raise InvalidStateError(f"{entity_id} is not available")
+                if expected_state:
+                    if (state := ent_obj.state) != expected_state:
+                        raise InvalidStateError(
+                            f'{entity_id} state is "{state}" but expecting "{expected_state}"'
+                        )
 
         @callback
         async def async_retry(*_) -> bool:
