@@ -6,7 +6,7 @@
 
 ![Project Maintenance](https://img.shields.io/badge/maintainer-Amit%20Finkelstein-blue.svg?style=for-the-badge)
 
-The integration implements a single custom service `retry.call`. This service warps an inner service call with background retries on failure. It can be useful and mitigate intermediate issues of connectivity or invalid device state.
+The integration implements a single custom service `retry.call`. This service warps an inner service call with background retries on failure. It can be useful to mitigate temporary issues of connectivity or invalid device states.
 
 For example, instead of:
 ```
