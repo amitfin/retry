@@ -25,7 +25,7 @@ target:
   entity_id: light.kitchen
 ```
 
-It's possible to add any other data parameters needed by the inner service call.
+The `service` parameter (inside the `data` section) supports templates. It's possible to add any other data parameters needed by the inner service call.
 
 The inner service call will get called again if one of the following happens:
 1. The inner service call raised an exception.
@@ -53,7 +53,7 @@ data:
 target:
   entity_id: light.kitchen
 ```
-If the new state is different than expected, the attempt is considered a failure and the loop of retries continues. The `expected_state` parameter is not passed to the inner service call.
+If the new state is different than expected, the attempt is considered a failure and the loop of retries continues.  The `expected_state` parameter supports templates, and is not passed to the inner service call.
 
 Notes:
 1. The service does not propagate inner service failures (exceptions) since the retries are done in the background. However, the service logs a warning when the inner function fails (on every attempt). It also logs an error when the maximum amount of retries is reached.
