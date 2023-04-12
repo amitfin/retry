@@ -1,0 +1,12 @@
+{
+    "config": {
+        "abort": {
+            "single_instance_allowed": "Já se encontra configurado.Só é permitida uma única instância"
+        },
+        "step": {
+            "user": {
+                "description": "Deseja começar a configuração?"
+            }
+        }
+    }
+}
