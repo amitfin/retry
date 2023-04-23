@@ -103,8 +103,8 @@ async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
             expected_state,
         )
 
-        async def async_check_entities_availability() -> None:
-            """Verify that all entities are available."""
+        async def async_check_entities() -> None:
+            """Verify that all entities are available and in the expected state."""
             for entity_id in service_entities:
                 if (ent_obj := get_entity(entity_id)) is None or not ent_obj.available:
                     raise InvalidStateError(f"{entity_id} is not available")
@@ -128,7 +128,7 @@ async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
                     is False
                 ):
                     raise HomeAssistantError("ServiceRegistry.async_call failed")
-                await async_check_entities_availability()
+                await async_check_entities()
                 if retries == 1:
                     LOGGER.debug("Succeeded: %s", call)
                 else:
