@@ -42,7 +42,9 @@ async def async_setup(hass: HomeAssistant, raises: bool = True) -> list[ServiceC
     config_entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(config_entry.entry_id)
     assert await async_setup_component(
-        hass, "script", {"script": {"test": {"sequence": []}}}
+        hass,
+        "template",
+        {"template": {"binary_sensor": [{"name": "test", "state": "{{ True }}"}]}},
     )
     await hass.async_block_till_done()
 
@@ -91,7 +93,9 @@ async def async_call(hass: HomeAssistant, data: dict[str, Any]) -> None:
 async def test_success(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
     """Test success case."""
     calls = await async_setup(hass, False)
-    await async_call(hass, {ATTR_ENTITY_ID: ["script.test", "script.test"]})
+    await async_call(
+        hass, {ATTR_ENTITY_ID: ["binary_sensor.test", "binary_sensor.test"]}
+    )
     await async_shutdown(hass, freezer)
     assert len(calls) == 1
 
@@ -123,7 +127,7 @@ async def test_entity_unavailable(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test entity is not available."""
-    entity = "script.invalid"
+    entity = "binary_sensor.invalid"
     await async_setup(hass, False)
     await async_call(hass, {ATTR_ENTITY_ID: entity})
     assert f"{entity} is not available" in caplog.text
@@ -137,17 +141,14 @@ async def test_entity_wrong_state(
 ) -> None:
     """Test entity has the wrong state."""
     await async_setup(hass, False)
-    assert await hass.services.async_call(
-        DOMAIN,
-        SERVICE,
+    await async_call(
+        hass,
         {
-            ATTR_SERVICE: "script.turn_off",
-            ATTR_ENTITY_ID: "script.test",
-            ATTR_EXPECTED_STATE: "{{ 'on' }}",
+            ATTR_ENTITY_ID: "binary_sensor.test",
+            ATTR_EXPECTED_STATE: "{{ 'off' }}",
         },
-        True,
     )
-    assert 'script.test state is "off" but expecting "on"' in caplog.text
+    assert 'binary_sensor.test state is "on" but expecting "off"' in caplog.text
     await async_shutdown(hass, freezer)
 
 
