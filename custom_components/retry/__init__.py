@@ -120,8 +120,9 @@ async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
                 for key in cv.ENTITY_SERVICE_FIELDS:
                     if key in service_data:
                         del service_data[key]
-                service_entities = list(invalid_entities.keys())
-                service_data[ATTR_ENTITY_ID] = service_entities
+                service_data[ATTR_ENTITY_ID] = service_entities = list(
+                    invalid_entities.keys()
+                )
                 raise InvalidStateError("; ".join(invalid_entities.values()))
 
         @callback
