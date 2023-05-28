@@ -5,10 +5,17 @@ import datetime
 import voluptuous as vol
 from homeassistant.components.group import DOMAIN as GROUP_DOMAIN
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
-from homeassistant.const import ATTR_DOMAIN, ATTR_ENTITY_ID, ATTR_SERVICE
+from homeassistant.const import (
+    ATTR_DOMAIN,
+    ATTR_ENTITY_ID,
+    ATTR_SERVICE,
+    CONF_TARGET,
+    ENTITY_MATCH_ALL,
+)
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import (
     HomeAssistantError,
+    InvalidEntityFormatError,
     InvalidStateError,
     ServiceNotFound,
 )
@@ -64,6 +71,13 @@ async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
         }
         if schema := hass.services.async_services()[domain][service].schema:
             schema(data)
+        if data.get(ATTR_ENTITY_ID) == ENTITY_MATCH_ALL or (
+            CONF_TARGET in data
+            and data[CONF_TARGET].get(ATTR_ENTITY_ID) == ENTITY_MATCH_ALL
+        ):
+            raise InvalidEntityFormatError(
+                f'"{ATTR_ENTITY_ID}={ENTITY_MATCH_ALL}" is not supported'
+            )
         return data
 
     def get_entity(entity_id: str) -> Entity | None:

@@ -15,10 +15,12 @@ from homeassistant.const import (
     CONF_ENTITIES,
     CONF_NAME,
     CONF_PLATFORM,
+    CONF_TARGET,
+    ENTITY_MATCH_ALL,
     ENTITY_MATCH_NONE,
 )
 from homeassistant.core import HomeAssistant, ServiceCall, callback
-from homeassistant.exceptions import ServiceNotFound
+from homeassistant.exceptions import InvalidEntityFormatError, ServiceNotFound
 from homeassistant.helpers import config_validation as cv
 from homeassistant.setup import async_setup_component
 import homeassistant.util.dt as dt_util
@@ -65,8 +67,9 @@ async def async_setup(hass: HomeAssistant, raises: bool = True) -> list[ServiceC
         async_service,
         vol.Schema(
             {
-                vol.Optional(ATTR_ENTITY_ID): cv.entity_ids,
+                vol.Optional(ATTR_ENTITY_ID): vol.Any(cv.entity_ids, ENTITY_MATCH_ALL),
                 vol.Optional(ATTR_DEVICE_ID): cv.string,
+                vol.Optional(CONF_TARGET): cv.TARGET_SERVICE_FIELDS,
             },
         ),
     )
@@ -236,6 +239,20 @@ async def test_invalid_schema(hass: HomeAssistant) -> None:
     await async_setup(hass)
     with pytest.raises(vol.Invalid):
         await async_call(hass, {"invalid_field": ""})
+
+
+async def test_all_entities(hass: HomeAssistant) -> None:
+    """Test selecting all entities."""
+    await async_setup(hass)
+    with pytest.raises(InvalidEntityFormatError):
+        await async_call(hass, {ATTR_ENTITY_ID: ENTITY_MATCH_ALL})
+
+
+async def test_all_entities_in_target(hass: HomeAssistant) -> None:
+    """Test selecting all entities in the target key."""
+    await async_setup(hass)
+    with pytest.raises(InvalidEntityFormatError):
+        await async_call(hass, {CONF_TARGET: {ATTR_ENTITY_ID: ENTITY_MATCH_ALL}})
 
 
 async def test_unload(hass: HomeAssistant) -> None:
