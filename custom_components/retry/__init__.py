@@ -36,6 +36,36 @@ SERVICE_SCHEMA = vol.Schema(
 async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
     """Set up domain."""
 
+    def retry_service_data(service_call: ServiceCall) -> dict[str, any]:
+        data = {}
+        retry_service = template.Template(
+            service_call.data[ATTR_SERVICE], hass
+        ).async_render(parse_result=False)
+        domain, service = retry_service.lower().split(".")
+        if not hass.services.has_service(domain, service):
+            raise ServiceNotFound(domain, service)
+        data[ATTR_DOMAIN] = domain
+        data[ATTR_SERVICE] = service
+        data[ATTR_RETRIES] = service_call.data[ATTR_RETRIES]
+        expected_state = service_call.data.get(ATTR_EXPECTED_STATE)
+        if expected_state:
+            data[ATTR_EXPECTED_STATE] = template.Template(
+                expected_state, hass
+            ).async_render(parse_result=False)
+        return data
+
+    def inner_service_data(
+        service_call: ServiceCall, domain: str, service: str
+    ) -> dict[str, any]:
+        data = {
+            key: value
+            for key, value in service_call.data.items()
+            if key not in [ATTR_SERVICE, ATTR_RETRIES, ATTR_EXPECTED_STATE]
+        }
+        if schema := hass.services.async_services()[domain][service].schema:
+            schema(data)
+        return data
+
     def get_entity(entity_id: str) -> Entity | None:
         """Get entity object."""
         entity_domain = entity_id.split(".")[0]
@@ -66,36 +96,6 @@ async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
         ):
             entity_ids.extend(expand_group(entity_id))
         return entity_ids
-
-    def retry_service_data(service_call: ServiceCall) -> dict[str, any]:
-        data = {}
-        retry_service = template.Template(
-            service_call.data[ATTR_SERVICE], hass
-        ).async_render(parse_result=False)
-        domain, service = retry_service.lower().split(".")
-        if not hass.services.has_service(domain, service):
-            raise ServiceNotFound(domain, service)
-        data[ATTR_DOMAIN] = domain
-        data[ATTR_SERVICE] = service
-        data[ATTR_RETRIES] = service_call.data[ATTR_RETRIES]
-        expected_state = service_call.data.get(ATTR_EXPECTED_STATE)
-        if expected_state:
-            data[ATTR_EXPECTED_STATE] = template.Template(
-                expected_state, hass
-            ).async_render(parse_result=False)
-        return data
-
-    def inner_service_data(
-        service_call: ServiceCall, domain: str, service: str
-    ) -> dict[str, any]:
-        data = {
-            key: value
-            for key, value in service_call.data.items()
-            if key not in [ATTR_SERVICE, ATTR_RETRIES, ATTR_EXPECTED_STATE]
-        }
-        if schema := hass.services.async_services()[domain][service].schema:
-            schema(data)
-        return data
 
     async def async_call(service_call: ServiceCall) -> None:
         """Call service with background retries."""
