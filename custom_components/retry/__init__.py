@@ -105,15 +105,24 @@ async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
 
         async def async_check_entities() -> None:
             """Verify that all entities are available and in the expected state."""
+            nonlocal service_entities
+            invalid_entities = {}
             for entity_id in service_entities:
                 if (ent_obj := get_entity(entity_id)) is None or not ent_obj.available:
-                    raise InvalidStateError(f"{entity_id} is not available")
+                    invalid_entities[entity_id] = f"{entity_id} is not available"
                 if expected_state:
                     await hass.async_block_till_done()
                     if (state := ent_obj.state) != expected_state:
-                        raise InvalidStateError(
-                            f'{entity_id} state is "{state}" but expecting "{expected_state}"'
-                        )
+                        invalid_entities[
+                            entity_id
+                        ] = f'{entity_id} state is "{state}" but expecting "{expected_state}"'
+            if invalid_entities:
+                for key in cv.ENTITY_SERVICE_FIELDS:
+                    if key in service_data:
+                        del service_data[key]
+                service_entities = list(invalid_entities.keys())
+                service_data[ATTR_ENTITY_ID] = service_entities
+                raise InvalidStateError("; ".join(invalid_entities.values()))
 
         @callback
         async def async_retry(*_) -> bool:

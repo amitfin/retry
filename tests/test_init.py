@@ -10,10 +10,12 @@ import pytest
 
 from homeassistant.const import (
     ATTR_ENTITY_ID,
+    ATTR_DEVICE_ID,
     ATTR_SERVICE,
     CONF_ENTITIES,
     CONF_NAME,
     CONF_PLATFORM,
+    ENTITY_MATCH_NONE,
 )
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import ServiceNotFound
@@ -64,7 +66,8 @@ async def async_setup(hass: HomeAssistant, raises: bool = True) -> list[ServiceC
         vol.Schema(
             {
                 vol.Optional(ATTR_ENTITY_ID): cv.entity_ids,
-            }
+                vol.Optional(ATTR_DEVICE_ID): cv.string,
+            },
         ),
     )
 
@@ -126,12 +129,30 @@ async def test_entity_unavailable(
     freezer: FrozenDateTimeFactory,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test entity is not available."""
-    entity = "binary_sensor.invalid"
+    """Test entities are not available."""
+    entities = ["binary_sensor.invalid1", "binary_sensor.invalid2"]
     await async_setup(hass, False)
-    await async_call(hass, {ATTR_ENTITY_ID: entity})
-    assert f"{entity} is not available" in caplog.text
+    await async_call(hass, {ATTR_ENTITY_ID: entities})
+    for entity in entities:
+        assert f"{entity} is not available" in caplog.text
     await async_shutdown(hass, freezer)
+
+
+async def test_selective_retry(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Test retry on part of entities."""
+    entities = ["binary_sensor.test", "binary_sensor.invalid"]
+    calls = await async_setup(hass, False)
+    await async_call(
+        hass, {ATTR_ENTITY_ID: entities, ATTR_DEVICE_ID: ENTITY_MATCH_NONE}
+    )
+    await async_shutdown(hass, freezer)
+    assert calls[0].data[ATTR_ENTITY_ID] == entities
+    assert ATTR_DEVICE_ID in calls[0].data
+    assert calls[1].data[ATTR_ENTITY_ID] == ["binary_sensor.invalid"]
+    assert ATTR_DEVICE_ID not in calls[1].data
 
 
 async def test_entity_wrong_state(
