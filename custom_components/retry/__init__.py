@@ -124,7 +124,7 @@ async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
             for entity_id in service_entities:
                 if (ent_obj := get_entity(entity_id)) is None or not ent_obj.available:
                     invalid_entities[entity_id] = f"{entity_id} is not available"
-                if ATTR_EXPECTED_STATE in retry_data:
+                elif ATTR_EXPECTED_STATE in retry_data:
                     await hass.async_block_till_done()
                     if (state := ent_obj.state) != retry_data[ATTR_EXPECTED_STATE]:
                         invalid_entities[

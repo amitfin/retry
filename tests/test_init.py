@@ -132,7 +132,7 @@ async def test_entity_unavailable(
     """Test entities are not available."""
     entities = ["binary_sensor.invalid1", "binary_sensor.invalid2"]
     await async_setup(hass, False)
-    await async_call(hass, {ATTR_ENTITY_ID: entities})
+    await async_call(hass, {ATTR_ENTITY_ID: entities, ATTR_EXPECTED_STATE: "on"})
     for entity in entities:
         assert f"{entity} is not available" in caplog.text
     await async_shutdown(hass, freezer)
