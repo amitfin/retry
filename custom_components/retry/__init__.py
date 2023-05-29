@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime
+import logging
 import voluptuous as vol
 from homeassistant.components.group import DOMAIN as GROUP_DOMAIN
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
@@ -118,18 +119,8 @@ async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
             service_call, retry_data[ATTR_DOMAIN], retry_data[ATTR_SERVICE]
         )
         service_entities = service_entity_ids(service_call)
-        retries = 1
+        attempt = 1
         delay = 1
-        call = (
-            f"{retry_data[ATTR_DOMAIN]}.{retry_data[ATTR_SERVICE]}(data={inner_data})"
-        )
-        LOGGER.debug(
-            "Calling %s, entity_ids=%s, max_retries=%d, expected_state=%s",
-            call,
-            service_entities,
-            retry_data[ATTR_RETRIES],
-            retry_data.get(ATTR_EXPECTED_STATE),
-        )
 
         async def async_check_entities() -> None:
             """Verify that all entities are available and in the expected state."""
@@ -141,9 +132,10 @@ async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
                 elif ATTR_EXPECTED_STATE in retry_data:
                     await hass.async_block_till_done()
                     if (state := ent_obj.state) != retry_data[ATTR_EXPECTED_STATE]:
-                        invalid_entities[
-                            entity_id
-                        ] = f'{entity_id} state is "{state}" but expecting "{retry_data[ATTR_EXPECTED_STATE]}"'
+                        invalid_entities[entity_id] = (
+                            f'{entity_id} state is "{state}" but '
+                            f'expecting "{retry_data[ATTR_EXPECTED_STATE]}"'
+                        )
             if invalid_entities:
                 for key in cv.ENTITY_SERVICE_FIELDS:
                     if key in inner_data:
@@ -153,16 +145,24 @@ async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
                 )
                 raise InvalidStateError("; ".join(invalid_entities.values()))
 
+        def log(level: int, prefix: str, stack_info: bool = False) -> None:
+            LOGGER.log(
+                level,
+                "[%s]: attempt #%d, retry_data=%s, inner_data=%s, entities=%s",
+                prefix,
+                attempt,
+                retry_data,
+                inner_data,
+                service_entities,
+                exc_info=stack_info,
+            )
+
         @callback
         async def async_retry(*_) -> bool:
             """One service call attempt."""
-            nonlocal retries
+            nonlocal attempt
             nonlocal delay
             try:
-                if retries > 1:
-                    LOGGER.info(
-                        "Calling (%d/%d): %s", retries, retry_data[ATTR_RETRIES], call
-                    )
                 if (
                     await hass.services.async_call(
                         retry_data[ATTR_DOMAIN],
@@ -175,27 +175,21 @@ async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
                 ):
                     raise HomeAssistantError("ServiceRegistry.async_call failed")
                 await async_check_entities()
-                if retries == 1:
-                    LOGGER.debug("Succeeded: %s", call)
-                else:
-                    LOGGER.info(
-                        "Succeeded (%d/%d): %s", retries, retry_data[ATTR_RETRIES], call
-                    )
+                log(logging.DEBUG if attempt == 1 else logging.INFO, "Succeeded")
                 return
             except Exception:  # pylint: disable=broad-except
-                LOGGER.warning(
-                    "%s attempt #%d (of %d) failed",
-                    call,
-                    retries,
-                    retry_data[ATTR_RETRIES],
-                    exc_info=True,
+                log(
+                    logging.WARNING
+                    if attempt < retry_data[ATTR_RETRIES]
+                    else logging.ERROR,
+                    "Failed",
+                    True,
                 )
-            if retries == retry_data[ATTR_RETRIES]:
-                LOGGER.error("Failed: %s", call)
+            if attempt == retry_data[ATTR_RETRIES]:
                 return
             next_retry = dt_util.now() + datetime.timedelta(seconds=delay)
             delay *= EXPONENTIAL_BACKOFF_BASE
-            retries += 1
+            attempt += 1
             event.async_track_point_in_time(hass, async_retry, next_retry)
 
         await async_retry()
