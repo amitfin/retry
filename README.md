@@ -29,7 +29,7 @@ The `service` parameter (inside the `data` section) supports templates. It's pos
 
 The inner service call will get called again if one of the following happens:
 1. The inner service call raised an exception.
-2. One of the target entities is unavailable. Note that this is important since HA silently skips unavailable entities ([here](https://github.com/home-assistant/core/blob/580b20b0a83c561986e7571b83df4a4bcb158392/homeassistant/helpers/service.py#L763)).
+2. The target entity is unavailable. Note that this is important since HA silently skips unavailable entities ([here](https://github.com/home-assistant/core/blob/580b20b0a83c561986e7571b83df4a4bcb158392/homeassistant/helpers/service.py#L763)).
 
 By default there are 7 retries. It can be changed by passing the optional parameter `retries`:
 ```
@@ -58,6 +58,7 @@ If the new state is different than expected, the attempt is considered a failure
 Notes:
 1. The service does not propagate inner service failures (exceptions) since the retries are done in the background. However, the service logs a warning when the inner function fails (on every attempt). It also logs an error when the maximum amount of retries is reached.
 2. This service can be used for absolute state changes (like turning on the lights). But it has limitations by nature. For example, it shouldn't be used for sequence of actions, when the order matters.
+3. Retries are called only on invalid entities when the failure is because of entity's unavailability or unexpected state. Valid entities are removed before calling the inner service.
 
 ## Install
 HACS is the preferred and easier way to install the component, and can be done by using this My button:
