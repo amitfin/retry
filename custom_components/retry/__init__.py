@@ -1,6 +1,7 @@
 """Retry integration."""
 from __future__ import annotations
 
+import asyncio
 import datetime
 import logging
 import voluptuous as vol
@@ -30,6 +31,7 @@ import homeassistant.util.dt as dt_util
 from .const import ATTR_EXPECTED_STATE, ATTR_RETRIES, DOMAIN, LOGGER, SERVICE
 
 EXPONENTIAL_BACKOFF_BASE = 2
+GRACE_PERIOD_FOR_STATE_UPDATE = 0.2
 
 SERVICE_SCHEMA = vol.Schema(
     {
@@ -126,16 +128,21 @@ async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
             """Verify that all entities are available and in the expected state."""
             nonlocal service_entities
             invalid_entities = {}
+            grace_period_for_state_update = False
             for entity_id in service_entities:
                 if (ent_obj := get_entity(entity_id)) is None or not ent_obj.available:
                     invalid_entities[entity_id] = f"{entity_id} is not available"
                 elif ATTR_EXPECTED_STATE in retry_data:
-                    await hass.async_block_till_done()
                     if (state := ent_obj.state) != retry_data[ATTR_EXPECTED_STATE]:
-                        invalid_entities[entity_id] = (
-                            f'{entity_id} state is "{state}" but '
-                            f'expecting "{retry_data[ATTR_EXPECTED_STATE]}"'
-                        )
+                        if not grace_period_for_state_update:
+                            await asyncio.sleep(GRACE_PERIOD_FOR_STATE_UPDATE)
+                            state = ent_obj.state
+                            grace_period_for_state_update = True
+                        if state != retry_data[ATTR_EXPECTED_STATE]:
+                            invalid_entities[entity_id] = (
+                                f'{entity_id} state is "{state}" but '
+                                f'expecting "{retry_data[ATTR_EXPECTED_STATE]}"'
+                            )
             if invalid_entities:
                 for key in cv.ENTITY_SERVICE_FIELDS:
                     if key in inner_data:

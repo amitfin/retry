@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import datetime
 from typing import Any
+from unittest.mock import AsyncMock, patch
 import voluptuous as vol
 
 from freezegun.api import FrozenDateTimeFactory
@@ -158,7 +159,9 @@ async def test_selective_retry(
     assert ATTR_DEVICE_ID not in calls[1].data
 
 
+@patch("custom_components.retry.asyncio.sleep")
 async def test_entity_wrong_state(
+    sleep_mock: AsyncMock,
     hass: HomeAssistant,
     freezer: FrozenDateTimeFactory,
     caplog: pytest.LogCaptureFixture,
@@ -173,6 +176,7 @@ async def test_entity_wrong_state(
         },
     )
     assert 'binary_sensor.test state is "on" but expecting "off"' in caplog.text
+    assert sleep_mock.await_args.args[0] == 0.2
     await async_shutdown(hass, freezer)
 
 
