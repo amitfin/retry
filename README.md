@@ -42,7 +42,7 @@ target:
 ```
 The `retries` parameter is not passed to the inner service call.
 
-The service implements exponential backoff mechanism. These are the delay times of the first 7 attempts: [0, 1, 2, 4, 8, 16, 32] (each delay is twice than the previous one). The following are the offsets from the initial call [0, 1, 3, 7, 15, 31, 63].
+The service implements exponential backoff mechanism. These are the delay times (in seconds) of the first 7 attempts: [0, 1, 2, 4, 8, 16, 32] (each delay is twice than the previous one). The following are the second offsets from the initial call [0, 1, 3, 7, 15, 31, 63].
 
 `expected_state` is another _optional_ parameter which can be used to validate the new state of the entities after the inner service call:
 ```
