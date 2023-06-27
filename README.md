@@ -69,7 +69,7 @@ Otherwise, download `retry.zip` from the [latest release](https://github.com/ami
 
 Home Assistant restart is required once the integration files were copied (either by HACS or manually).
 
-Adding Retry integration to your Home Assistant instance can be done via the user interface, by using this My button:
+The Retry integration should also be added to the configuration in order to use the new cusotm service. This can be done via the user interface, by using this My button:
 
 [![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=retry)
 
