@@ -94,7 +94,7 @@ async def async_shutdown(hass: HomeAssistant, freezer: FrozenDateTimeFactory) ->
 async def async_call(hass: HomeAssistant, data: dict[str, Any]) -> None:
     """Call a service via the retry service."""
     data[ATTR_SERVICE] = f"{DOMAIN}.{TEST_SERVICE}"
-    assert await hass.services.async_call(DOMAIN, SERVICE, data, True)
+    await hass.services.async_call(DOMAIN, SERVICE, data, True)
 
 
 async def test_success(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:

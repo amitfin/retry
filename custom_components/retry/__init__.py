@@ -168,17 +168,14 @@ class RetryCall:
     async def async_retry(self, *_) -> bool:
         """One service call attempt."""
         try:
-            if (
-                await self._hass.services.async_call(
-                    self._retry_data[ATTR_DOMAIN],
-                    self._retry_data[ATTR_SERVICE],
-                    self._inner_data.copy(),
-                    True,
-                    self._service_call.context,
-                )
-                is False
-            ):
-                raise HomeAssistantError("ServiceRegistry.async_call failed")
+            await self._hass.services.async_call(
+                self._retry_data[ATTR_DOMAIN],
+                self._retry_data[ATTR_SERVICE],
+                self._inner_data.copy(),
+                True,
+                self._service_call.context,
+                False,
+            )
             await self._async_check_entities()
             self._log(logging.DEBUG if self._attempt == 1 else logging.INFO, "Succeeded")
             return
