@@ -174,7 +174,6 @@ class RetryCall:
                 self._inner_data.copy(),
                 True,
                 self._service_call.context,
-                False,
             )
             await self._async_check_entities()
             self._log(logging.DEBUG if self._attempt == 1 else logging.INFO, "Succeeded")
