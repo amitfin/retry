@@ -16,7 +16,6 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import (
-    HomeAssistantError,
     InvalidEntityFormatError,
     InvalidStateError,
     ServiceNotFound,
