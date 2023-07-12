@@ -171,7 +171,7 @@ async def test_selective_retry_individually(
         hass, {ATTR_ENTITY_ID: entities, ATTR_DEVICE_ID: ENTITY_MATCH_NONE}
     )
     await async_shutdown(hass, freezer)
-    called_entities = list(map(lambda x: x.data[ATTR_ENTITY_ID], calls))
+    called_entities = [x.data[ATTR_ENTITY_ID] for x in calls]
     assert called_entities.count(["binary_sensor.test"]) == 1
     assert called_entities.count(["binary_sensor.invalid"]) == 7
     assert ATTR_DEVICE_ID not in calls[0].data
@@ -195,7 +195,7 @@ async def test_entity_wrong_state(
     )
     await async_shutdown(hass, freezer)
     assert 'binary_sensor.test state is "on" but expecting "off"' in caplog.text
-    wait_times = list(map(lambda x: x.args[0], sleep_mock.await_args_list))
+    wait_times = [x.args[0] for x in sleep_mock.await_args_list]
     assert wait_times.count(0.2) == 7
 
 
