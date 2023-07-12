@@ -27,7 +27,7 @@ from homeassistant.helpers.service import async_extract_referenced_entity_ids
 from homeassistant.helpers.typing import ConfigType
 import homeassistant.util.dt as dt_util
 
-from .const import ATTR_EXPECTED_STATE, ATTR_RETRIES, DOMAIN, LOGGER, SERVICE
+from .const import ATTR_EXPECTED_STATE, ATTR_INDIVIDUALLY, ATTR_RETRIES, DOMAIN, LOGGER, SERVICE
 
 EXPONENTIAL_BACKOFF_BASE = 2
 GRACE_PERIOD_FOR_STATE_UPDATE = 0.2
@@ -37,51 +37,57 @@ SERVICE_SCHEMA = vol.Schema(
         vol.Required(ATTR_SERVICE): cv.string,
         vol.Required(ATTR_RETRIES, default=7): cv.positive_int,
         vol.Optional(ATTR_EXPECTED_STATE): cv.string,
+        vol.Required(ATTR_INDIVIDUALLY, default=True): cv.boolean,
     },
     extra=vol.ALLOW_EXTRA,
 )
 
-class RetryCall:
-    """Handle a single service call with retries."""
+def get_entity(hass: HomeAssistant, entity_id: str) -> Entity | None:
+    """Get entity object."""
+    entity_domain = entity_id.split(".")[0]
+    entity_comp = hass.data.get(DATA_INSTANCES, {}).get(entity_domain)
+    return entity_comp.get_entity(entity_id) if entity_comp else None
+
+class RetryParams:
+    """Parse and compute input parameters."""
 
     def __init__(self, hass: HomeAssistant, service_call: ServiceCall) -> None:
         """Initialize the object."""
         self._hass = hass
-        self._service_call = service_call
-        self._retry_data = self._retry_service_data()
-        self._inner_data = self._inner_service_data()
-        self._service_entities = self._service_entity_ids()
-        self._attempt = 1
-        self._delay = 1
+        self.service_call = service_call
+        self.retry_data = self._retry_service_data()
+        self.inner_data = self._inner_service_data()
+        self.service_entities = self._service_entity_ids()
 
     def _retry_service_data(self) -> dict[str, any]:
         """Compose retry parameters."""
         data = {}
         retry_service = template.Template(
-            self._service_call.data[ATTR_SERVICE], self._hass
+            self.service_call.data[ATTR_SERVICE], self._hass
         ).async_render(parse_result=False)
         domain, service = retry_service.lower().split(".")
         if not self._hass.services.has_service(domain, service):
             raise ServiceNotFound(domain, service)
         data[ATTR_DOMAIN] = domain
         data[ATTR_SERVICE] = service
-        data[ATTR_RETRIES] = self._service_call.data[ATTR_RETRIES]
-        expected_state = self._service_call.data.get(ATTR_EXPECTED_STATE)
+        data[ATTR_RETRIES] = self.service_call.data[ATTR_RETRIES]
+        expected_state = self.service_call.data.get(ATTR_EXPECTED_STATE)
         if expected_state:
             data[ATTR_EXPECTED_STATE] = template.Template(
                 expected_state, self._hass
             ).async_render(parse_result=False)
+        data[ATTR_INDIVIDUALLY] = self.service_call.data[ATTR_INDIVIDUALLY]
         return data
 
     def _inner_service_data(self) -> dict[str, any]:
         """Compose inner service parameters."""
         data = {
             key: value
-            for key, value in self._service_call.data.items()
-            if key not in [ATTR_SERVICE, ATTR_RETRIES, ATTR_EXPECTED_STATE]
+            for key, value in self.service_call.data.items()
+            if key not in [ATTR_SERVICE, ATTR_RETRIES, ATTR_EXPECTED_STATE, ATTR_INDIVIDUALLY]
         }
-        if schema := self._hass.services.async_services()[self._retry_data[ATTR_DOMAIN]][
-            self._retry_data[ATTR_SERVICE]].schema:
+        if schema := self._hass.services.async_services()[self.retry_data[ATTR_DOMAIN]][
+            self.retry_data[ATTR_SERVICE]].schema:
             schema(data)
         if data.get(ATTR_ENTITY_ID) == ENTITY_MATCH_ALL or (
             CONF_TARGET in data
@@ -92,16 +98,10 @@ class RetryCall:
             )
         return data
 
-    def _get_entity(self, entity_id: str) -> Entity | None:
-        """Get entity object."""
-        entity_domain = entity_id.split(".")[0]
-        entity_comp = self._hass.data.get(DATA_INSTANCES, {}).get(entity_domain)
-        return entity_comp.get_entity(entity_id) if entity_comp else None
-
     def _expand_group(self, entity_id: str) -> list[str]:
         """Return group memeber ids (when a group)."""
         entity_ids = []
-        entity_obj = self._get_entity(entity_id)
+        entity_obj = get_entity(self._hass, entity_id)
         if (
             entity_obj is not None
             and entity_obj.platform is not None
@@ -116,38 +116,57 @@ class RetryCall:
     def _service_entity_ids(self) -> list[str]:
         """Get entity ids for a service call."""
         entity_ids = []
-        service_entities = async_extract_referenced_entity_ids(self._hass, self._service_call)
+        service_entities = async_extract_referenced_entity_ids(self._hass, self.service_call)
         for entity_id in (
             service_entities.referenced | service_entities.indirectly_referenced
         ):
             entity_ids.extend(self._expand_group(entity_id))
         return entity_ids
 
+
+class RetryCall:
+    """Handle a single service call with retries."""
+
+    def __init__(self, hass: HomeAssistant, params: RetryParams, entity: str | None = None) -> None:
+        """Initialize the object."""
+        self._hass = hass
+        self._params = params
+        self._inner_data = params.inner_data.copy()
+        if entity:
+            self._service_entities = [entity]
+            self._set_inner_data_entities()
+        else:
+            self._service_entities = params.service_entities
+        self._attempt = 1
+        self._delay = 1
+
+    def _set_inner_data_entities(self) -> None:
+        for key in cv.ENTITY_SERVICE_FIELDS:
+            if key in self._inner_data:
+                del self._inner_data[key]
+        self._inner_data[ATTR_ENTITY_ID] = self._service_entities
+
     async def _async_check_entities(self) -> None:
         """Verify that all entities are available and in the expected state."""
         invalid_entities = {}
         grace_period_for_state_update = False
         for entity_id in self._service_entities:
-            if (ent_obj := self._get_entity(entity_id)) is None or not ent_obj.available:
+            if (ent_obj := get_entity(self._hass, entity_id)) is None or not ent_obj.available:
                 invalid_entities[entity_id] = f"{entity_id} is not available"
-            elif ATTR_EXPECTED_STATE in self._retry_data:
-                if (state := ent_obj.state) != self._retry_data[ATTR_EXPECTED_STATE]:
+            elif ATTR_EXPECTED_STATE in self._params.retry_data:
+                if (state := ent_obj.state) != self._params.retry_data[ATTR_EXPECTED_STATE]:
                     if not grace_period_for_state_update:
                         await asyncio.sleep(GRACE_PERIOD_FOR_STATE_UPDATE)
                         state = ent_obj.state
                         grace_period_for_state_update = True
-                    if state != self._retry_data[ATTR_EXPECTED_STATE]:
+                    if state != self._params.retry_data[ATTR_EXPECTED_STATE]:
                         invalid_entities[entity_id] = (
                             f'{entity_id} state is "{state}" but '
-                            f'expecting "{self._retry_data[ATTR_EXPECTED_STATE]}"'
+                            f'expecting "{self._params.retry_data[ATTR_EXPECTED_STATE]}"'
                         )
         if invalid_entities:
-            for key in cv.ENTITY_SERVICE_FIELDS:
-                if key in self._inner_data:
-                    del self._inner_data[key]
-            self._inner_data[ATTR_ENTITY_ID] = self._service_entities = list(
-                invalid_entities.keys()
-            )
+            self._service_entities = list(invalid_entities.keys())
+            self._set_inner_data_entities()
             raise InvalidStateError("; ".join(invalid_entities.values()))
 
     def _log(self, level: int, prefix: str, stack_info: bool = False) -> None:
@@ -157,7 +176,7 @@ class RetryCall:
             "[%s]: attempt #%d, retry_data=%s, inner_data=%s, entities=%s",
             prefix,
             self._attempt,
-            self._retry_data,
+            self._params.retry_data,
             self._inner_data,
             self._service_entities,
             exc_info=stack_info,
@@ -168,11 +187,11 @@ class RetryCall:
         """One service call attempt."""
         try:
             await self._hass.services.async_call(
-                self._retry_data[ATTR_DOMAIN],
-                self._retry_data[ATTR_SERVICE],
+                self._params.retry_data[ATTR_DOMAIN],
+                self._params.retry_data[ATTR_SERVICE],
                 self._inner_data.copy(),
                 True,
-                self._service_call.context,
+                self._params.service_call.context,
             )
             await self._async_check_entities()
             self._log(logging.DEBUG if self._attempt == 1 else logging.INFO, "Succeeded")
@@ -180,12 +199,12 @@ class RetryCall:
         except Exception:  # pylint: disable=broad-except
             self._log(
                 logging.WARNING
-                if self._attempt < self._retry_data[ATTR_RETRIES]
+                if self._attempt < self._params.retry_data[ATTR_RETRIES]
                 else logging.ERROR,
                 "Failed",
                 True,
             )
-        if self._attempt == self._retry_data[ATTR_RETRIES]:
+        if self._attempt == self._params.retry_data[ATTR_RETRIES]:
             return
         next_retry = dt_util.now() + datetime.timedelta(seconds=self._delay)
         self._delay *= EXPONENTIAL_BACKOFF_BASE
@@ -198,7 +217,12 @@ async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
 
     async def async_call(service_call: ServiceCall) -> None:
         """Call service with background retries."""
-        await RetryCall(hass, service_call).async_retry()
+        params = RetryParams(hass, service_call)
+        entities = params.service_entities
+        if not params.retry_data[ATTR_INDIVIDUALLY] or len(params.service_entities) <= 1:
+            entities = [None]
+        for entity in entities:
+            hass.async_create_task(RetryCall(hass, params, entity).async_retry())
 
     hass.services.async_register(DOMAIN, SERVICE, async_call, SERVICE_SCHEMA)
     return True

@@ -27,3 +27,11 @@ call:
       example: "on"
       selector:
         text:
+    individually:
+      name: Individually
+      description: Make a separate call per entity.
+      default: true
+      advanced: true
+      example: false
+      selector:
+        boolean:

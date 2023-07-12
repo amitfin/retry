@@ -33,6 +33,7 @@ from pytest_homeassistant_custom_component.common import (
 
 from custom_components.retry.const import (
     ATTR_EXPECTED_STATE,
+    ATTR_INDIVIDUALLY,
     ATTR_RETRIES,
     DOMAIN,
     SERVICE,
@@ -121,6 +122,7 @@ async def test_failure(
     if retries != 7:
         data[ATTR_RETRIES] = retries
     await async_call(hass, data)
+    await hass.async_block_till_done()
     for i in range(20):
         if i < retries:
             assert len(calls) == (i + 1)
@@ -137,12 +139,28 @@ async def test_entity_unavailable(
     entities = ["binary_sensor.invalid1", "binary_sensor.invalid2"]
     await async_setup(hass, False)
     await async_call(hass, {ATTR_ENTITY_ID: entities, ATTR_EXPECTED_STATE: "on"})
+    await async_shutdown(hass, freezer)
     for entity in entities:
         assert f"{entity} is not available" in caplog.text
+
+
+async def test_selective_retry_together(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Test retry on part of entities."""
+    entities = ["binary_sensor.test", "binary_sensor.invalid"]
+    calls = await async_setup(hass, False)
+    await async_call(
+        hass, {ATTR_ENTITY_ID: entities, ATTR_DEVICE_ID: ENTITY_MATCH_NONE, ATTR_INDIVIDUALLY: False}
+    )
     await async_shutdown(hass, freezer)
+    assert calls[0].data[ATTR_ENTITY_ID] == entities
+    assert ATTR_DEVICE_ID in calls[0].data
+    assert calls[1].data[ATTR_ENTITY_ID] == ["binary_sensor.invalid"]
+    assert ATTR_DEVICE_ID not in calls[1].data
 
-
-async def test_selective_retry(
+async def test_selective_retry_individually(
     hass: HomeAssistant,
     freezer: FrozenDateTimeFactory,
 ) -> None:
@@ -153,10 +171,10 @@ async def test_selective_retry(
         hass, {ATTR_ENTITY_ID: entities, ATTR_DEVICE_ID: ENTITY_MATCH_NONE}
     )
     await async_shutdown(hass, freezer)
-    assert calls[0].data[ATTR_ENTITY_ID] == entities
-    assert ATTR_DEVICE_ID in calls[0].data
-    assert calls[1].data[ATTR_ENTITY_ID] == ["binary_sensor.invalid"]
-    assert ATTR_DEVICE_ID not in calls[1].data
+    called_entities = list(map(lambda x: x.data[ATTR_ENTITY_ID], calls))
+    assert called_entities.count(["binary_sensor.test"]) == 1
+    assert called_entities.count(["binary_sensor.invalid"]) == 7
+    assert ATTR_DEVICE_ID not in calls[0].data
 
 
 @patch("custom_components.retry.asyncio.sleep")
@@ -175,9 +193,10 @@ async def test_entity_wrong_state(
             ATTR_EXPECTED_STATE: "{{ 'off' }}",
         },
     )
-    assert 'binary_sensor.test state is "on" but expecting "off"' in caplog.text
-    assert sleep_mock.await_args.args[0] == 0.2
     await async_shutdown(hass, freezer)
+    assert 'binary_sensor.test state is "on" but expecting "off"' in caplog.text
+    wait_times = list(map(lambda x: x.args[0], sleep_mock.await_args_list))
+    assert wait_times.count(0.2) == 7
 
 
 async def test_group_entity_unavailable(
@@ -193,8 +212,8 @@ async def test_group_entity_unavailable(
     )
     await hass.async_block_till_done()
     await async_call(hass, {ATTR_ENTITY_ID: "group.test"})
-    assert f"{entity} is not available" in caplog.text
     await async_shutdown(hass, freezer)
+    assert f"{entity} is not available" in caplog.text
 
 
 async def test_group_platform_entity_unavailable(
@@ -216,8 +235,8 @@ async def test_group_platform_entity_unavailable(
     )
     await hass.async_block_till_done()
     await async_call(hass, {ATTR_ENTITY_ID: "light.test"})
-    assert f"{entity} is not available" in caplog.text
     await async_shutdown(hass, freezer)
+    assert f"{entity} is not available" in caplog.text
 
 
 async def test_template(hass: HomeAssistant) -> None:
@@ -226,6 +245,7 @@ async def test_template(hass: HomeAssistant) -> None:
     await hass.services.async_call(
         DOMAIN, SERVICE, {ATTR_SERVICE: '{{ "retry.test_service" }}'}, True
     )
+    await hass.async_block_till_done()
     assert len(calls) == 1
 
 
