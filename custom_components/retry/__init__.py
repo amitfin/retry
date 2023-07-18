@@ -24,6 +24,7 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import (
+    IntegrationError,
     InvalidEntityFormatError,
     InvalidStateError,
     ServiceNotFound,
@@ -258,10 +259,13 @@ def _wrap_service_calls(sequence: list[dict], retry_params: dict[str, any]) -> N
     for action in sequence:
         match cv.determine_script_action(action):
             case cv.SCRIPT_ACTION_CALL_SERVICE:
-                action[ATTR_DATA] = action.get(ATTR_DATA, {})
-                action[ATTR_DATA][ATTR_SERVICE] = action[ATTR_SERVICE]
-                action[ATTR_DATA].update(retry_params)
-                action[ATTR_SERVICE] = f"{DOMAIN}.{CALL_SERVICE}"
+                if action[ATTR_SERVICE] == f"{DOMAIN}.{ACTIONS_SERVICE}":
+                    raise IntegrationError("Nested retry calls are not allowed.")
+                if action[ATTR_SERVICE] != f"{DOMAIN}.{CALL_SERVICE}":
+                    action[ATTR_DATA] = action.get(ATTR_DATA, {})
+                    action[ATTR_DATA][ATTR_SERVICE] = action[ATTR_SERVICE]
+                    action[ATTR_DATA].update(retry_params)
+                    action[ATTR_SERVICE] = f"{DOMAIN}.{CALL_SERVICE}"
             case cv.SCRIPT_ACTION_REPEAT:
                 _wrap_service_calls(action[CONF_REPEAT][CONF_SEQUENCE], retry_params)
             case cv.SCRIPT_ACTION_CHOOSE:

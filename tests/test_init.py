@@ -9,6 +9,7 @@ import voluptuous as vol
 from freezegun.api import FrozenDateTimeFactory
 import pytest
 
+from homeassistant.components.hassio.const import ATTR_DATA
 from homeassistant.const import (
     ATTR_ENTITY_ID,
     ATTR_DEVICE_ID,
@@ -33,7 +34,11 @@ from homeassistant.const import (
     ENTITY_MATCH_NONE,
 )
 from homeassistant.core import HomeAssistant, ServiceCall, callback
-from homeassistant.exceptions import InvalidEntityFormatError, ServiceNotFound
+from homeassistant.exceptions import (
+    IntegrationError,
+    InvalidEntityFormatError,
+    ServiceNotFound,
+)
 from homeassistant.helpers import config_validation as cv
 from homeassistant.setup import async_setup_component
 import homeassistant.util.dt as dt_util
@@ -466,3 +471,24 @@ async def test_actions_propagating_args(
     )
     await async_shutdown(hass, freezer)
     assert len(calls) == 3
+
+
+async def test_nested_actions(
+    hass: HomeAssistant,
+) -> None:
+    """Test nested actions of retry.actions."""
+    await async_setup(hass)
+    with pytest.raises(IntegrationError):
+        await hass.services.async_call(
+            DOMAIN,
+            ACTIONS_SERVICE,
+            {
+                CONF_SEQUENCE: [
+                    {
+                        ATTR_SERVICE: f"{DOMAIN}.{ACTIONS_SERVICE}",
+                        ATTR_DATA: {CONF_SEQUENCE: BASIC_SEQUENCE_DATA},
+                    }
+                ]
+            },
+            True,
+        )
