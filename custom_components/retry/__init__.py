@@ -27,7 +27,14 @@ from homeassistant.helpers.service import async_extract_referenced_entity_ids
 from homeassistant.helpers.typing import ConfigType
 import homeassistant.util.dt as dt_util
 
-from .const import ATTR_EXPECTED_STATE, ATTR_INDIVIDUALLY, ATTR_RETRIES, DOMAIN, LOGGER, SERVICE
+from .const import (
+    ATTR_EXPECTED_STATE,
+    ATTR_INDIVIDUALLY,
+    ATTR_RETRIES,
+    DOMAIN,
+    LOGGER,
+    SERVICE,
+)
 
 EXPONENTIAL_BACKOFF_BASE = 2
 GRACE_PERIOD_FOR_STATE_UPDATE = 0.2
@@ -42,11 +49,13 @@ SERVICE_SCHEMA = vol.Schema(
     extra=vol.ALLOW_EXTRA,
 )
 
-def get_entity(hass: HomeAssistant, entity_id: str) -> Entity | None:
+
+def _get_entity(hass: HomeAssistant, entity_id: str) -> Entity | None:
     """Get entity object."""
     entity_domain = entity_id.split(".")[0]
     entity_comp = hass.data.get(DATA_INSTANCES, {}).get(entity_domain)
     return entity_comp.get_entity(entity_id) if entity_comp else None
+
 
 class RetryParams:
     """Parse and compute input parameters."""
@@ -84,10 +93,12 @@ class RetryParams:
         data = {
             key: value
             for key, value in self.service_call.data.items()
-            if key not in [ATTR_SERVICE, ATTR_RETRIES, ATTR_EXPECTED_STATE, ATTR_INDIVIDUALLY]
+            if key
+            not in [ATTR_SERVICE, ATTR_RETRIES, ATTR_EXPECTED_STATE, ATTR_INDIVIDUALLY]
         }
         if schema := self._hass.services.async_services()[self.retry_data[ATTR_DOMAIN]][
-            self.retry_data[ATTR_SERVICE]].schema:
+            self.retry_data[ATTR_SERVICE]
+        ].schema:
             schema(data)
         if data.get(ATTR_ENTITY_ID) == ENTITY_MATCH_ALL or (
             CONF_TARGET in data
@@ -101,7 +112,7 @@ class RetryParams:
     def _expand_group(self, entity_id: str) -> list[str]:
         """Return group memeber ids (when a group)."""
         entity_ids = []
-        entity_obj = get_entity(self._hass, entity_id)
+        entity_obj = _get_entity(self._hass, entity_id)
         if (
             entity_obj is not None
             and entity_obj.platform is not None
@@ -116,7 +127,9 @@ class RetryParams:
     def _service_entity_ids(self) -> list[str]:
         """Get entity ids for a service call."""
         entity_ids = []
-        service_entities = async_extract_referenced_entity_ids(self._hass, self.service_call)
+        service_entities = async_extract_referenced_entity_ids(
+            self._hass, self.service_call
+        )
         for entity_id in (
             service_entities.referenced | service_entities.indirectly_referenced
         ):
@@ -127,7 +140,9 @@ class RetryParams:
 class RetryCall:
     """Handle a single service call with retries."""
 
-    def __init__(self, hass: HomeAssistant, params: RetryParams, entity: str | None = None) -> None:
+    def __init__(
+        self, hass: HomeAssistant, params: RetryParams, entity: str | None = None
+    ) -> None:
         """Initialize the object."""
         self._hass = hass
         self._params = params
@@ -151,10 +166,14 @@ class RetryCall:
         invalid_entities = {}
         grace_period_for_state_update = False
         for entity_id in self._service_entities:
-            if (ent_obj := get_entity(self._hass, entity_id)) is None or not ent_obj.available:
+            if (
+                ent_obj := _get_entity(self._hass, entity_id)
+            ) is None or not ent_obj.available:
                 invalid_entities[entity_id] = f"{entity_id} is not available"
             elif ATTR_EXPECTED_STATE in self._params.retry_data:
-                if (state := ent_obj.state) != self._params.retry_data[ATTR_EXPECTED_STATE]:
+                if (state := ent_obj.state) != self._params.retry_data[
+                    ATTR_EXPECTED_STATE
+                ]:
                     if not grace_period_for_state_update:
                         await asyncio.sleep(GRACE_PERIOD_FOR_STATE_UPDATE)
                         state = ent_obj.state
@@ -194,7 +213,9 @@ class RetryCall:
                 self._params.service_call.context,
             )
             await self._async_check_entities()
-            self._log(logging.DEBUG if self._attempt == 1 else logging.INFO, "Succeeded")
+            self._log(
+                logging.DEBUG if self._attempt == 1 else logging.INFO, "Succeeded"
+            )
             return
         except Exception:  # pylint: disable=broad-except
             self._log(
@@ -219,7 +240,10 @@ async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
         """Call service with background retries."""
         params = RetryParams(hass, service_call)
         entities = params.service_entities
-        if not params.retry_data[ATTR_INDIVIDUALLY] or len(params.service_entities) <= 1:
+        if (
+            not params.retry_data[ATTR_INDIVIDUALLY]
+            or len(params.service_entities) <= 1
+        ):
             entities = [None]
         for entity in entities:
             hass.async_create_task(RetryCall(hass, params, entity).async_retry())
