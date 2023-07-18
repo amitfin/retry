@@ -152,13 +152,19 @@ async def test_selective_retry_together(
     entities = ["binary_sensor.test", "binary_sensor.invalid"]
     calls = await async_setup(hass, False)
     await async_call(
-        hass, {ATTR_ENTITY_ID: entities, ATTR_DEVICE_ID: ENTITY_MATCH_NONE, ATTR_INDIVIDUALLY: False}
+        hass,
+        {
+            ATTR_ENTITY_ID: entities,
+            ATTR_DEVICE_ID: ENTITY_MATCH_NONE,
+            ATTR_INDIVIDUALLY: False,
+        },
     )
     await async_shutdown(hass, freezer)
     assert calls[0].data[ATTR_ENTITY_ID] == entities
     assert ATTR_DEVICE_ID in calls[0].data
     assert calls[1].data[ATTR_ENTITY_ID] == ["binary_sensor.invalid"]
     assert ATTR_DEVICE_ID not in calls[1].data
+
 
 async def test_selective_retry_individually(
     hass: HomeAssistant,
