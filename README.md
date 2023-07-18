@@ -8,7 +8,20 @@
 
 ![Project Maintenance](https://img.shields.io/badge/maintainer-Amit%20Finkelstein-blue.svg?style=for-the-badge)
 
-The integration implements a single custom service `retry.call`. This service warps an inner service call with background retries on failure. It can be useful to mitigate temporary issues of connectivity or invalid device states.
+The integration implements 2 custom service `retry.actions` and `retry.call`.
+`retry.actions` is the recommended and UI friendly service which should be used. `retry.call` is the engine behind the scene. It's being called by `retry.actions` but can also be called directly by advanced users.
+
+## `retry.actions`
+
+Here is a short demo of using `retry.actions` in the automation rule editor:
+
+https://github.com/amitfin/retry/assets/19599059/318c2129-901f-4f6c-8e79-e155ae097ba4
+
+`retry.actions` wraps any service call inside the sequence of actions with `retry.call`. `retry.call` calls the original service with a background retry logic on failures. A complex sequence of actions with a nested structure and conditions is supported. The service traverses through the actions and identifies any service call. There is no impact or changes to the rest of the actions. The detailed behavior of `retry.call` is explained in the section below. However, the default behavior should be sufficient for the majority of the use-cases. A straightforward UI usage as demonstrated above should be the 1st step.
+
+## `retry.call`
+
+This service warps an inner service call with background retries on failure. It can be useful to mitigate temporary issues of connectivity or invalid device states.
 
 For example, instead of:
 ```
@@ -44,7 +57,7 @@ The `retries` parameter is not passed to the inner service call.
 
 The service implements exponential backoff mechanism. These are the delay times (in seconds) of the first 7 attempts: [0, 1, 2, 4, 8, 16, 32] (each delay is twice than the previous one). The following are the second offsets from the initial call [0, 1, 3, 7, 15, 31, 63].
 
-Service calls support a list of entities either by providing an explicit list or by [targeting areas and devices](https://www.home-assistant.io/docs/scripts/service-calls/#targeting-areas-and-devices). The call to the inner service is done individually per entity to isolate failures. A single call to all entities (with retries) can be used by setting the _optional_ parameter `individually` to false (default is true). The `individually` parameter (if provided) is not passed to the inner service call. Note that setting `entity_id: all` is not supported in either mode.
+Service calls support a list of entities either by providing an explicit list or by [targeting areas and devices](https://www.home-assistant.io/docs/scripts/service-calls/#targeting-areas-and-devices). The call to the inner service is done individually per entity to isolate failures. A single call to all entities (with retries) can be used by setting the _optional_ parameter `individually` to false (default is true). The `individually` parameter (if provided) is not passed to the inner service call. Note that setting `entity_id: all` is not supported in any mode.
 
 `expected_state` is another _optional_ parameter which can be used to validate the new state of the entities after the inner service call:
 ```
@@ -60,7 +73,7 @@ If the new state is different than expected, the attempt is considered a failure
 Notes:
 1. The service does not propagate inner service failures (exceptions) since the retries are done in the background. However, the service logs a warning when the inner function fails (on every attempt). It also logs an error when the maximum amount of retries is reached.
 2. This service can be used for absolute state changes (like turning on the lights). But it has limitations by nature. For example, it shouldn't be used for sequence of actions, when the order matters.
-3. In group-call mode (`individually` is false) retries are called only on invalid entities when the failure is because of the entity's unavailability or unexpected state. Valid entities are removed before calling the inner service. In individual-call mode this behavior is irrelevant since each call has a single entity.
+3. In a group-call mode (`individually` is false) retries are called only on invalid entities when the failure is because of the entity's unavailability or unexpected state. Valid entities are removed before calling the inner service. In individual-call mode this behavior is irrelevant since each call has a single entity.
 
 ## Install
 HACS is the preferred and easier way to install the component, and can be done by using this My button:
