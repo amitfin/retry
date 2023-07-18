@@ -13,10 +13,22 @@ from homeassistant.const import (
     ATTR_ENTITY_ID,
     ATTR_DEVICE_ID,
     ATTR_SERVICE,
+    CONF_CHOOSE,
+    CONF_CONDITION,
+    CONF_CONDITIONS,
+    CONF_COUNT,
+    CONF_DEFAULT,
+    CONF_ELSE,
     CONF_ENTITIES,
+    CONF_IF,
     CONF_NAME,
+    CONF_PARALLEL,
     CONF_PLATFORM,
+    CONF_REPEAT,
+    CONF_SEQUENCE,
     CONF_TARGET,
+    CONF_THEN,
+    CONF_VALUE_TEMPLATE,
     ENTITY_MATCH_ALL,
     ENTITY_MATCH_NONE,
 )
@@ -32,14 +44,16 @@ from pytest_homeassistant_custom_component.common import (
 )
 
 from custom_components.retry.const import (
+    ACTIONS_SERVICE,
     ATTR_EXPECTED_STATE,
     ATTR_INDIVIDUALLY,
     ATTR_RETRIES,
+    CALL_SERVICE,
     DOMAIN,
-    SERVICE,
 )
 
 TEST_SERVICE = "test_service"
+BASIC_SEQUENCE_DATA = [{ATTR_SERVICE: f"{DOMAIN}.{TEST_SERVICE}"}]
 
 
 async def async_setup(hass: HomeAssistant, raises: bool = True) -> list[ServiceCall]:
@@ -95,7 +109,7 @@ async def async_shutdown(hass: HomeAssistant, freezer: FrozenDateTimeFactory) ->
 async def async_call(hass: HomeAssistant, data: dict[str, Any]) -> None:
     """Call a service via the retry service."""
     data[ATTR_SERVICE] = f"{DOMAIN}.{TEST_SERVICE}"
-    await hass.services.async_call(DOMAIN, SERVICE, data, True)
+    await hass.services.async_call(DOMAIN, CALL_SERVICE, data, True)
 
 
 async def test_success(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
@@ -249,7 +263,7 @@ async def test_template(hass: HomeAssistant) -> None:
     """Test retry_service with template."""
     calls = await async_setup(hass, False)
     await hass.services.async_call(
-        DOMAIN, SERVICE, {ATTR_SERVICE: '{{ "retry.test_service" }}'}, True
+        DOMAIN, CALL_SERVICE, {ATTR_SERVICE: '{{ "retry.test_service" }}'}, True
     )
     await hass.async_block_till_done()
     assert len(calls) == 1
@@ -260,7 +274,7 @@ async def test_invalid_service(hass: HomeAssistant) -> None:
     await async_setup(hass)
     with pytest.raises(ServiceNotFound):
         await hass.services.async_call(
-            DOMAIN, SERVICE, {ATTR_SERVICE: "invalid.service"}, True
+            DOMAIN, CALL_SERVICE, {ATTR_SERVICE: "invalid.service"}, True
         )
 
 
@@ -292,17 +306,163 @@ async def test_unload(hass: HomeAssistant) -> None:
     assert await hass.config_entries.async_setup(config_entry.entry_id)
     await hass.async_block_till_done()
 
-    assert hass.services.has_service(DOMAIN, SERVICE)
+    assert hass.services.has_service(DOMAIN, CALL_SERVICE)
+    assert hass.services.has_service(DOMAIN, ACTIONS_SERVICE)
 
     assert await hass.config_entries.async_remove(config_entry.entry_id)
     await hass.async_block_till_done()
 
-    assert not hass.services.has_service(DOMAIN, SERVICE)
+    assert not hass.services.has_service(DOMAIN, CALL_SERVICE)
+    assert not hass.services.has_service(DOMAIN, ACTIONS_SERVICE)
 
 
 async def test_configuration_yaml(hass: HomeAssistant) -> None:
     """Test initialization via configuration.yaml."""
-    assert not hass.services.has_service(DOMAIN, SERVICE)
+    assert not hass.services.has_service(DOMAIN, CALL_SERVICE)
+    assert not hass.services.has_service(DOMAIN, ACTIONS_SERVICE)
     assert await async_setup_component(hass, DOMAIN, {})
     await hass.async_block_till_done()
-    assert hass.services.has_service(DOMAIN, SERVICE)
+    assert hass.services.has_service(DOMAIN, CALL_SERVICE)
+    assert hass.services.has_service(DOMAIN, ACTIONS_SERVICE)
+
+
+@pytest.mark.parametrize(
+    ["service_data"],
+    [
+        ({CONF_SEQUENCE: BASIC_SEQUENCE_DATA},),
+        (
+            {
+                CONF_SEQUENCE: [
+                    {
+                        CONF_REPEAT: {
+                            CONF_COUNT: 1,
+                            CONF_SEQUENCE: BASIC_SEQUENCE_DATA,
+                        },
+                    },
+                ],
+            },
+        ),
+        (
+            {
+                CONF_SEQUENCE: [
+                    {
+                        CONF_CHOOSE: [
+                            {
+                                CONF_CONDITIONS: [
+                                    {
+                                        CONF_CONDITION: "template",
+                                        CONF_VALUE_TEMPLATE: "{{ True }}",
+                                    }
+                                ],
+                                CONF_SEQUENCE: BASIC_SEQUENCE_DATA,
+                            }
+                        ],
+                    }
+                ]
+            },
+        ),
+        (
+            {
+                CONF_SEQUENCE: [
+                    {
+                        CONF_CHOOSE: [],
+                        CONF_DEFAULT: BASIC_SEQUENCE_DATA,
+                    }
+                ]
+            },
+        ),
+        (
+            {
+                CONF_SEQUENCE: [
+                    {
+                        CONF_IF: [
+                            {
+                                CONF_CONDITION: "template",
+                                CONF_VALUE_TEMPLATE: "{{ True }}",
+                            }
+                        ],
+                        CONF_THEN: BASIC_SEQUENCE_DATA,
+                    }
+                ],
+            },
+        ),
+        (
+            {
+                CONF_SEQUENCE: [
+                    {
+                        CONF_IF: [
+                            {
+                                CONF_CONDITION: "template",
+                                CONF_VALUE_TEMPLATE: "{{ False }}",
+                            }
+                        ],
+                        CONF_THEN: [],
+                        CONF_ELSE: BASIC_SEQUENCE_DATA,
+                    }
+                ],
+            },
+        ),
+        (
+            {
+                CONF_SEQUENCE: [
+                    {CONF_PARALLEL: BASIC_SEQUENCE_DATA},
+                ],
+            },
+        ),
+        (
+            {
+                CONF_SEQUENCE: [
+                    {
+                        CONF_PARALLEL: {CONF_SEQUENCE: BASIC_SEQUENCE_DATA},
+                    },
+                ],
+            },
+        ),
+    ],
+    ids=[
+        "service call",
+        "repeat",
+        "choose",
+        "choose-default",
+        "if",
+        "if-else",
+        "parallel-short",
+        "parallel",
+    ],
+)
+async def test_actions_service(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    service_data: dict[str, any],
+) -> None:
+    """Test action service."""
+    calls = await async_setup(hass)
+    await hass.services.async_call(
+        DOMAIN,
+        ACTIONS_SERVICE,
+        service_data,
+        True,
+    )
+    await async_shutdown(hass, freezer)
+    assert len(calls) == 7
+
+
+async def test_action_type_count() -> None:
+    """Test that no new action type was added."""
+    assert len(cv.ACTION_TYPE_SCHEMAS) == 14
+
+
+async def test_actions_propagating_args(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Test action service propagate correctly the arguments."""
+    calls = await async_setup(hass)
+    await hass.services.async_call(
+        DOMAIN,
+        ACTIONS_SERVICE,
+        {CONF_SEQUENCE: BASIC_SEQUENCE_DATA, ATTR_RETRIES: 3},
+        True,
+    )
+    await async_shutdown(hass, freezer)
+    assert len(calls) == 3

@@ -5,13 +5,21 @@ import asyncio
 import datetime
 import logging
 import voluptuous as vol
+from homeassistant.components.hassio.const import ATTR_DATA
 from homeassistant.components.group import DOMAIN as GROUP_DOMAIN
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
 from homeassistant.const import (
     ATTR_DOMAIN,
     ATTR_ENTITY_ID,
     ATTR_SERVICE,
+    CONF_CHOOSE,
+    CONF_DEFAULT,
+    CONF_ELSE,
+    CONF_PARALLEL,
+    CONF_REPEAT,
+    CONF_SEQUENCE,
     CONF_TARGET,
+    CONF_THEN,
     ENTITY_MATCH_ALL,
 )
 from homeassistant.core import HomeAssistant, ServiceCall, callback
@@ -20,7 +28,7 @@ from homeassistant.exceptions import (
     InvalidStateError,
     ServiceNotFound,
 )
-from homeassistant.helpers import config_validation as cv, event, template
+from homeassistant.helpers import config_validation as cv, event, script, template
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_component import DATA_INSTANCES
 from homeassistant.helpers.service import async_extract_referenced_entity_ids
@@ -28,23 +36,35 @@ from homeassistant.helpers.typing import ConfigType
 import homeassistant.util.dt as dt_util
 
 from .const import (
+    ACTIONS_SERVICE,
     ATTR_EXPECTED_STATE,
     ATTR_INDIVIDUALLY,
     ATTR_RETRIES,
+    CALL_SERVICE,
     DOMAIN,
     LOGGER,
-    SERVICE,
 )
 
 EXPONENTIAL_BACKOFF_BASE = 2
 GRACE_PERIOD_FOR_STATE_UPDATE = 0.2
 
-SERVICE_SCHEMA = vol.Schema(
+SERVICE_SCHEMA_BASE_FIELDS = {
+    vol.Required(ATTR_RETRIES, default=7): cv.positive_int,
+    vol.Optional(ATTR_EXPECTED_STATE): cv.string,
+}
+CALL_SERVICE_SCHEMA = vol.Schema(
     {
+        **SERVICE_SCHEMA_BASE_FIELDS,
         vol.Required(ATTR_SERVICE): cv.string,
-        vol.Required(ATTR_RETRIES, default=7): cv.positive_int,
-        vol.Optional(ATTR_EXPECTED_STATE): cv.string,
         vol.Required(ATTR_INDIVIDUALLY, default=True): cv.boolean,
+    },
+    extra=vol.ALLOW_EXTRA,
+)
+
+ACTIONS_SERVICE_SCHEMA = vol.Schema(
+    {
+        **SERVICE_SCHEMA_BASE_FIELDS,
+        vol.Required(CONF_SEQUENCE): cv.SCRIPT_SCHEMA,
     },
     extra=vol.ALLOW_EXTRA,
 )
@@ -233,6 +253,31 @@ class RetryCall:
         event.async_track_point_in_time(self._hass, self.async_retry, next_retry)
 
 
+def _wrap_service_calls(sequence: list[dict], retry_params: dict[str, any]) -> None:
+    """Warp any service call with retry."""
+    for action in sequence:
+        match cv.determine_script_action(action):
+            case cv.SCRIPT_ACTION_CALL_SERVICE:
+                action[ATTR_DATA] = action.get(ATTR_DATA, {})
+                action[ATTR_DATA][ATTR_SERVICE] = action[ATTR_SERVICE]
+                action[ATTR_DATA].update(retry_params)
+                action[ATTR_SERVICE] = f"{DOMAIN}.{CALL_SERVICE}"
+            case cv.SCRIPT_ACTION_REPEAT:
+                _wrap_service_calls(action[CONF_REPEAT][CONF_SEQUENCE], retry_params)
+            case cv.SCRIPT_ACTION_CHOOSE:
+                for choose in action[CONF_CHOOSE]:
+                    _wrap_service_calls(choose[CONF_SEQUENCE], retry_params)
+                if CONF_DEFAULT in action:
+                    _wrap_service_calls(action[CONF_DEFAULT], retry_params)
+            case cv.SCRIPT_ACTION_IF:
+                _wrap_service_calls(action[CONF_THEN], retry_params)
+                if CONF_ELSE in action:
+                    _wrap_service_calls(action[CONF_ELSE], retry_params)
+            case cv.SCRIPT_ACTION_PARALLEL:
+                for parallel in action[CONF_PARALLEL]:
+                    _wrap_service_calls(parallel[CONF_SEQUENCE], retry_params)
+
+
 async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
     """Set up domain."""
 
@@ -248,7 +293,25 @@ async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
         for entity in entities:
             hass.async_create_task(RetryCall(hass, params, entity).async_retry())
 
-    hass.services.async_register(DOMAIN, SERVICE, async_call, SERVICE_SCHEMA)
+    hass.services.async_register(DOMAIN, CALL_SERVICE, async_call, CALL_SERVICE_SCHEMA)
+
+    async def async_actions(service_call: ServiceCall) -> None:
+        """Execute actions and retry failed service calls."""
+        sequence = service_call.data[CONF_SEQUENCE].copy()
+        retry_params = {
+            key: value
+            for key, value in service_call.data.items()
+            if key in (ATTR_RETRIES, ATTR_EXPECTED_STATE, ATTR_INDIVIDUALLY)
+        }
+        _wrap_service_calls(sequence, retry_params)
+        await script.Script(hass, sequence, ACTIONS_SERVICE, DOMAIN).async_run(
+            context=service_call.context
+        )
+
+    hass.services.async_register(
+        DOMAIN, ACTIONS_SERVICE, async_actions, ACTIONS_SERVICE_SCHEMA
+    )
+
     return True
 
 
@@ -265,5 +328,6 @@ async def async_setup(hass: HomeAssistant, _: ConfigType) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
     """Unload a config entry."""
-    hass.services.async_remove(DOMAIN, SERVICE)
+    hass.services.async_remove(DOMAIN, CALL_SERVICE)
+    hass.services.async_remove(DOMAIN, ACTIONS_SERVICE)
     return True

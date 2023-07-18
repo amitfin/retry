@@ -3,7 +3,7 @@ call:
   description: Retry a service call on failure.
   fields:
     service:
-      name: Retrying Service
+      name: Service
       description: The service to retry on failure.
       example: homeassistant.turn_on
       required: true
@@ -35,3 +35,31 @@ call:
       example: false
       selector:
         boolean:
+actions:
+  name: Actions
+  description: Perform a sequence of actions with retries on service call failures.
+  fields:
+    sequence:
+      name: Actions
+      description: Sequence of actions.
+      required: true
+      selector:
+        action:
+    retries:
+      name: Retries
+      description: Max amount of calls (defualt is 7).
+      advanced: true
+      example: 5
+      selector:
+        number:
+          min: 1
+          max: 100
+          unit_of_measurement: retries
+          mode: box
+    expected_state:
+      name: Expected State
+      description: The expected state of the entities after any service call.
+      advanced: true
+      example: "on"
+      selector:
+        text:
