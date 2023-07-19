@@ -260,7 +260,7 @@ def _wrap_service_calls(sequence: list[dict], retry_params: dict[str, any]) -> N
         match cv.determine_script_action(action):
             case cv.SCRIPT_ACTION_CALL_SERVICE:
                 if action[ATTR_SERVICE] == f"{DOMAIN}.{ACTIONS_SERVICE}":
-                    raise IntegrationError("Nested retry calls are not allowed.")
+                    raise IntegrationError("Nested retry actions are not allowed.")
                 if action[ATTR_SERVICE] != f"{DOMAIN}.{CALL_SERVICE}":
                     action[ATTR_DATA] = action.get(ATTR_DATA, {})
                     action[ATTR_DATA][ATTR_SERVICE] = action[ATTR_SERVICE]
