@@ -8,7 +8,9 @@
 
 ![Project Maintenance](https://img.shields.io/badge/maintainer-Amit%20Finkelstein-blue.svg?style=for-the-badge)
 
-The integration implements 2 custom service `retry.actions` and `retry.call`.
+Smart homes include a network of devices. A case of a failed command can happen due to temporary connectivity issues or invalid device states. The cost of such a failure can be high, especially for background automation. For example, failing to shutdown an irrigation system which should run for 20 minutes can have severe consequences.
+
+The integration increases the automation reliability by implementing 2 custom services - `retry.actions` and `retry.call`.
 `retry.actions` is the recommended and UI friendly service which should be used. `retry.call` is the engine behind the scene. It's being called by `retry.actions` but can also be called directly by advanced users.
 
 ## `retry.actions`
@@ -17,12 +19,12 @@ Here is a short demo of using `retry.actions` in the automation rule editor:
 
 https://github.com/amitfin/retry/assets/19599059/318c2129-901f-4f6c-8e79-e155ae097ba4
 
-`retry.actions` wraps any service call inside the sequence of actions with `retry.call`. `retry.call` calls the original service with a background retry logic on failures. A complex sequence of actions with a nested structure and conditions is supported. The service traverses through the actions and identifies any service call. There is no impact or changes to the rest of the actions. The detailed behavior of `retry.call` is explained in the section below. However, the default behavior should be sufficient for the majority of the use-cases. A straightforward UI usage as demonstrated above should be the way to go.
+`retry.actions` wraps any service call inside the sequence of actions with `retry.call`. `retry.call` calls the original service with a background retry logic on failures. A complex sequence of actions with a nested structure and conditions is supported. The service traverses through the actions and wraps any service call. There is no impact or changes to the rest of the actions. The detailed behavior of `retry.call` is explained in the section below. However, the default behavior should be sufficient for the majority of the use-cases. A straightforward UI usage as demonstrated above should be the way to go.
 
-Note: This service should be used to increase the reliability of absolute state changes, like `light.turn_on`. However, it's not suitable for the following scenarios:
-1) When the order of the actions matters: background retries means that a successful service call can happen independently to the rest of the actions.
-2) For a relative state change: for example, `fan.increase_speed`. it's possible that a service call changes the state and then a failure happens. Calling it again might have an unintentional result.
-7) If a service call response is needed.
+Note: This service is not suitable for the following scenarios:
+1) When the order of the actions matters: the background retries are running independently to the rest of the actions.
+2) For a relative state change: for example, `fan.increase_speed` is relative while `light.turn_on` is absolute. The reason is that a relative service call might change the state and only then a failure occurs. Calling it again might have an unintentional result.
+3) If any [service call response data](https://www.home-assistant.io/docs/scripts/service-calls/#use-templates-to-handle-response-data) is needed: the service calls are running in the background and therefore it's not possible to propagate responses. 
 
 ## `retry.call`
 
