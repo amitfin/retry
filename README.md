@@ -17,7 +17,12 @@ Here is a short demo of using `retry.actions` in the automation rule editor:
 
 https://github.com/amitfin/retry/assets/19599059/318c2129-901f-4f6c-8e79-e155ae097ba4
 
-`retry.actions` wraps any service call inside the sequence of actions with `retry.call`. `retry.call` calls the original service with a background retry logic on failures. A complex sequence of actions with a nested structure and conditions is supported. The service traverses through the actions and identifies any service call. There is no impact or changes to the rest of the actions. The detailed behavior of `retry.call` is explained in the section below. However, the default behavior should be sufficient for the majority of the use-cases. A straightforward UI usage as demonstrated above should be the 1st step.
+`retry.actions` wraps any service call inside the sequence of actions with `retry.call`. `retry.call` calls the original service with a background retry logic on failures. A complex sequence of actions with a nested structure and conditions is supported. The service traverses through the actions and identifies any service call. There is no impact or changes to the rest of the actions. The detailed behavior of `retry.call` is explained in the section below. However, the default behavior should be sufficient for the majority of the use-cases. A straightforward UI usage as demonstrated above should be the way to go.
+
+Note: This service should be used to increase the reliability of absolute state changes, like `light.turn_on`. However, it's not suitable for the following scenarios:
+1) When the order of the actions matters: background retries means that a successful service call can happen independently to the rest of the actions.
+2) For a relative state change: for example, `fan.increase_speed`. it's possible that a service call changes the state and then a failure happens. Calling it again might have an unintentional result.
+7) If a service call response is needed.
 
 ## `retry.call`
 
@@ -72,8 +77,7 @@ If the new state is different than expected, the attempt is considered a failure
 
 Notes:
 1. The service does not propagate inner service failures (exceptions) since the retries are done in the background. However, the service logs a warning when the inner function fails (on every attempt). It also logs an error when the maximum amount of retries is reached.
-2. This service can be used for absolute state changes (like turning on the lights). But it has limitations by nature. For example, it shouldn't be used for sequence of actions, when the order matters.
-3. In a group-call mode (`individually` is false) retries are called only on invalid entities when the failure is because of the entity's unavailability or unexpected state. Valid entities are removed before calling the inner service. In individual-call mode this behavior is irrelevant since each call has a single entity.
+2. In a group-call mode (`individually` is false) retries are called only on invalid entities when the failure is because of the entity's unavailability or unexpected state. Valid entities are removed before calling the inner service. In individual-call mode this behavior is irrelevant since each call has a single entity.
 
 ## Install
 HACS is the preferred and easier way to install the component, and can be done by using this My button:
