@@ -48,9 +48,10 @@ from .const import (
 
 EXPONENTIAL_BACKOFF_BASE = 2
 GRACE_PERIOD_FOR_STATE_UPDATE = 0.2
+DEFAULT_RETRIES = 7
 
 SERVICE_SCHEMA_BASE_FIELDS = {
-    vol.Required(ATTR_RETRIES, default=7): cv.positive_int,
+    vol.Required(ATTR_RETRIES, default=DEFAULT_RETRIES): cv.positive_int,
     vol.Optional(ATTR_EXPECTED_STATE): cv.string,
 }
 CALL_SERVICE_SCHEMA = vol.Schema(
@@ -271,7 +272,9 @@ class RetryCall:
         event.async_track_point_in_time(self._hass, self.async_retry, next_retry)
 
 
-def _wrap_service_calls(sequence: list[dict], retry_params: dict[str, any]) -> None:
+def _wrap_service_calls(
+    hass: HomeAssistant, sequence: list[dict], retry_params: dict[str, any]
+) -> None:
     """Warp any service call with retry."""
     for action in sequence:
         match cv.determine_script_action(action):
@@ -283,20 +286,24 @@ def _wrap_service_calls(sequence: list[dict], retry_params: dict[str, any]) -> N
                     action[ATTR_DATA][ATTR_SERVICE] = action[ATTR_SERVICE]
                     action[ATTR_DATA].update(retry_params)
                     action[ATTR_SERVICE] = f"{DOMAIN}.{CALL_SERVICE}"
+                # Validate parameters so errors are not raised in the background.
+                RetryParams(hass, action[ATTR_DATA])
             case cv.SCRIPT_ACTION_REPEAT:
-                _wrap_service_calls(action[CONF_REPEAT][CONF_SEQUENCE], retry_params)
+                _wrap_service_calls(
+                    hass, action[CONF_REPEAT][CONF_SEQUENCE], retry_params
+                )
             case cv.SCRIPT_ACTION_CHOOSE:
                 for choose in action[CONF_CHOOSE]:
-                    _wrap_service_calls(choose[CONF_SEQUENCE], retry_params)
+                    _wrap_service_calls(hass, choose[CONF_SEQUENCE], retry_params)
                 if CONF_DEFAULT in action:
-                    _wrap_service_calls(action[CONF_DEFAULT], retry_params)
+                    _wrap_service_calls(hass, action[CONF_DEFAULT], retry_params)
             case cv.SCRIPT_ACTION_IF:
-                _wrap_service_calls(action[CONF_THEN], retry_params)
+                _wrap_service_calls(hass, action[CONF_THEN], retry_params)
                 if CONF_ELSE in action:
-                    _wrap_service_calls(action[CONF_ELSE], retry_params)
+                    _wrap_service_calls(hass, action[CONF_ELSE], retry_params)
             case cv.SCRIPT_ACTION_PARALLEL:
                 for parallel in action[CONF_PARALLEL]:
-                    _wrap_service_calls(parallel[CONF_SEQUENCE], retry_params)
+                    _wrap_service_calls(hass, parallel[CONF_SEQUENCE], retry_params)
 
 
 async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
@@ -321,12 +328,14 @@ async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
     async def async_actions(service_call: ServiceCall) -> None:
         """Execute actions and retry failed service calls."""
         sequence = service_call.data[CONF_SEQUENCE].copy()
-        retry_params = {
-            key: value
-            for key, value in service_call.data.items()
-            if key in (ATTR_RETRIES, ATTR_EXPECTED_STATE, ATTR_INDIVIDUALLY)
-        }
-        _wrap_service_calls(sequence, retry_params)
+        retry_params = {}
+        retry_params[ATTR_RETRIES] = service_call.data.get(
+            ATTR_RETRIES, DEFAULT_RETRIES
+        )
+        retry_params[ATTR_INDIVIDUALLY] = service_call.data.get(ATTR_INDIVIDUALLY, True)
+        if ATTR_EXPECTED_STATE in service_call.data:
+            retry_params[ATTR_EXPECTED_STATE] = service_call.data[ATTR_EXPECTED_STATE]
+        _wrap_service_calls(hass, sequence, retry_params)
         await script.Script(hass, sequence, ACTIONS_SERVICE, DOMAIN).async_run(
             context=service_call.context
         )

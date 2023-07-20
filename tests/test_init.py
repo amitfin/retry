@@ -473,6 +473,20 @@ async def test_actions_propagating_args(
     assert len(calls) == 3
 
 
+async def test_actions_inner_service_validation(
+    hass: HomeAssistant,
+) -> None:
+    """Test action service validate retry call parameters."""
+    await async_setup(hass)
+    with pytest.raises(ServiceNotFound):
+        await hass.services.async_call(
+            DOMAIN,
+            ACTIONS_SERVICE,
+            {CONF_SEQUENCE: [{ATTR_SERVICE: f"{DOMAIN}.invalid"}]},
+            True,
+        )
+
+
 async def test_nested_actions(
     hass: HomeAssistant,
 ) -> None:
