@@ -284,7 +284,7 @@ def _wrap_service_calls(
                     action[ATTR_DATA].update(retry_params)
                     action[ATTR_SERVICE] = f"{DOMAIN}.{CALL_SERVICE}"
                 # Validate parameters so errors are not raised in the background.
-                RetryParams(hass, action[ATTR_DATA])
+                RetryParams(hass, {**action[ATTR_DATA], **action.get(CONF_TARGET, {})})
             case cv.SCRIPT_ACTION_REPEAT:
                 _wrap_service_calls(
                     hass, action[CONF_REPEAT][CONF_SEQUENCE], retry_params

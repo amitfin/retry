@@ -27,6 +27,7 @@ from homeassistant.const import (
     CONF_PLATFORM,
     CONF_REPEAT,
     CONF_SEQUENCE,
+    CONF_TARGET,
     CONF_THEN,
     CONF_VALUE_TEMPLATE,
     ENTITY_MATCH_ALL,
@@ -87,8 +88,7 @@ async def async_setup(hass: HomeAssistant, raises: bool = True) -> list[ServiceC
         async_service,
         vol.Schema(
             {
-                vol.Optional(ATTR_ENTITY_ID): vol.Any(cv.entity_ids, ENTITY_MATCH_ALL),
-                vol.Optional(ATTR_DEVICE_ID): cv.string,
+                **cv.TARGET_SERVICE_FIELDS,
             },
         ),
     )
@@ -501,6 +501,27 @@ async def test_nested_actions(
                     {
                         ATTR_SERVICE: f"{DOMAIN}.{ACTIONS_SERVICE}",
                         ATTR_DATA: {CONF_SEQUENCE: BASIC_SEQUENCE_DATA},
+                    }
+                ]
+            },
+            True,
+        )
+
+
+async def test_all_entities_actions(
+    hass: HomeAssistant,
+) -> None:
+    """Test all entities is not allowed in retry.actions."""
+    await async_setup(hass)
+    with pytest.raises(InvalidEntityFormatError):
+        await hass.services.async_call(
+            DOMAIN,
+            ACTIONS_SERVICE,
+            {
+                CONF_SEQUENCE: [
+                    {
+                        ATTR_SERVICE: f"{DOMAIN}.{TEST_SERVICE}",
+                        CONF_TARGET: {ATTR_ENTITY_ID: ENTITY_MATCH_ALL},
                     }
                 ]
             },
