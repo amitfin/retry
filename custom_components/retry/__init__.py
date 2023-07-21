@@ -129,10 +129,7 @@ class RetryParams:
             self.retry_data[ATTR_SERVICE]
         ].schema:
             schema(inner_data)
-        if inner_data.get(ATTR_ENTITY_ID) == ENTITY_MATCH_ALL or (
-            CONF_TARGET in inner_data
-            and inner_data[CONF_TARGET].get(ATTR_ENTITY_ID) == ENTITY_MATCH_ALL
-        ):
+        if inner_data.get(ATTR_ENTITY_ID) == ENTITY_MATCH_ALL:
             raise InvalidEntityFormatError(
                 f'"{ATTR_ENTITY_ID}={ENTITY_MATCH_ALL}" is not supported'
             )

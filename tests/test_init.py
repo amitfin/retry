@@ -27,7 +27,6 @@ from homeassistant.const import (
     CONF_PLATFORM,
     CONF_REPEAT,
     CONF_SEQUENCE,
-    CONF_TARGET,
     CONF_THEN,
     CONF_VALUE_TEMPLATE,
     ENTITY_MATCH_ALL,
@@ -90,7 +89,6 @@ async def async_setup(hass: HomeAssistant, raises: bool = True) -> list[ServiceC
             {
                 vol.Optional(ATTR_ENTITY_ID): vol.Any(cv.entity_ids, ENTITY_MATCH_ALL),
                 vol.Optional(ATTR_DEVICE_ID): cv.string,
-                vol.Optional(CONF_TARGET): cv.TARGET_SERVICE_FIELDS,
             },
         ),
     )
@@ -111,10 +109,12 @@ async def async_shutdown(hass: HomeAssistant, freezer: FrozenDateTimeFactory) ->
         await async_next_hour(hass, freezer)
 
 
-async def async_call(hass: HomeAssistant, data: dict[str, Any]) -> None:
+async def async_call(
+    hass: HomeAssistant, data: dict[str, Any] = {}, target: dict[str, Any] | None = None
+) -> None:
     """Call a service via the retry service."""
     data[ATTR_SERVICE] = f"{DOMAIN}.{TEST_SERVICE}"
-    await hass.services.async_call(DOMAIN, CALL_SERVICE, data, True)
+    await hass.services.async_call(DOMAIN, CALL_SERVICE, data, True, target=target)
 
 
 async def test_success(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
@@ -301,7 +301,7 @@ async def test_all_entities_in_target(hass: HomeAssistant) -> None:
     """Test selecting all entities in the target key."""
     await async_setup(hass)
     with pytest.raises(InvalidEntityFormatError):
-        await async_call(hass, {CONF_TARGET: {ATTR_ENTITY_ID: ENTITY_MATCH_ALL}})
+        await async_call(hass, target={ATTR_ENTITY_ID: ENTITY_MATCH_ALL})
 
 
 async def test_unload(hass: HomeAssistant) -> None:
