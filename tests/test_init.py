@@ -110,9 +110,12 @@ async def async_shutdown(hass: HomeAssistant, freezer: FrozenDateTimeFactory) ->
 
 
 async def async_call(
-    hass: HomeAssistant, data: dict[str, Any] = {}, target: dict[str, Any] | None = None
+    hass: HomeAssistant,
+    data: dict[str, Any] | None = None,
+    target: dict[str, Any] | None = None,
 ) -> None:
     """Call a service via the retry service."""
+    data = data or {}
     data[ATTR_SERVICE] = f"{DOMAIN}.{TEST_SERVICE}"
     await hass.services.async_call(DOMAIN, CALL_SERVICE, data, True, target=target)
 
@@ -423,6 +426,14 @@ async def test_configuration_yaml(hass: HomeAssistant) -> None:
                 ],
             },
         ),
+        (
+            {
+                CONF_SEQUENCE: [
+                    {CONF_CONDITION: "template", CONF_VALUE_TEMPLATE: "{{True}}"},
+                    {**(BASIC_SEQUENCE_DATA[0])},
+                ],
+            },
+        ),
     ],
     ids=[
         "service call",
@@ -433,6 +444,7 @@ async def test_configuration_yaml(hass: HomeAssistant) -> None:
         "if-else",
         "parallel-short",
         "parallel",
+        "multiple",
     ],
 )
 async def test_actions_service(
@@ -501,6 +513,26 @@ async def test_nested_actions(
                     {
                         ATTR_SERVICE: f"{DOMAIN}.{ACTIONS_SERVICE}",
                         ATTR_DATA: {CONF_SEQUENCE: BASIC_SEQUENCE_DATA},
+                    }
+                ]
+            },
+            True,
+        )
+
+
+async def test_call_in_actions(
+    hass: HomeAssistant,
+) -> None:
+    """Test retry.call inside retry.actions."""
+    await async_setup(hass)
+    with pytest.raises(IntegrationError):
+        await hass.services.async_call(
+            DOMAIN,
+            ACTIONS_SERVICE,
+            {
+                CONF_SEQUENCE: [
+                    {
+                        ATTR_SERVICE: f"{DOMAIN}.{CALL_SERVICE}",
                     }
                 ]
             },
