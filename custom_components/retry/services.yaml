@@ -11,7 +11,7 @@ call:
         text:
     retries:
       name: Retries
-      description: Max amount of calls (defualt is 7).
+      description: Max amount of calls (default is 7).
       advanced: true
       example: 5
       selector:
