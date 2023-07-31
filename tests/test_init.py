@@ -464,9 +464,24 @@ async def test_actions_service(
     assert len(calls) == 7
 
 
-async def test_action_type_count() -> None:
+async def test_action_types() -> None:
     """Test that no new action type was added."""
-    assert len(cv.ACTION_TYPE_SCHEMAS) == 14
+    assert list(cv.ACTION_TYPE_SCHEMAS.keys()) == [
+        cv.SCRIPT_ACTION_CALL_SERVICE,
+        cv.SCRIPT_ACTION_DELAY,
+        cv.SCRIPT_ACTION_WAIT_TEMPLATE,
+        cv.SCRIPT_ACTION_FIRE_EVENT,
+        cv.SCRIPT_ACTION_CHECK_CONDITION,
+        cv.SCRIPT_ACTION_DEVICE_AUTOMATION,
+        cv.SCRIPT_ACTION_ACTIVATE_SCENE,
+        cv.SCRIPT_ACTION_REPEAT,
+        cv.SCRIPT_ACTION_CHOOSE,
+        cv.SCRIPT_ACTION_WAIT_FOR_TRIGGER,
+        cv.SCRIPT_ACTION_VARIABLES,
+        cv.SCRIPT_ACTION_STOP,
+        cv.SCRIPT_ACTION_IF,
+        cv.SCRIPT_ACTION_PARALLEL,
+    ]
 
 
 async def test_actions_propagating_args(
