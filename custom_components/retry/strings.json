@@ -1,4 +1,5 @@
 {
+  "title": "Retry",
   "config": {
     "step": {
       "user": {
@@ -7,6 +8,48 @@
     },
     "abort": {
       "single_instance_allowed": "[%key:common::config_flow::abort::single_instance_allowed%]"
+    }
+  },
+  "services": {
+    "call": {
+      "name": "Call Service",
+      "description": "Retry a service call on failure.",
+      "fields": {
+        "service": {
+          "name": "Service",
+          "description": "The service to retry on failure."
+        },
+        "retries": {
+          "name": "Retries",
+          "description": "Max amount of calls (default is 7)."
+        },
+        "expected_state": {
+          "name": "Expected State",
+          "description": "The expected state of the entities after the service call."
+        },
+        "individually": {
+          "name": "Individually",
+          "description": "Make a separate call per entity."
+        }
+      }
+    },
+    "actions": {
+      "name": "Actions",
+      "description": "Perform a sequence of actions with retries on service call failures.",
+      "fields": {
+        "sequence": {
+          "name": "Actions",
+          "description": "Sequence of actions."
+        },
+        "retries": {
+          "name": "Retries",
+          "description": "Max amount of calls (default is 7)."
+        },
+        "expected_state": {
+          "name": "Expected State",
+          "description": "The expected state of the entities after any service call."
+        }
+      }
     }
   }
 }
