@@ -46,6 +46,8 @@ from .const import (
     LOGGER,
 )
 
+CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
+
 EXPONENTIAL_BACKOFF_BASE = 2
 GRACE_PERIOD_FOR_STATE_UPDATE = 0.2
 DEFAULT_RETRIES = 7
