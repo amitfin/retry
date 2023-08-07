@@ -52,14 +52,22 @@ EXPONENTIAL_BACKOFF_BASE = 2
 GRACE_PERIOD_FOR_STATE_UPDATE = 0.2
 DEFAULT_RETRIES = 7
 
+
+def _template_parameter(value: any | None) -> str:
+    output = cv.template(value).async_render(parse_result=False)
+    if not isinstance(output, str):
+        raise vol.Invalid("template rendered value should be a string")
+    return output
+
+
 SERVICE_SCHEMA_BASE_FIELDS = {
     vol.Required(ATTR_RETRIES, default=DEFAULT_RETRIES): cv.positive_int,
-    vol.Optional(ATTR_EXPECTED_STATE): vol.Any(cv.string, [cv.string]),
+    vol.Optional(ATTR_EXPECTED_STATE): vol.All(cv.ensure_list, [_template_parameter]),
 }
 CALL_SERVICE_SCHEMA = vol.Schema(
     {
         **SERVICE_SCHEMA_BASE_FIELDS,
-        vol.Required(ATTR_SERVICE): cv.string,
+        vol.Required(ATTR_SERVICE): _template_parameter,
         vol.Required(ATTR_INDIVIDUALLY, default=True): cv.boolean,
     },
     extra=vol.ALLOW_EXTRA,
@@ -100,23 +108,15 @@ class RetryParams:
     ) -> dict[str, any]:
         """Compose retry parameters."""
         retry_data = {}
-        retry_service = template.Template(data[ATTR_SERVICE], hass).async_render(
-            parse_result=False
-        )
+        retry_service = data[ATTR_SERVICE]
         domain, service = retry_service.lower().split(".")
         if not hass.services.has_service(domain, service):
             raise ServiceNotFound(domain, service)
         retry_data[ATTR_DOMAIN] = domain
         retry_data[ATTR_SERVICE] = service
         retry_data[ATTR_RETRIES] = data[ATTR_RETRIES]
-        expected_states = data.get(ATTR_EXPECTED_STATE)
-        if expected_states:
-            if isinstance(expected_states, str):
-                expected_states = [expected_states]
-            retry_data[ATTR_EXPECTED_STATE] = [
-                template.Template(expected_state, hass).async_render(parse_result=False)
-                for expected_state in expected_states
-            ]
+        if (expected_states := data.get(ATTR_EXPECTED_STATE)) is not None:
+            retry_data[ATTR_EXPECTED_STATE] = expected_states
         retry_data[ATTR_INDIVIDUALLY] = data[ATTR_INDIVIDUALLY]
         return retry_data
 
