@@ -75,7 +75,7 @@ data:
 target:
   entity_id: light.kitchen
 ```
-If the new state is different than expected, the attempt is considered a failure and the loop of retries continues. The `expected_state` parameter supports templates, and is not passed to the inner service call.
+If the new state is different than expected, the attempt is considered a failure and the loop of retries continues. The `expected_state` parameter can be a list, it supports templates, and it's not passed to the inner service call.
 
 Notes:
 1. The service does not propagate inner service failures (exceptions) since the retries are done in the background. However, the service logs a warning when the inner function fails (on every attempt). It also logs an error when the maximum amount of retries is reached.
