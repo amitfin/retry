@@ -222,9 +222,29 @@ async def test_entity_wrong_state(
         },
     )
     await async_shutdown(hass, freezer)
-    assert 'binary_sensor.test state is "on" but expecting "off"' in caplog.text
+    assert (
+        'binary_sensor.test state is "on" but expecting one of "[\'off\']"'
+        in caplog.text
+    )
     wait_times = [x.args[0] for x in sleep_mock.await_args_list]
     assert wait_times.count(0.2) == 7
+
+
+async def test_entity_expected_state_list(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Test list of expected states."""
+    calls = await async_setup(hass, False)
+    await async_call(
+        hass,
+        {
+            ATTR_ENTITY_ID: "binary_sensor.test",
+            ATTR_EXPECTED_STATE: ["dummy", "{{ 'on' }}"],
+        },
+    )
+    await async_shutdown(hass, freezer)
+    assert len(calls) == 1
 
 
 async def test_group_entity_unavailable(

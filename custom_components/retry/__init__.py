@@ -54,7 +54,7 @@ DEFAULT_RETRIES = 7
 
 SERVICE_SCHEMA_BASE_FIELDS = {
     vol.Required(ATTR_RETRIES, default=DEFAULT_RETRIES): cv.positive_int,
-    vol.Optional(ATTR_EXPECTED_STATE): cv.string,
+    vol.Optional(ATTR_EXPECTED_STATE): vol.Any(cv.string, [cv.string]),
 }
 CALL_SERVICE_SCHEMA = vol.Schema(
     {
@@ -109,11 +109,14 @@ class RetryParams:
         retry_data[ATTR_DOMAIN] = domain
         retry_data[ATTR_SERVICE] = service
         retry_data[ATTR_RETRIES] = data[ATTR_RETRIES]
-        expected_state = data.get(ATTR_EXPECTED_STATE)
-        if expected_state:
-            retry_data[ATTR_EXPECTED_STATE] = template.Template(
-                expected_state, hass
-            ).async_render(parse_result=False)
+        expected_states = data.get(ATTR_EXPECTED_STATE)
+        if expected_states:
+            if isinstance(expected_states, str):
+                expected_states = [expected_states]
+            retry_data[ATTR_EXPECTED_STATE] = [
+                template.Template(expected_state, hass).async_render(parse_result=False)
+                for expected_state in expected_states
+            ]
         retry_data[ATTR_INDIVIDUALLY] = data[ATTR_INDIVIDUALLY]
         return retry_data
 
@@ -209,17 +212,17 @@ class RetryCall:
             ) is None or not ent_obj.available:
                 invalid_entities[entity_id] = f"{entity_id} is not available"
             elif ATTR_EXPECTED_STATE in self._params.retry_data:
-                if (state := ent_obj.state) != self._params.retry_data[
+                if (state := ent_obj.state) not in self._params.retry_data[
                     ATTR_EXPECTED_STATE
                 ]:
                     if not grace_period_for_state_update:
                         await asyncio.sleep(GRACE_PERIOD_FOR_STATE_UPDATE)
                         state = ent_obj.state
                         grace_period_for_state_update = True
-                    if state != self._params.retry_data[ATTR_EXPECTED_STATE]:
+                    if state not in self._params.retry_data[ATTR_EXPECTED_STATE]:
                         invalid_entities[entity_id] = (
                             f'{entity_id} state is "{state}" but '
-                            f'expecting "{self._params.retry_data[ATTR_EXPECTED_STATE]}"'
+                            f'expecting one of "{self._params.retry_data[ATTR_EXPECTED_STATE]}"'
                         )
         if invalid_entities:
             self._service_entities = list(invalid_entities.keys())
