@@ -18,7 +18,18 @@ call:
       advanced: true
       example: "on"
       selector:
-        text:
+        select:
+          multiple: true
+          custom_value: true
+          options:
+            - "on"
+            - "off"
+            - opening
+            - open
+            - closing
+            - closed
+            - cool
+            - heat
     individually:
       default: true
       advanced: true
@@ -44,4 +55,15 @@ actions:
       advanced: true
       example: "on"
       selector:
-        text:
+        select:
+          multiple: true
+          custom_value: true
+          options:
+            - "on"
+            - "off"
+            - opening
+            - open
+            - closing
+            - closed
+            - cool
+            - heat
