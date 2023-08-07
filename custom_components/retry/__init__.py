@@ -29,7 +29,7 @@ from homeassistant.exceptions import (
     InvalidStateError,
     ServiceNotFound,
 )
-from homeassistant.helpers import config_validation as cv, event, script, template
+from homeassistant.helpers import config_validation as cv, event, script
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_component import DATA_INSTANCES
 from homeassistant.helpers.service import async_extract_referenced_entity_ids
