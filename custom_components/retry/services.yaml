@@ -30,12 +30,6 @@ call:
             - closed
             - cool
             - heat
-    individually:
-      default: true
-      advanced: true
-      example: false
-      selector:
-        boolean:
 actions:
   fields:
     sequence:
