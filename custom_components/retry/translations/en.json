@@ -26,10 +26,6 @@
                 "expected_state": {
                     "name": "Expected State",
                     "description": "The expected state of the entities after the service call."
-                },
-                "individually": {
-                    "name": "Individually",
-                    "description": "Make a separate call per entity."
                 }
             }
         },
