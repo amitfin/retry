@@ -1,12 +1,12 @@
 {
-    "title": "Retry",
+    "title": "Skúsiť znova",
     "config": {
         "abort": {
-            "single_instance_allowed": "Already configured. Only a single configuration possible."
+            "single_instance_allowed": "Už je nakonfigurovaný. Je možná len jedna konfigurácia."
         },
         "step": {
             "user": {
-                "description": "Do you want to start setup?"
+                "description": "Chcete spustiť nastavenie?"
             }
         }
     },
