@@ -1,0 +1,51 @@
+{
+    "title": "Retry",
+    "config": {
+        "abort": {
+            "single_instance_allowed": "Already configured. Only a single configuration possible."
+        },
+        "step": {
+            "user": {
+                "description": "Do you want to start setup?"
+            }
+        }
+    },
+    "services": {
+        "call": {
+            "name": "Zavolať službu",
+            "description": "Pri zlyhaní skúsiť znova zavolať službu.",
+            "fields": {
+                "service": {
+                    "name": "Služba",
+                    "description": "Služba na opakovanie pri zlyhaní."
+                },
+                "retries": {
+                    "name": "Opakovania",
+                    "description": "Maximálny počet volaní (predvolená hodnota je 7)."
+                },
+                "expected_state": {
+                    "name": "Očakávaný stav",
+                    "description": "Očakávaný stav entít po privolaní služby."
+                }
+            }
+        },
+        "actions": {
+            "name": "Akcie",
+            "description": "Vykonajte postupnosť akcií s opakovanými pokusmi pri zlyhanie servisného volania.",
+            "fields": {
+                "sequence": {
+                    "name": "Akcie",
+                    "description": "Postupnosť akcií."
+                },
+                "retries": {
+                    "name": "Opakovania",
+                    "description": "Maximálny počet volaní (predvolená hodnota je 7)."
+                },
+                "expected_state": {
+                    "name": "Očakávaný stav",
+                    "description": "Očakávaný stav entít po akomkoľvek servisnom volaní."
+                }
+            }
+        }
+    }
+}
