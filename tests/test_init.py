@@ -51,7 +51,6 @@ from pytest_homeassistant_custom_component.common import (
 from custom_components.retry.const import (
     ACTIONS_SERVICE,
     ATTR_EXPECTED_STATE,
-    ATTR_INDIVIDUALLY,
     ATTR_RETRIES,
     CALL_SERVICE,
     DOMAIN,
@@ -166,29 +165,7 @@ async def test_entity_unavailable(
         assert f"{entity} is not available" in caplog.text
 
 
-async def test_selective_retry_together(
-    hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
-) -> None:
-    """Test retry on part of entities."""
-    entities = ["binary_sensor.test", "binary_sensor.invalid"]
-    calls = await async_setup(hass, False)
-    await async_call(
-        hass,
-        {
-            ATTR_ENTITY_ID: entities,
-            ATTR_DEVICE_ID: ENTITY_MATCH_NONE,
-            ATTR_INDIVIDUALLY: False,
-        },
-    )
-    await async_shutdown(hass, freezer)
-    assert calls[0].data[ATTR_ENTITY_ID] == entities
-    assert ATTR_DEVICE_ID in calls[0].data
-    assert calls[1].data[ATTR_ENTITY_ID] == ["binary_sensor.invalid"]
-    assert ATTR_DEVICE_ID not in calls[1].data
-
-
-async def test_selective_retry_individually(
+async def test_selective_retry(
     hass: HomeAssistant,
     freezer: FrozenDateTimeFactory,
 ) -> None:
