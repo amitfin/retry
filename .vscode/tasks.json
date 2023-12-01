@@ -6,6 +6,12 @@
             "type": "shell",
             "command": "scripts/develop",
             "problemMatcher": []
-        }
+        },
+        {
+            "label": "Pytest",
+            "type": "shell",
+            "command": "python3 -m pytest --timeout=10 tests",
+            "problemMatcher": []
+        },
     ]
 }
