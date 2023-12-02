@@ -187,7 +187,7 @@ class RetryCall:
             for key in cv.ENTITY_SERVICE_FIELDS:
                 if key in self._inner_data:
                     del self._inner_data[key]
-            self._inner_data[ATTR_ENTITY_ID] = [entity_id]
+            self._inner_data[ATTR_ENTITY_ID] = entity_id
         self._entity_id = entity_id
         self._context = context
         self._attempt = 1
@@ -218,12 +218,16 @@ class RetryCall:
         """Log entry."""
         LOGGER.log(
             level,
-            "[%s]: attempt #%d, entity_id=%s, retry_data=%s, inner_data=%s",
+            "[%s]: attempt %d/%d: %s.%s(%s)%s",
             prefix,
             self._attempt,
-            self._entity_id,
-            self._params.retry_data,
+            self._params.retry_data[ATTR_RETRIES],
+            self._params.retry_data[ATTR_DOMAIN],
+            self._params.retry_data[ATTR_SERVICE],
             self._inner_data,
+            f", expected_state={self._params.retry_data[ATTR_EXPECTED_STATE]}"
+            if ATTR_EXPECTED_STATE in self._params.retry_data
+            else "",
             exc_info=stack_info,
         )
 

@@ -135,7 +135,10 @@ async def test_success(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> N
     ids=["default", "3-retries", "10-retries"],
 )
 async def test_failure(
-    hass: HomeAssistant, freezer: FrozenDateTimeFactory, retries: int
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    caplog: pytest.LogCaptureFixture,
+    retries: int,
 ) -> None:
     """Test failed service calls."""
     calls = await async_setup(hass)
@@ -149,6 +152,10 @@ async def test_failure(
             assert len(calls) == (i + 1)
         await async_next_hour(hass, freezer)
     assert len(calls) == retries
+    assert (
+        f"[Failed]: attempt {retries}/{retries}: {DOMAIN}.{TEST_SERVICE}({{}})"
+        in caplog.text
+    )
 
 
 async def test_entity_unavailable(
@@ -163,6 +170,10 @@ async def test_entity_unavailable(
     await async_shutdown(hass, freezer)
     for entity in entities:
         assert f"{entity} is not available" in caplog.text
+        assert (
+            f"[Failed]: attempt 7/7: {DOMAIN}.{TEST_SERVICE}({{'entity_id': '{entity}'}}), expected_state=['on']"
+            in caplog.text
+        )
 
 
 async def test_selective_retry(
