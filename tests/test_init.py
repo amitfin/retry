@@ -39,12 +39,13 @@ from homeassistant.exceptions import (
     InvalidEntityFormatError,
     ServiceNotFound,
 )
-from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import config_validation as cv, issue_registry as ir
 from homeassistant.setup import async_setup_component
 import homeassistant.util.dt as dt_util
 
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
+    async_capture_events,
     async_fire_time_changed,
 )
 
@@ -141,6 +142,7 @@ async def test_failure(
     retries: int,
 ) -> None:
     """Test failed service calls."""
+    repairs = async_capture_events(hass, ir.EVENT_REPAIRS_ISSUE_REGISTRY_UPDATED)
     calls = await async_setup(hass)
     data = {}
     if retries != 7:
@@ -153,9 +155,12 @@ async def test_failure(
         await async_next_hour(hass, freezer)
     assert len(calls) == retries
     assert (
-        f"[Failed]: attempt {retries}/{retries}: {DOMAIN}.{TEST_SERVICE}({{}})"
+        f"[Failed]: attempt {retries}/{retries}: {DOMAIN}.{TEST_SERVICE}()"
         in caplog.text
     )
+    assert len(repairs) == 1
+    assert repairs[0].data["action"] == "create"
+    assert repairs[0].data["domain"] == DOMAIN
 
 
 async def test_entity_unavailable(
@@ -171,7 +176,7 @@ async def test_entity_unavailable(
     for entity in entities:
         assert f"{entity} is not available" in caplog.text
         assert (
-            f"[Failed]: attempt 7/7: {DOMAIN}.{TEST_SERVICE}({{'entity_id': '{entity}'}}), expected_state=['on']"
+            f"[Failed]: attempt 7/7: {DOMAIN}.{TEST_SERVICE}(entity_id={entity})[expected_state=on]"
             in caplog.text
         )
 

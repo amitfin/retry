@@ -10,6 +10,12 @@
       "single_instance_allowed": "[%key:common::config_flow::abort::single_instance_allowed%]"
     }
   },
+  "issues": {
+    "failure": {
+      "title": "Service call failure",
+      "description": "`{service}` failed after {retries} retries. Check the log for additional information."
+    }
+  },
   "services": {
     "call": {
       "name": "Call Service",

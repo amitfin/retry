@@ -4,7 +4,9 @@ from __future__ import annotations
 import asyncio
 import datetime
 import logging
+import uuid
 import voluptuous as vol
+
 from homeassistant.components.hassio.const import ATTR_DATA
 from homeassistant.components.group import DOMAIN as GROUP_DOMAIN
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
@@ -29,7 +31,12 @@ from homeassistant.exceptions import (
     InvalidStateError,
     ServiceNotFound,
 )
-from homeassistant.helpers import config_validation as cv, event, script
+from homeassistant.helpers import (
+    config_validation as cv,
+    event,
+    issue_registry as ir,
+    script,
+)
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_component import DATA_INSTANCES
 from homeassistant.helpers.service import async_extract_referenced_entity_ids
@@ -187,7 +194,10 @@ class RetryCall:
             for key in cv.ENTITY_SERVICE_FIELDS:
                 if key in self._inner_data:
                     del self._inner_data[key]
-            self._inner_data[ATTR_ENTITY_ID] = entity_id
+            self._inner_data = {
+                **{ATTR_ENTITY_ID: entity_id},
+                **self._inner_data,
+            }
         self._entity_id = entity_id
         self._context = context
         self._attempt = 1
@@ -214,21 +224,45 @@ class RetryCall:
                         f'expecting one of "{self._params.retry_data[ATTR_EXPECTED_STATE]}"'
                     )
 
+    def _service_call_str(self) -> str:
+        """Return a string with the service call parameters."""
+        service_call = (
+            f"{self._params.retry_data[ATTR_DOMAIN]}.{self._params.retry_data[ATTR_SERVICE]}"
+            f"({', '.join([f'{key}={value}' for key, value in self._inner_data.items()])})"
+        )
+        if ATTR_EXPECTED_STATE in self._params.retry_data:
+            expected_state = self._params.retry_data[ATTR_EXPECTED_STATE]
+            if len(expected_state) == 1:
+                expected_state = expected_state[0]
+            service_call += f"[expected_state={expected_state}]"
+        return service_call
+
     def _log(self, level: int, prefix: str, stack_info: bool = False) -> None:
         """Log entry."""
         LOGGER.log(
             level,
-            "[%s]: attempt %d/%d: %s.%s(%s)%s",
+            "[%s]: attempt %d/%d: %s",
             prefix,
             self._attempt,
             self._params.retry_data[ATTR_RETRIES],
-            self._params.retry_data[ATTR_DOMAIN],
-            self._params.retry_data[ATTR_SERVICE],
-            self._inner_data,
-            f", expected_state={self._params.retry_data[ATTR_EXPECTED_STATE]}"
-            if ATTR_EXPECTED_STATE in self._params.retry_data
-            else "",
+            self._service_call_str(),
             exc_info=stack_info,
+        )
+
+    def _repair(self) -> None:
+        """Create a repair ticket."""
+        ir.async_create_issue(
+            self._hass,
+            DOMAIN,
+            f"retry_{uuid.uuid4()}",
+            is_fixable=False,
+            learn_more_url="https://github.com/amitfin/retry#retrycall",
+            severity=ir.IssueSeverity.ERROR,
+            translation_key="failure",
+            translation_placeholders={
+                "service": self._service_call_str(),
+                "retries": self._params.retry_data[ATTR_RETRIES],
+            },
         )
 
     @callback
@@ -257,6 +291,7 @@ class RetryCall:
                 True,
             )
         if self._attempt == self._params.retry_data[ATTR_RETRIES]:
+            self._repair()
             return
         next_retry = dt_util.now() + datetime.timedelta(seconds=self._delay)
         self._delay *= EXPONENTIAL_BACKOFF_BASE
