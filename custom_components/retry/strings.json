@@ -10,6 +10,15 @@
       "single_instance_allowed": "[%key:common::config_flow::abort::single_instance_allowed%]"
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "disable_repair": "Disable repair tickets"
+        }
+      }
+    }
+  },
   "issues": {
     "failure": {
       "title": "Service call failure",

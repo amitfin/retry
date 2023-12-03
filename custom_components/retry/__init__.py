@@ -48,6 +48,7 @@ from .const import (
     ATTR_EXPECTED_STATE,
     ATTR_RETRIES,
     CALL_SERVICE,
+    CONF_DISABLE_REPAIR,
     DOMAIN,
     LOGGER,
 )
@@ -100,9 +101,11 @@ class RetryParams:
     def __init__(
         self,
         hass: HomeAssistant,
+        config_entry: ConfigEntry | None,
         data: dict[str, any],
     ) -> None:
         """Initialize the object."""
+        self.config_entry = config_entry
         self.retry_data = self._retry_service_data(hass, data)
         self.inner_data = self._inner_service_data(hass, data)
         self.service_entities = self._service_entity_ids(hass)
@@ -291,7 +294,8 @@ class RetryCall:
                 True,
             )
         if self._attempt == self._params.retry_data[ATTR_RETRIES]:
-            self._repair()
+            if not self._params.config_entry.options.get(CONF_DISABLE_REPAIR):
+                self._repair()
             return
         next_retry = dt_util.now() + datetime.timedelta(seconds=self._delay)
         self._delay *= EXPONENTIAL_BACKOFF_BASE
@@ -317,7 +321,11 @@ def _wrap_service_calls(
                 action[ATTR_DATA].update(retry_params)
                 action[ATTR_SERVICE] = f"{DOMAIN}.{CALL_SERVICE}"
                 # Validate parameters so errors are not raised in the background.
-                RetryParams(hass, {**action[ATTR_DATA], **action.get(CONF_TARGET, {})})
+                RetryParams(
+                    hass,
+                    None,
+                    {**action[ATTR_DATA], **action.get(CONF_TARGET, {})},
+                )
             case cv.SCRIPT_ACTION_REPEAT:
                 _wrap_service_calls(
                     hass, action[CONF_REPEAT][CONF_SEQUENCE], retry_params
@@ -336,12 +344,12 @@ def _wrap_service_calls(
                     _wrap_service_calls(hass, parallel[CONF_SEQUENCE], retry_params)
 
 
-async def async_setup_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Set up domain."""
 
     async def async_call(service_call: ServiceCall) -> None:
         """Call service with background retries."""
-        params = RetryParams(hass, service_call.data)
+        params = RetryParams(hass, config_entry, service_call.data)
         for entity_id in params.service_entities or [None]:
             hass.async_create_task(
                 RetryCall(hass, params, service_call.context, entity_id).async_retry()

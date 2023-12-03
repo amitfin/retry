@@ -54,6 +54,7 @@ from custom_components.retry.const import (
     ATTR_EXPECTED_STATE,
     ATTR_RETRIES,
     CALL_SERVICE,
+    CONF_DISABLE_REPAIR,
     DOMAIN,
 )
 
@@ -61,9 +62,11 @@ TEST_SERVICE = "test_service"
 BASIC_SEQUENCE_DATA = [{ATTR_SERVICE: f"{DOMAIN}.{TEST_SERVICE}"}]
 
 
-async def async_setup(hass: HomeAssistant, raises: bool = True) -> list[ServiceCall]:
+async def async_setup(
+    hass: HomeAssistant, raises: bool = True, options: dict | None = None
+) -> list[ServiceCall]:
     """Load retry custom integration and basic environment."""
-    config_entry = MockConfigEntry(domain=DOMAIN)
+    config_entry = MockConfigEntry(domain=DOMAIN, options=options)
     config_entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(config_entry.entry_id)
     assert await async_setup_component(
@@ -318,6 +321,18 @@ async def test_all_entities_in_target(hass: HomeAssistant) -> None:
     await async_setup(hass)
     with pytest.raises(InvalidEntityFormatError):
         await async_call(hass, target={ATTR_ENTITY_ID: ENTITY_MATCH_ALL})
+
+
+async def test_disable_repair(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Test disabling repair tickets."""
+    repairs = async_capture_events(hass, ir.EVENT_REPAIRS_ISSUE_REGISTRY_UPDATED)
+    await async_setup(hass, options={CONF_DISABLE_REPAIR: True})
+    await async_call(hass)
+    await async_shutdown(hass, freezer)
+    assert not len(repairs)
 
 
 async def test_unload(hass: HomeAssistant) -> None:
