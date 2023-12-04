@@ -243,8 +243,9 @@ class RetryCall:
         if ATTR_EXPECTED_STATE in self._params.retry_data:
             expected_state = self._params.retry_data[ATTR_EXPECTED_STATE]
             if len(expected_state) == 1:
-                expected_state = expected_state[0]
-            service_call += f"[expected_state={expected_state}]"
+                service_call += f"[expected_state={expected_state[0]}]"
+            else:
+                service_call += f"[expected_state in ({', '.join(state for state in expected_state)})]"
         return service_call
 
     def _log(self, level: int, prefix: str, stack_info: bool = False) -> None:
