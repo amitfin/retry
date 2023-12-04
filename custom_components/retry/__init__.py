@@ -27,7 +27,6 @@ from homeassistant.const import (
 from homeassistant.core import Context, HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import (
     IntegrationError,
-    InvalidEntityFormatError,
     InvalidStateError,
     ServiceNotFound,
 )
@@ -38,7 +37,7 @@ from homeassistant.helpers import (
     script,
 )
 from homeassistant.helpers.entity import Entity
-from homeassistant.helpers.entity_component import DATA_INSTANCES
+from homeassistant.helpers.entity_component import DATA_INSTANCES, EntityComponent
 from homeassistant.helpers.service import async_extract_referenced_entity_ids
 from homeassistant.helpers.typing import ConfigType
 import homeassistant.util.dt as dt_util
@@ -88,10 +87,14 @@ ACTIONS_SERVICE_SCHEMA = vol.Schema(
 )
 
 
+def _get_entity_component(hass: HomeAssistant, domain: str) -> EntityComponent | None:
+    """Get entity component object."""
+    return hass.data.get(DATA_INSTANCES, {}).get(domain)
+
+
 def _get_entity(hass: HomeAssistant, entity_id: str) -> Entity | None:
     """Get entity object."""
-    entity_domain = entity_id.split(".")[0]
-    entity_comp = hass.data.get(DATA_INSTANCES, {}).get(entity_domain)
+    entity_comp = _get_entity_component(hass, entity_id.split(".")[0])
     return entity_comp.get_entity(entity_id) if entity_comp else None
 
 
@@ -140,10 +143,6 @@ class RetryParams:
             self.retry_data[ATTR_SERVICE]
         ].schema:
             schema(inner_data)
-        if inner_data.get(ATTR_ENTITY_ID) == ENTITY_MATCH_ALL:
-            raise InvalidEntityFormatError(
-                f'"{ATTR_ENTITY_ID}={ENTITY_MATCH_ALL}" is not supported'
-            )
         return inner_data
 
     def _expand_group(self, hass: HomeAssistant, entity_id: str) -> list[str]:
@@ -163,6 +162,14 @@ class RetryParams:
 
     def _service_entity_ids(self, hass: HomeAssistant) -> list[str]:
         """Get entity ids for a service call."""
+        if self.inner_data.get(ATTR_ENTITY_ID) == ENTITY_MATCH_ALL:
+            # Assuming it's a component (domain) service and not platform specific.
+            # AFAIK, it's not possilbe to get the platform by the service name.
+            entity_comp = _get_entity_component(hass, self.retry_data[ATTR_DOMAIN])
+            return [
+                entity.entity_id
+                for entity in (entity_comp.entities if entity_comp else [])
+            ]
         entity_ids = []
         service_entities = async_extract_referenced_entity_ids(
             hass,

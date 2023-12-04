@@ -36,7 +36,6 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import (
     IntegrationError,
-    InvalidEntityFormatError,
     ServiceNotFound,
 )
 from homeassistant.helpers import config_validation as cv, issue_registry as ir
@@ -309,18 +308,72 @@ async def test_invalid_schema(hass: HomeAssistant) -> None:
         await async_call(hass, {"invalid_field": ""})
 
 
-async def test_all_entities(hass: HomeAssistant) -> None:
+@pytest.mark.parametrize(
+    ["service", "param", "target"],
+    [
+        (
+            CALL_SERVICE,
+            {
+                ATTR_SERVICE: "script.turn_off",
+                ATTR_EXPECTED_STATE: "on",
+                ATTR_ENTITY_ID: ENTITY_MATCH_ALL,
+            },
+            None,
+        ),
+        (
+            CALL_SERVICE,
+            {
+                ATTR_SERVICE: "script.turn_off",
+                ATTR_EXPECTED_STATE: "on",
+            },
+            {ATTR_ENTITY_ID: ENTITY_MATCH_ALL},
+        ),
+        (
+            ACTIONS_SERVICE,
+            {
+                CONF_SEQUENCE: [
+                    {
+                        ATTR_SERVICE: "script.turn_off",
+                        CONF_TARGET: {ATTR_ENTITY_ID: ENTITY_MATCH_ALL},
+                    }
+                ],
+                ATTR_EXPECTED_STATE: "on",
+            },
+            None,
+        ),
+    ],
+    ids=["call-param", "call-target", "actions"],
+)
+@patch("custom_components.retry.asyncio.sleep")
+async def test_all_entities(
+    _: AsyncMock,
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    caplog: pytest.LogCaptureFixture,
+    service: str,
+    param: dict,
+    target: dict | None,
+) -> None:
     """Test selecting all entities."""
     await async_setup(hass)
-    with pytest.raises(InvalidEntityFormatError):
-        await async_call(hass, {ATTR_ENTITY_ID: ENTITY_MATCH_ALL})
-
-
-async def test_all_entities_in_target(hass: HomeAssistant) -> None:
-    """Test selecting all entities in the target key."""
-    await async_setup(hass)
-    with pytest.raises(InvalidEntityFormatError):
-        await async_call(hass, target={ATTR_ENTITY_ID: ENTITY_MATCH_ALL})
+    assert await async_setup_component(
+        hass,
+        "script",
+        {"script": {"test1": {"sequence": {}}, "test2": {"sequence": {}}}},
+    )
+    await hass.services.async_call(
+        DOMAIN,
+        service,
+        param,
+        True,
+        target=target,
+    )
+    await async_shutdown(hass, freezer)
+    for i in [1, 2]:
+        assert (
+            f"[Failed]: attempt 7/7: script.turn_off(entity_id=script.test{i})[expected_state=on]"
+            in caplog.text
+        )
 
 
 async def test_disable_repair(
@@ -576,27 +629,6 @@ async def test_call_in_actions(
                 CONF_SEQUENCE: [
                     {
                         ATTR_SERVICE: f"{DOMAIN}.{CALL_SERVICE}",
-                    }
-                ]
-            },
-            True,
-        )
-
-
-async def test_all_entities_actions(
-    hass: HomeAssistant,
-) -> None:
-    """Test all entities is not allowed in retry.actions."""
-    await async_setup(hass)
-    with pytest.raises(InvalidEntityFormatError):
-        await hass.services.async_call(
-            DOMAIN,
-            ACTIONS_SERVICE,
-            {
-                CONF_SEQUENCE: [
-                    {
-                        ATTR_SERVICE: f"{DOMAIN}.{TEST_SERVICE}",
-                        CONF_TARGET: {ATTR_ENTITY_ID: ENTITY_MATCH_ALL},
                     }
                 ]
             },
