@@ -76,7 +76,7 @@ target:
 If the new state is different than expected, the attempt is considered a failure and the loop of retries continues. The `expected_state` parameter can be a list, it supports templates, and it's not passed to the inner service call.
 
 Notes:
-1. The service does not propagate inner service failures (exceptions) since the retries are done in the background. However, the service logs a warning when the inner function fails (on every attempt). It also logs an error when the maximum amount of retries is reached.
+1. The service does not propagate inner service failures (exceptions) since the retries are done in the background. However, the service logs a warning when the inner function fails (on every attempt). It also logs an error and issue a repair ticket when the maximum amount of retries is reached. Repair tickets can be disabled via the [integration's configuration dialog](https://my.home-assistant.io/redirect/integration/?domain=retry).
 2. Service calls support a list of entities either by providing an explicit list or by [targeting areas and devices](https://www.home-assistant.io/docs/scripts/service-calls/#targeting-areas-and-devices). The call to the inner service is done individually per entity to isolate failures. Note that setting `entity_id: all` is not supported.
 
 ## Install
