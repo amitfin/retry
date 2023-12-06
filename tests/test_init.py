@@ -52,6 +52,7 @@ from custom_components.retry.const import (
     ACTIONS_SERVICE,
     ATTR_EXPECTED_STATE,
     ATTR_RETRIES,
+    ATTR_STATE_GRACE,
     CALL_SERVICE,
     CONF_DISABLE_REPAIR,
     DOMAIN,
@@ -200,20 +201,29 @@ async def test_selective_retry(
     assert ATTR_DEVICE_ID not in calls[0].data
 
 
+@pytest.mark.parametrize(
+    ["grace"],
+    [(None,), (3.21,)],
+    ids=["default", "custom"],
+)
 @patch("custom_components.retry.asyncio.sleep")
 async def test_entity_wrong_state(
     sleep_mock: AsyncMock,
     hass: HomeAssistant,
     freezer: FrozenDateTimeFactory,
     caplog: pytest.LogCaptureFixture,
+    grace: float | None,
 ) -> None:
     """Test entity has the wrong state."""
     await async_setup(hass, False)
     await async_call(
         hass,
         {
-            ATTR_ENTITY_ID: "binary_sensor.test",
-            ATTR_EXPECTED_STATE: "{{ 'off' }}",
+            **{
+                ATTR_ENTITY_ID: "binary_sensor.test",
+                ATTR_EXPECTED_STATE: "{{ 'off' }}",
+            },
+            **({ATTR_STATE_GRACE: grace} if grace else {}),
         },
     )
     await async_shutdown(hass, freezer)
@@ -222,7 +232,7 @@ async def test_entity_wrong_state(
         in caplog.text
     )
     wait_times = [x.args[0] for x in sleep_mock.await_args_list]
-    assert wait_times.count(0.2) == 7
+    assert wait_times.count(grace or 0.2) == 7
 
 
 async def test_entity_expected_state_list(

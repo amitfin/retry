@@ -30,6 +30,15 @@ call:
             - closed
             - cool
             - heat
+    state_grace:
+      advanced: true
+      example: "3"
+      selector:
+        number:
+            min: 0.1
+            max: 180.0
+            unit_of_measurement: seconds
+            mode: box
 actions:
   fields:
     sequence:
@@ -61,3 +70,12 @@ actions:
             - closed
             - cool
             - heat
+    state_grace:
+      advanced: true
+      example: "3"
+      selector:
+        number:
+            min: 0.1
+            max: 180.0
+            unit_of_measurement: seconds
+            mode: box

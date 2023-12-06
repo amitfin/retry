@@ -46,6 +46,7 @@ from .const import (
     ACTIONS_SERVICE,
     ATTR_EXPECTED_STATE,
     ATTR_RETRIES,
+    ATTR_STATE_GRACE,
     CALL_SERVICE,
     CONF_DISABLE_REPAIR,
     DOMAIN,
@@ -55,8 +56,8 @@ from .const import (
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
 EXPONENTIAL_BACKOFF_BASE = 2
-GRACE_PERIOD_FOR_STATE_UPDATE = 0.2
 DEFAULT_RETRIES = 7
+DEFAULT_STATE_GRACE = 0.2
 
 
 def _template_parameter(value: any | None) -> str:
@@ -69,6 +70,7 @@ def _template_parameter(value: any | None) -> str:
 SERVICE_SCHEMA_BASE_FIELDS = {
     vol.Required(ATTR_RETRIES, default=DEFAULT_RETRIES): cv.positive_int,
     vol.Optional(ATTR_EXPECTED_STATE): vol.All(cv.ensure_list, [_template_parameter]),
+    vol.Required(ATTR_STATE_GRACE, default=DEFAULT_STATE_GRACE): cv.positive_float,
 }
 CALL_SERVICE_SCHEMA = vol.Schema(
     {
@@ -126,6 +128,7 @@ class RetryParams:
         retry_data[ATTR_DOMAIN] = domain
         retry_data[ATTR_SERVICE] = service
         retry_data[ATTR_RETRIES] = data[ATTR_RETRIES]
+        retry_data[ATTR_STATE_GRACE] = data[ATTR_STATE_GRACE]
         if (expected_states := data.get(ATTR_EXPECTED_STATE)) is not None:
             retry_data[ATTR_EXPECTED_STATE] = expected_states
         return retry_data
@@ -137,7 +140,8 @@ class RetryParams:
         inner_data = {
             key: value
             for key, value in data.items()
-            if key not in [ATTR_SERVICE, ATTR_RETRIES, ATTR_EXPECTED_STATE]
+            if key
+            not in [ATTR_SERVICE, ATTR_RETRIES, ATTR_EXPECTED_STATE, ATTR_STATE_GRACE]
         }
         if schema := hass.services.async_services()[self.retry_data[ATTR_DOMAIN]][
             self.retry_data[ATTR_SERVICE]
@@ -215,20 +219,16 @@ class RetryCall:
 
     async def _async_check_entity(self) -> None:
         """Verify that the entity is available and in the expected state."""
-        grace_period_for_state_update = False
         if (
             ent_obj := _get_entity(self._hass, self._entity_id)
         ) is None or not ent_obj.available:
             raise InvalidStateError(f"{self._entity_id} is not available")
         elif ATTR_EXPECTED_STATE in self._params.retry_data:
-            if (state := ent_obj.state) not in self._params.retry_data[
-                ATTR_EXPECTED_STATE
-            ]:
-                if not grace_period_for_state_update:
-                    await asyncio.sleep(GRACE_PERIOD_FOR_STATE_UPDATE)
-                    state = ent_obj.state
-                    grace_period_for_state_update = True
-                if state not in self._params.retry_data[ATTR_EXPECTED_STATE]:
+            if ent_obj.state not in self._params.retry_data[ATTR_EXPECTED_STATE]:
+                await asyncio.sleep(self._params.retry_data[ATTR_STATE_GRACE])
+                if (state := ent_obj.state) not in self._params.retry_data[
+                    ATTR_EXPECTED_STATE
+                ]:
                     raise InvalidStateError(
                         f'{self._entity_id} state is "{state}" but '
                         f'expecting one of "{self._params.retry_data[ATTR_EXPECTED_STATE]}"'
@@ -240,12 +240,21 @@ class RetryCall:
             f"{self._params.retry_data[ATTR_DOMAIN]}.{self._params.retry_data[ATTR_SERVICE]}"
             f"({', '.join([f'{key}={value}' for key, value in self._inner_data.items()])})"
         )
+        retry_params = []
         if ATTR_EXPECTED_STATE in self._params.retry_data:
             expected_state = self._params.retry_data[ATTR_EXPECTED_STATE]
             if len(expected_state) == 1:
-                service_call += f"[expected_state={expected_state[0]}]"
+                retry_params.append(f"expected_state={expected_state[0]}")
             else:
-                service_call += f"[expected_state in ({', '.join(state for state in expected_state)})]"
+                retry_params.append(
+                    f"expected_state in ({', '.join(state for state in expected_state)})"
+                )
+        if self._params.retry_data[ATTR_STATE_GRACE] != DEFAULT_STATE_GRACE:
+            retry_params.append(
+                f"state_grace={self._params.retry_data[ATTR_STATE_GRACE]}"
+            )
+        if len(retry_params) > 0:
+            service_call += f"[{', '.join(retry_params)}]"
         return service_call
 
     def _log(self, level: int, prefix: str, stack_info: bool = False) -> None:
@@ -277,7 +286,7 @@ class RetryCall:
         )
 
     @callback
-    async def async_retry(self, *_) -> bool:
+    async def async_retry(self, *_) -> None:
         """One service call attempt."""
         try:
             await self._hass.services.async_call(
@@ -371,6 +380,9 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         retry_params = {}
         retry_params[ATTR_RETRIES] = service_call.data.get(
             ATTR_RETRIES, DEFAULT_RETRIES
+        )
+        retry_params[ATTR_STATE_GRACE] = service_call.data.get(
+            ATTR_STATE_GRACE, DEFAULT_STATE_GRACE
         )
         if ATTR_EXPECTED_STATE in service_call.data:
             retry_params[ATTR_EXPECTED_STATE] = service_call.data[ATTR_EXPECTED_STATE]

@@ -41,6 +41,10 @@
         "expected_state": {
           "name": "Expected State",
           "description": "The expected state of the entities after the service call."
+        },
+        "state_grace": {
+          "name": "State Grace Period",
+          "description": "Grace period (seconds) for expected state (defualt is 0.2)."
         }
       }
     },
@@ -59,6 +63,10 @@
         "expected_state": {
           "name": "Expected State",
           "description": "The expected state of the entities after any service call."
+        },
+        "state_grace": {
+          "name": "State Grace Period",
+          "description": "Grace period (seconds) for expected state (defualt is 0.2)."
         }
       }
     }
