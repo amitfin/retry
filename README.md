@@ -64,7 +64,7 @@ The `retries` parameter is not passed to the inner service call.
 
 The service implements exponential backoff mechanism. These are the delay times (in seconds) of the first 7 attempts: [0, 1, 2, 4, 8, 16, 32] (each delay is twice than the previous one). The following are the second offsets from the initial call [0, 1, 3, 7, 15, 31, 63].
 
-`expected_state` is another _optional_ parameter which can be used to validate the new state of the entities after the inner service call:
+`expected_state` is an _optional_ parameter which can be used to validate the new state of the entities after the inner service call:
 ```
 service: retry.call
 data:
@@ -75,9 +75,11 @@ target:
 ```
 If the new state is different than expected, the attempt is considered a failure and the loop of retries continues. The `expected_state` parameter can be a list, it supports templates, and it's not passed to the inner service call.
 
+`state_grace` (seconds) is is an _optional_ parameter which controls the grace period of `expected_state`. There is an additional state validation at the end of the period if the entity's state doesn't match `expected_state` right after the service call. The service call attepmt is considered a failure only if the 2nd validation fails. The default value is 0.2 seconds. The `state_grace` parameter is not passed to the inner service call.
+
 Notes:
 1. The service does not propagate inner service failures (exceptions) since the retries are done in the background. However, the service logs a warning when the inner function fails (on every attempt). It also logs an error and issue a repair ticket when the maximum amount of retries is reached. Repair tickets can be disabled via the [integration's configuration dialog](https://my.home-assistant.io/redirect/integration/?domain=retry).
-2. Service calls support a list of entities either by providing an explicit list or by [targeting areas and devices](https://www.home-assistant.io/docs/scripts/service-calls/#targeting-areas-and-devices). The call to the inner service is done individually per entity to isolate failures. Note that setting `entity_id: all` is not supported.
+2. Service calls support a list of entities either by providing an explicit list or by [targeting areas and devices](https://www.home-assistant.io/docs/scripts/service-calls/#targeting-areas-and-devices). The call to the inner service is done individually per entity to isolate failures.
 
 ## Install
 HACS is the preferred and easier way to install the component, and can be done by using this My button:
