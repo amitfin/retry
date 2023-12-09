@@ -150,7 +150,7 @@ class RetryParams:
         return inner_data
 
     def _expand_group(self, hass: HomeAssistant, entity_id: str) -> list[str]:
-        """Return group memeber ids (when a group)."""
+        """Return group member ids (when a group)."""
         entity_ids = []
         entity_obj = _get_entity(hass, entity_id)
         if (
@@ -168,7 +168,7 @@ class RetryParams:
         """Get entity ids for a service call."""
         if self.inner_data.get(ATTR_ENTITY_ID) == ENTITY_MATCH_ALL:
             # Assuming it's a component (domain) service and not platform specific.
-            # AFAIK, it's not possilbe to get the platform by the service name.
+            # AFAIK, it's not possible to get the platform by the service name.
             entity_comp = _get_entity_component(hass, self.retry_data[ATTR_DOMAIN])
             return [
                 entity.entity_id
