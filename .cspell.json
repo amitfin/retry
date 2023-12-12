@@ -4,6 +4,7 @@
   "words": [
     "homeassistant",
     "hass",
+    "hassio",
     "HACS",
     "unsub",
     "codeowners",
@@ -12,6 +13,8 @@
     "venv",
     "autouse",
     "freezegun",
-    "devcontainer"
+    "caplog",
+    "devcontainer",
+    "PYTHONPATH"
   ]
 }

@@ -22,21 +22,25 @@ https://github.com/amitfin/retry/assets/19599059/318c2129-901f-4f6c-8e79-e155ae0
 `retry.actions` wraps any service call inside the sequence of actions with `retry.call`. `retry.call` calls the original service with a background retry logic on failures. A complex sequence of actions with a nested structure and conditions is supported. The service traverses through the actions and wraps any service call. There is no impact or changes to the rest of the actions. The detailed behavior of `retry.call` is explained in the section below. However, the default behavior should be sufficient for the majority of the use-cases. A straightforward UI usage as demonstrated above should be the way to go.
 
 Note: This service is not suitable for the following scenarios:
-1) When the order of the actions matters: the background retries are running independently to the rest of the actions.
-2) For a relative state change: for example, `fan.increase_speed` is relative while `light.turn_on` is absolute. The reason is that a relative service call might change the state and only then a failure occurs. Calling it again might have an unintentional result.
-3) If any [service call response data](https://www.home-assistant.io/docs/scripts/service-calls/#use-templates-to-handle-response-data) is needed: the service calls are running in the background and therefore it's not possible to propagate responses. 
+
+1. When the order of the actions matters: the background retries are running independently to the rest of the actions.
+2. For a relative state change: for example, `fan.increase_speed` is relative while `light.turn_on` is absolute. The reason is that a relative service call might change the state and only then a failure occurs. Calling it again might have an unintentional result.
+3. If any [service call response data](https://www.home-assistant.io/docs/scripts/service-calls/#use-templates-to-handle-response-data) is needed: the service calls are running in the background and therefore it's not possible to propagate responses.
 
 ## `retry.call`
 
 This service warps an inner service call with background retries on failure. It can be useful to mitigate temporary issues of connectivity or invalid device states.
 
 For example, instead of:
+
 ```
 service: homeassistant.turn_on
 target:
   entity_id: light.kitchen
 ```
+
 The following should be used:
+
 ```
 service: retry.call
 data:
@@ -48,10 +52,12 @@ target:
 The `service` parameter (inside the `data` section) supports templates. It's possible to add any other data parameters needed by the inner service call.
 
 The inner service call will get called again if one of the following happens:
+
 1. The inner service call raised an exception.
 2. The target entity is unavailable. Note that this is important since HA silently skips unavailable entities ([here](https://github.com/home-assistant/core/blob/580b20b0a83c561986e7571b83df4a4bcb158392/homeassistant/helpers/service.py#L763)).
 
 By default there are 7 retries. It can be changed by passing the optional parameter `retries`:
+
 ```
 service: retry.call
 data:
@@ -60,11 +66,13 @@ data:
 target:
   entity_id: light.kitchen
 ```
+
 The `retries` parameter is not passed to the inner service call.
 
 The service implements exponential backoff mechanism. These are the delay times (in seconds) of the first 7 attempts: [0, 1, 2, 4, 8, 16, 32] (each delay is twice than the previous one). The following are the second offsets from the initial call [0, 1, 3, 7, 15, 31, 63].
 
 `expected_state` is an _optional_ parameter which can be used to validate the new state of the entities after the inner service call:
+
 ```
 service: retry.call
 data:
@@ -73,15 +81,18 @@ data:
 target:
   entity_id: light.kitchen
 ```
+
 If the new state is different than expected, the attempt is considered a failure and the loop of retries continues. The `expected_state` parameter can be a list, it supports templates, and it's not passed to the inner service call.
 
-`state_grace` (seconds) is is an _optional_ parameter which controls the grace period of `expected_state`. There is an additional state validation at the end of the period if the entity's state doesn't match `expected_state` right after the service call. The service call attepmt is considered a failure only if the 2nd validation fails. The default value is 0.2 seconds. The `state_grace` parameter is not passed to the inner service call.
+`state_grace` (seconds) is is an _optional_ parameter which controls the grace period of `expected_state`. There is an additional state validation at the end of the period if the entity's state doesn't match `expected_state` right after the service call. The service call attempt is considered a failure only if the 2nd validation fails. The default value is 0.2 seconds. The `state_grace` parameter is not passed to the inner service call.
 
 Notes:
+
 1. The service does not propagate inner service failures (exceptions) since the retries are done in the background. However, the service logs a warning when the inner function fails (on every attempt). It also logs an error and issue a repair ticket when the maximum amount of retries is reached. Repair tickets can be disabled via the [integration's configuration dialog](https://my.home-assistant.io/redirect/integration/?domain=retry).
 2. Service calls support a list of entities either by providing an explicit list or by [targeting areas and devices](https://www.home-assistant.io/docs/scripts/service-calls/#targeting-areas-and-devices). The call to the inner service is done individually per entity to isolate failures.
 
 ## Install
+
 HACS is the preferred and easier way to install the component, and can be done by using this My button:
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=amitfin&repository=retry&category=integration)
