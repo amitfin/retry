@@ -1,0 +1,17 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    "homeassistant",
+    "hass",
+    "HACS",
+    "unsub",
+    "codeowners",
+    "amitfin",
+    "pytest",
+    "venv",
+    "autouse",
+    "freezegun",
+    "devcontainer"
+  ]
+}
