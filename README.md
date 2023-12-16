@@ -24,7 +24,7 @@ https://github.com/amitfin/retry/assets/19599059/318c2129-901f-4f6c-8e79-e155ae0
 Note: This service is not suitable for the following scenarios:
 
 1. When the order of the actions matters: the background retries are running independently to the rest of the actions.
-2. For a relative state change: for example, `fan.increase_speed` is relative while `light.turn_on` is absolute. The reason is that a relative service call might change the state and only then a failure occurs. Calling it again might have an unintentional result.
+2. For a relative state change: for example, `homeassistant.toggle` and `fan.increase_speed` are relatives operations while `light.turn_on` is an absolute one. The reason is that a relative service call might change the state and only then a failure occurs. Calling it again might have an unintentional result.
 3. If any [service call response data](https://www.home-assistant.io/docs/scripts/service-calls/#use-templates-to-handle-response-data) is needed: the service calls are running in the background and therefore it's not possible to propagate responses.
 
 ## `retry.call`
