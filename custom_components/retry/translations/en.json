@@ -42,9 +42,13 @@
                     "name": "Expected State",
                     "description": "The expected state of the entities after the service call."
                 },
+                "validation": {
+                    "name": "Validation",
+                    "description": "Special template with square brackets instead of curly brackets for validating success."
+                },
                 "state_grace": {
                     "name": "State Grace Period",
-                    "description": "Grace period (seconds) for expected state (default is 0.2)."
+                    "description": "Grace period (seconds) for expected state and validation (default is 0.2)."
                 }
             }
         },
@@ -64,9 +68,13 @@
                     "name": "Expected State",
                     "description": "The expected state of the entities after any service call."
                 },
+                "validation": {
+                    "name": "Validation",
+                    "description": "Special template with square brackets instead of curly brackets for validating success."
+                },
                 "state_grace": {
                     "name": "State Grace Period",
-                    "description": "Grace period (seconds) for expected state (default is 0.2)."
+                    "description": "Grace period (seconds) for expected state and validation (default is 0.2)."
                 }
             }
         }

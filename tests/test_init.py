@@ -53,6 +53,7 @@ from custom_components.retry.const import (
     ATTR_EXPECTED_STATE,
     ATTR_RETRIES,
     ATTR_STATE_GRACE,
+    ATTR_VALIDATION,
     CALL_SERVICE,
     CONF_DISABLE_REPAIR,
     DOMAIN,
@@ -63,7 +64,9 @@ BASIC_SEQUENCE_DATA = [{ATTR_SERVICE: f"{DOMAIN}.{TEST_SERVICE}"}]
 
 
 async def async_setup(
-    hass: HomeAssistant, raises: bool = True, options: dict | None = None
+    hass: HomeAssistant,
+    raises: bool = True,
+    options: dict | None = None,
 ) -> list[ServiceCall]:
     """Load retry custom integration and basic environment."""
     config_entry = MockConfigEntry(domain=DOMAIN, options=options)
@@ -202,9 +205,13 @@ async def test_selective_retry(
 
 
 @pytest.mark.parametrize(
-    ["grace"],
-    [(None,), (3.21,)],
-    ids=["default", "custom"],
+    ["expected_state", "validation", "grace"],
+    [
+        ("{{ 'off' }}", None, None),
+        ("{{ 'off' }}", None, 3.21),
+        (None, "[[ is_state(entity_id, 'off') ]]", 1.23),
+    ],
+    ids=["default", "grace", "validation"],
 )
 @patch("custom_components.retry.asyncio.sleep")
 async def test_entity_wrong_state(
@@ -212,6 +219,8 @@ async def test_entity_wrong_state(
     hass: HomeAssistant,
     freezer: FrozenDateTimeFactory,
     caplog: pytest.LogCaptureFixture,
+    expected_state: str | None,
+    validation: str | None,
     grace: float | None,
 ) -> None:
     """Test entity has the wrong state."""
@@ -219,18 +228,21 @@ async def test_entity_wrong_state(
     await async_call(
         hass,
         {
-            **{
-                ATTR_ENTITY_ID: "binary_sensor.test",
-                ATTR_EXPECTED_STATE: "{{ 'off' }}",
-            },
+            ATTR_ENTITY_ID: "binary_sensor.test",
+            **({ATTR_EXPECTED_STATE: expected_state} if expected_state else {}),
+            **({ATTR_VALIDATION: validation} if validation else {}),
             **({ATTR_STATE_GRACE: grace} if grace else {}),
         },
     )
     await async_shutdown(hass, freezer)
-    assert (
-        'binary_sensor.test state is "on" but expecting one of "[\'off\']"'
-        in caplog.text
-    )
+    if expected_state:
+        assert (
+            'binary_sensor.test state is "on" but expecting one of "[\'off\']"'
+            in caplog.text
+        )
+    else:
+        validation = validation.replace("[", "{").replace("]", "}")
+        assert f'"{validation}" is False' in caplog.text
     wait_times = [x.args[0] for x in sleep_mock.await_args_list]
     assert wait_times.count(grace or 0.2) == 7
 
@@ -250,6 +262,74 @@ async def test_entity_expected_state_list(
     )
     await async_shutdown(hass, freezer)
     assert len(calls) == 1
+
+
+async def test_validation_success(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Test successful validation."""
+    calls = await async_setup(hass, False)
+    await async_call(
+        hass,
+        {
+            ATTR_ENTITY_ID: "binary_sensor.test",
+            ATTR_VALIDATION: "[[ is_state(entity_id, 'on') ]]",
+        },
+    )
+    await async_shutdown(hass, freezer)
+    assert len(calls) == 1
+
+
+@patch("custom_components.retry.asyncio.sleep")
+async def test_validation_in_automation(
+    _: AsyncMock,
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Test validation in an automation rule."""
+    calls = []
+    await async_setup(hass)
+
+    @callback
+    def async_service(service_call: ServiceCall):
+        """Mock service call."""
+        calls.append(service_call)
+        freezer.tick(datetime.timedelta(seconds=1))
+
+    hass.services.async_register(
+        DOMAIN,
+        "tick",
+        async_service,
+    )
+
+    assert await async_setup_component(
+        hass,
+        "automation",
+        {
+            "automation": [
+                {
+                    "alias": "test",
+                    "trigger": [],
+                    "action": [
+                        {
+                            ATTR_SERVICE: f"{DOMAIN}.{CALL_SERVICE}",
+                            "data": {
+                                ATTR_SERVICE: f"{DOMAIN}.tick",
+                                ATTR_VALIDATION: f"[[ now().timestamp() == {dt_util.now().timestamp()} ]]",
+                            },
+                        }
+                    ],
+                }
+            ]
+        },
+    )
+    await hass.async_block_till_done()
+    await hass.services.async_call(
+        "automation", "trigger", {ATTR_ENTITY_ID: "automation.test"}, True
+    )
+    await async_shutdown(hass, freezer)
+    assert len(calls) == 7
 
 
 async def test_group_entity_unavailable(
@@ -311,11 +391,18 @@ async def test_invalid_service(hass: HomeAssistant) -> None:
         )
 
 
-async def test_invalid_schema(hass: HomeAssistant) -> None:
+async def test_invalid_inner_schema(hass: HomeAssistant) -> None:
     """Test invalid schema."""
     await async_setup(hass)
     with pytest.raises(vol.Invalid):
         await async_call(hass, {"invalid_field": ""})
+
+
+async def test_invalid_validation(hass: HomeAssistant) -> None:
+    """Test invalid validation."""
+    await async_setup(hass)
+    with pytest.raises(vol.Invalid):
+        await async_call(hass, {ATTR_VALIDATION: "static"})
 
 
 @pytest.mark.parametrize(
@@ -575,20 +662,45 @@ async def test_action_types() -> None:
     ]
 
 
+@patch("custom_components.retry.asyncio.sleep")
 async def test_actions_propagating_args(
+    _: AsyncMock,
     hass: HomeAssistant,
     freezer: FrozenDateTimeFactory,
 ) -> None:
     """Test action service propagate correctly the arguments."""
-    calls = await async_setup(hass)
+    calls = await async_setup(hass, False)
     await hass.services.async_call(
         DOMAIN,
         ACTIONS_SERVICE,
-        {CONF_SEQUENCE: BASIC_SEQUENCE_DATA, ATTR_RETRIES: 3},
+        {
+            CONF_SEQUENCE: BASIC_SEQUENCE_DATA,
+            ATTR_RETRIES: 3,
+            ATTR_VALIDATION: "[[ False ]]",
+        },
         True,
     )
     await async_shutdown(hass, freezer)
     assert len(calls) == 3
+
+
+async def test_actions_propagating_successful_validation(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Test action service with successful validation."""
+    calls = await async_setup(hass, False)
+    await hass.services.async_call(
+        DOMAIN,
+        ACTIONS_SERVICE,
+        {
+            CONF_SEQUENCE: BASIC_SEQUENCE_DATA,
+            ATTR_VALIDATION: "[[ True ]]",
+        },
+        True,
+    )
+    await async_shutdown(hass, freezer)
+    assert len(calls) == 1
 
 
 async def test_actions_inner_service_validation(
