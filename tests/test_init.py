@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import datetime
 from typing import Any
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 import voluptuous as vol
 
 from freezegun.api import FrozenDateTimeFactory
@@ -32,8 +32,9 @@ from homeassistant.const import (
     CONF_VALUE_TEMPLATE,
     ENTITY_MATCH_ALL,
     ENTITY_MATCH_NONE,
+    EVENT_CALL_SERVICE,
 )
-from homeassistant.core import HomeAssistant, ServiceCall, callback
+from homeassistant.core import Context, HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import (
     IntegrationError,
     ServiceNotFound,
@@ -44,6 +45,7 @@ import homeassistant.util.dt as dt_util
 
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
+    MockUser,
     async_capture_events,
     async_fire_time_changed,
 )
@@ -747,12 +749,37 @@ async def test_call_in_actions(
         await hass.services.async_call(
             DOMAIN,
             ACTIONS_SERVICE,
-            {
-                CONF_SEQUENCE: [
-                    {
-                        ATTR_SERVICE: f"{DOMAIN}.{CALL_SERVICE}",
-                    }
-                ]
-            },
+            {CONF_SEQUENCE: [{ATTR_SERVICE: f"{DOMAIN}.{CALL_SERVICE}"}]},
             True,
         )
+
+
+async def test_event_context(
+    hass: HomeAssistant,
+    hass_admin_user: MockUser,
+) -> None:
+    """Test the context of the events which are generated."""
+    listener = Mock()
+    hass.bus.async_listen(EVENT_CALL_SERVICE, listener)
+
+    await async_setup(hass, False)
+    await hass.services.async_call(
+        DOMAIN,
+        ACTIONS_SERVICE,
+        {CONF_SEQUENCE: BASIC_SEQUENCE_DATA},
+        True,
+        context=Context(hass_admin_user.id),
+    )
+    await hass.async_block_till_done()
+
+    calls = [call_args.args[0] for call_args in listener.call_args_list]
+    assert len(calls) == 3
+    for call in calls:
+        assert call.context.user_id == hass_admin_user.id
+        assert call.data["domain"] == DOMAIN
+    assert calls[0].data["service"] == ACTIONS_SERVICE
+    assert calls[1].data["service"] == CALL_SERVICE
+    assert calls[2].data["service"] == TEST_SERVICE
+    assert calls[0].context.parent_id is None
+    assert calls[1].context.parent_id == calls[0].context.id
+    assert calls[2].context.parent_id == calls[1].context.id
