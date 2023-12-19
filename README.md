@@ -49,14 +49,20 @@ target:
   entity_id: light.kitchen
 ```
 
-The `service` parameter (inside the `data` section) supports templates. It's possible to add any other data parameters needed by the inner service call.
+It's possible to add additional parameters to the `data` section. The extra parameters will be passed to the inner service call.
 
 The inner service call will get called again if one of the following happens:
 
-1. The inner service call raised an exception.
+1. The inner service call raises an exception.
 2. The target entity is unavailable. Note that this is important since HA silently skips unavailable entities ([here](https://github.com/home-assistant/core/blob/580b20b0a83c561986e7571b83df4a4bcb158392/homeassistant/helpers/service.py#L763)).
 
-By default there are 7 retries. It can be changed by passing the optional parameter `retries`:
+#### `service` parameter
+
+The `service` parameter is the only _mandatory_ parameter. It contains the name of the inner service. It supports templates.
+
+#### `retries` parameter
+
+By default there are 7 retries. It can be changed by passing the _optional_ parameter `retries`:
 
 ```
 service: retry.call
@@ -69,9 +75,11 @@ target:
 
 The `retries` parameter is not passed to the inner service call.
 
-The service implements exponential backoff mechanism. These are the delay times (in seconds) of the first 7 attempts: [0, 1, 2, 4, 8, 16, 32] (each delay is twice than the previous one). The following are the second offsets from the initial call [0, 1, 3, 7, 15, 31, 63].
+The service implements an exponential backoff mechanism. These are the delay times (in seconds) of the first 7 attempts: [0, 1, 2, 4, 8, 16, 32] (each delay is twice than the previous one). The following are the second offsets from the initial call [0, 1, 3, 7, 15, 31, 63].
 
-`expected_state` is an _optional_ parameter which can be used to validate the new state of the entities after the inner service call:
+#### `expected_state` parameter
+
+`expected_state` is an _optional_ parameter for validating the new state of the entities after the inner service call:
 
 ```
 service: retry.call
@@ -84,9 +92,27 @@ target:
 
 If the new state is different than expected, the attempt is considered a failure and the loop of retries continues. The `expected_state` parameter can be a list, it supports templates, and it's not passed to the inner service call.
 
-`state_grace` (seconds) is is an _optional_ parameter which controls the grace period of `expected_state`. There is an additional state validation at the end of the period if the entity's state doesn't match `expected_state` right after the service call. The service call attempt is considered a failure only if the 2nd validation fails. The default value is 0.2 seconds. The `state_grace` parameter is not passed to the inner service call.
+#### `validation` parameter
 
-Notes:
+`validation` is an _optional_ parameter for providing a template with a boolean expression. Note that it uses a special template format with square brackets `"[[ ... ]]"` instead of curly bracket `"{{ ... }}"`. This is needed to prevent from rendering the expression in advance. `entity_id` is provided as a variable. For example:
+
+```
+service: retry.call
+data:
+  service: light.turn_on
+  brightness: 70
+  validation: "[[ state_attr(entity_id, 'brightness') == 70 ]]"
+target:
+  entity_id: light.kitchen
+```
+
+The boolean expression is rendered after each call to the inner service. If its value is False, the attempt is considered a failure and the loop of retries continues. The `validation` parameter is not passed to the inner service call.
+
+#### `state_grace` parameter
+
+`state_grace` (seconds) is is an _optional_ parameter which controls the grace period of `expected_state` and `validation`. There is an additional check at the end of the period if the initial check (right after the service call) fails. The service call attempt is considered a failure only if the 2nd check fails. The default value is 0.2 seconds. The `state_grace` parameter is not passed to the inner service call.
+
+### Notes
 
 1. The service does not propagate inner service failures (exceptions) since the retries are done in the background. However, the service logs a warning when the inner function fails (on every attempt). It also logs an error and issue a repair ticket when the maximum amount of retries is reached. Repair tickets can be disabled via the [integration's configuration dialog](https://my.home-assistant.io/redirect/integration/?domain=retry).
 2. Service calls support a list of entities either by providing an explicit list or by [targeting areas and devices](https://www.home-assistant.io/docs/scripts/service-calls/#targeting-areas-and-devices). The call to the inner service is done individually per entity to isolate failures.
