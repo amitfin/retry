@@ -94,7 +94,7 @@ If the new state is different than expected, the attempt is considered a failure
 
 #### `validation` parameter
 
-`validation` is an _optional_ parameter for providing a template with a boolean expression. Note that it uses a special template format with square brackets `"[[ ... ]]"` instead of curly bracket `"{{ ... }}"`. This is needed to prevent from rendering the expression in advance. `entity_id` is provided as a variable. For example:
+`validation` is an _optional_ parameter for providing a template with a boolean expression. Note that it uses a special template format with square brackets `"[[ ... ]]"` instead of curly brackets `"{{ ... }}"`. This is needed to prevent from rendering the expression in advance. `entity_id` is provided as a variable. For example:
 
 ```
 service: retry.call
