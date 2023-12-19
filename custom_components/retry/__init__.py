@@ -130,7 +130,7 @@ class RetryParams:
     ) -> dict[str, any]:
         """Compose retry parameters."""
         retry_data = {
-            key: data[key] for key in SERVICE_SCHEMA_BASE_FIELDS if key in data
+            key: data[key] for key in data if key in SERVICE_SCHEMA_BASE_FIELDS
         }
         retry_service = data[ATTR_SERVICE]
         domain, service = retry_service.lower().split(".")
@@ -407,8 +407,8 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         sequence = service_call.data[CONF_SEQUENCE].copy()
         retry_params = {
             key: service_call.data[key]
-            for key in SERVICE_SCHEMA_BASE_FIELDS
-            if key in service_call.data
+            for key in service_call.data
+            if key in SERVICE_SCHEMA_BASE_FIELDS
         }
         if ATTR_VALIDATION in retry_params:
             # Revert it back to string so it won't get rendered in advance.
