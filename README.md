@@ -77,7 +77,7 @@ The service implements an exponential backoff mechanism. These are the delay tim
 
 #### `expected_state` parameter (optional)
 
-Validation for the new state of the entitiy after the inner service call. For example:
+Validation of the entity's state after the inner service call. For example:
 
 ```
 service: retry.call
