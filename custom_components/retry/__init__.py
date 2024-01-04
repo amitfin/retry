@@ -72,7 +72,7 @@ def _template_parameter(value: any | None) -> str:
 
 def _validation_parameter(value: any | None) -> Template:
     """Convert validation parameter to template."""
-    return cv.dynamic_template(cv.string(value).replace("[", "{").replace("]", "}"))
+    return cv.dynamic_template(cv.string(value).replace("[[", "{{").replace("]]", "}}"))
 
 
 SERVICE_SCHEMA_BASE_FIELDS = {
