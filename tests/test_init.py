@@ -266,7 +266,9 @@ async def test_entity_expected_state_list(
     assert len(calls) == 1
 
 
+@patch("custom_components.retry.asyncio.sleep")
 async def test_validation_success(
+    _: AsyncMock,
     hass: HomeAssistant,
     freezer: FrozenDateTimeFactory,
 ) -> None:
@@ -276,7 +278,7 @@ async def test_validation_success(
         hass,
         {
             ATTR_ENTITY_ID: "binary_sensor.test",
-            ATTR_VALIDATION: "[[ states(entity_id) in ['on'] ]]",
+            ATTR_VALIDATION: "[# Test #][% set x = entity_id %][[ states(x) in ['on'] ]]",
         },
     )
     await async_shutdown(hass, freezer)

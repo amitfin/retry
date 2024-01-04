@@ -70,9 +70,23 @@ def _template_parameter(value: any | None) -> str:
     return output
 
 
+def _fix_template_tokens(value: str) -> str:
+    """Replace template's artificial tokens brackets with Jinja's valid tokens."""
+    for artificial, valid in {
+        "[[": "{{",
+        "]]": "}}",
+        "[%": "{%",
+        "%]": "%}",
+        "[#": "{#",
+        "#]": "#}",
+    }.items():
+        value = value.replace(artificial, valid)
+    return value
+
+
 def _validation_parameter(value: any | None) -> Template:
     """Convert validation parameter to template."""
-    return cv.dynamic_template(cv.string(value).replace("[[", "{{").replace("]]", "}}"))
+    return cv.dynamic_template(_fix_template_tokens(cv.string(value)))
 
 
 SERVICE_SCHEMA_BASE_FIELDS = {
