@@ -276,7 +276,7 @@ async def test_validation_success(
         hass,
         {
             ATTR_ENTITY_ID: "binary_sensor.test",
-            ATTR_VALIDATION: "[[ is_state(entity_id, 'on') ]]",
+            ATTR_VALIDATION: "[[ states(entity_id) in ['on'] ]]",
         },
     )
     await async_shutdown(hass, freezer)
