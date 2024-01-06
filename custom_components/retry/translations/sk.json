@@ -10,6 +10,21 @@
             }
         }
     },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "disable_repair": "Zakázať lístky na opravu"
+                }
+            }
+        }
+    },
+    "issues": {
+        "failure": {
+            "title": "Zlyhanie servisného volania",
+            "description": "`{service}` zlyhané po {retries} pokusoch. Ďalšie informácie nájdete v denníku."
+        }
+    },
     "services": {
         "call": {
             "name": "Zavolať službu",
@@ -26,6 +41,14 @@
                 "expected_state": {
                     "name": "Očakávaný stav",
                     "description": "Očakávaný stav entít po privolaní služby."
+                },
+                "validation": {
+                    "name": "Validácia",
+                    "description": "Špeciálna šablóna s hranatými zátvorkami namiesto zložených zátvoriek na overenie úspechu."
+                },
+                "state_grace": {
+                    "name": "Statusová ochranná lehota",
+                    "description": "Ochranná lehota (v sekundách) pre očakávaný stav a overenie (predvolená hodnota je 0,2)."
                 }
             }
         },
@@ -44,6 +67,14 @@
                 "expected_state": {
                     "name": "Očakávaný stav",
                     "description": "Očakávaný stav entít po akomkoľvek servisnom volaní."
+                },
+                "validation": {
+                    "name": "Validácia",
+                    "description": "Špeciálna šablóna s hranatými zátvorkami namiesto zložených zátvoriek na overenie úspechu."
+                },
+                "state_grace": {
+                    "name": "Statusová ochranná lehota",
+                    "description": "Ochranná lehota (v sekundách) pre očakávaný stav a overenie (predvolená hodnota je 0,2)."
                 }
             }
         }
