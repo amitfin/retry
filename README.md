@@ -113,7 +113,7 @@ Controls the grace period of `expected_state` and `validation` (has no impact if
 ### Notes
 
 1. The service does not propagate inner service failures (exceptions) since the retries are done in the background. However, the service logs a warning when the inner function fails (on every attempt). It also logs an error and issue a repair ticket when the maximum amount of retries is reached. Repair tickets can be disabled via the [integration's configuration dialog](https://my.home-assistant.io/redirect/integration/?domain=retry).
-2. Service calls support a list of entities either by providing an explicit list or by [targeting areas and devices](https://www.home-assistant.io/docs/scripts/service-calls/#targeting-areas-and-devices). The call to the inner service is done individually per entity to isolate failures.
+2. Service calls support a list of entities either by providing an explicit list or by [targeting areas and devices](https://www.home-assistant.io/docs/scripts/service-calls/#targeting-areas-and-devices). It's also possible to specify a [group](https://www.home-assistant.io/integrations/group) entity. The call to the inner service is done individually per entity to isolate failures. Group entities are expanded (recursively.)
 
 ## Install
 
