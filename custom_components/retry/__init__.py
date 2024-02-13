@@ -268,7 +268,15 @@ class RetryCall:
         """Check if the entity's state is expected."""
         if not entity or ATTR_EXPECTED_STATE not in self._params.retry_data:
             return True
-        return entity.state in self._params.retry_data[ATTR_EXPECTED_STATE]
+        for expected in self._params.retry_data[ATTR_EXPECTED_STATE]:
+            if entity.state == expected:
+                return True
+            try:
+                if float(entity.state) == float(expected):
+                    return True
+            except ValueError:
+                pass
+        return False
 
     def _check_validation(self) -> bool:
         """Check if the validation statement is true."""

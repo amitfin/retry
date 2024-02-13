@@ -286,6 +286,34 @@ async def test_validation_success(
 
 
 @patch("custom_components.retry.asyncio.sleep")
+async def test_float_point_zero(
+    _: AsyncMock,
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Test validation of a float with point zero."""
+    calls = await async_setup(hass, False)
+    await async_setup_component(
+        hass,
+        "input_number",
+        {
+            "input_number": {
+                "test": {"min": 0, "max": 100, "initial": 50},
+            }
+        },
+    )
+    await async_call(
+        hass,
+        {
+            ATTR_ENTITY_ID: "input_number.test",
+            ATTR_EXPECTED_STATE: "50",
+        },
+    )
+    await async_shutdown(hass, freezer)
+    assert len(calls) == 1
+
+
+@patch("custom_components.retry.asyncio.sleep")
 async def test_validation_in_automation(
     _: AsyncMock,
     hass: HomeAssistant,
