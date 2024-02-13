@@ -649,20 +649,21 @@ async def test_actions_service(
 async def test_action_types() -> None:
     """Test that no new action type was added."""
     assert list(cv.ACTION_TYPE_SCHEMAS.keys()) == [
-        cv.SCRIPT_ACTION_CALL_SERVICE,
-        cv.SCRIPT_ACTION_DELAY,
-        cv.SCRIPT_ACTION_WAIT_TEMPLATE,
-        cv.SCRIPT_ACTION_FIRE_EVENT,
-        cv.SCRIPT_ACTION_CHECK_CONDITION,
-        cv.SCRIPT_ACTION_DEVICE_AUTOMATION,
         cv.SCRIPT_ACTION_ACTIVATE_SCENE,
-        cv.SCRIPT_ACTION_REPEAT,
+        cv.SCRIPT_ACTION_CALL_SERVICE,
+        cv.SCRIPT_ACTION_CHECK_CONDITION,
         cv.SCRIPT_ACTION_CHOOSE,
-        cv.SCRIPT_ACTION_WAIT_FOR_TRIGGER,
-        cv.SCRIPT_ACTION_VARIABLES,
-        cv.SCRIPT_ACTION_STOP,
+        cv.SCRIPT_ACTION_DELAY,
+        cv.SCRIPT_ACTION_DEVICE_AUTOMATION,
+        cv.SCRIPT_ACTION_FIRE_EVENT,
         cv.SCRIPT_ACTION_IF,
         cv.SCRIPT_ACTION_PARALLEL,
+        cv.SCRIPT_ACTION_REPEAT,
+        cv.SCRIPT_ACTION_SET_CONVERSATION_RESPONSE,
+        cv.SCRIPT_ACTION_STOP,
+        cv.SCRIPT_ACTION_VARIABLES,
+        cv.SCRIPT_ACTION_WAIT_FOR_TRIGGER,
+        cv.SCRIPT_ACTION_WAIT_TEMPLATE,
     ]
 
 

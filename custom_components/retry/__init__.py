@@ -163,9 +163,15 @@ class RetryParams:
             for key, value in data.items()
             if key not in CALL_SERVICE_SCHEMA.schema
         }
-        if schema := hass.services.async_services()[self.retry_data[ATTR_DOMAIN]][
-            self.retry_data[ATTR_SERVICE]
-        ].schema:
+        if hasattr(hass.services, "async_services_for_domain"):
+            domain_services = hass.services.async_services_for_domain(
+                self.retry_data[ATTR_DOMAIN]
+            )
+        else:
+            domain_services = hass.services.async_services()[
+                self.retry_data[ATTR_DOMAIN]
+            ]
+        if schema := domain_services[self.retry_data[ATTR_SERVICE]].schema:
             schema(inner_data)
         return inner_data
 
