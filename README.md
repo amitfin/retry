@@ -21,7 +21,7 @@ https://github.com/amitfin/retry/assets/19599059/318c2129-901f-4f6c-8e79-e155ae0
 
 `retry.actions` wraps any service call inside the sequence of actions with `retry.call`. `retry.call` calls the original service with a background retry logic on failures. A complex sequence of actions with a nested structure and conditions is supported. The service traverses through the actions and wraps any service call. There is no impact or changes to the rest of the actions. The detailed behavior and the list of optional parameters of `retry.call` is explained in the section below. All features and parameters of `retry.call` are also supported by `retry.actions`, so there is no reason to use the YAML configuration of `retry.call`. A straightforward UI usage as demonstrated above should be the way to go.
 
-Note: This `retry.actions` and `retry.call` are not suitable for the following scenarios:
+Note: `retry.actions` and `retry.call` are not suitable for the following scenarios:
 
 1. When the order of the actions matters: the background retries are running independently to the rest of the actions.
 2. For a relative state change: for example, `homeassistant.toggle` and `fan.increase_speed` are relatives operations while `light.turn_on` is an absolute one. The reason is that a relative service call might change the state and only then a failure occurs. Calling it again might have an unintentional result.
