@@ -169,6 +169,7 @@ async def test_failure(
     assert len(repairs) == 1
     assert repairs[0].data["action"] == "create"
     assert repairs[0].data["domain"] == DOMAIN
+    assert repairs[0].data["issue_id"] == f"{DOMAIN}.{TEST_SERVICE}()"
 
 
 async def test_entity_unavailable(
@@ -515,6 +516,19 @@ async def test_disable_repair(
     await async_call(hass)
     await async_shutdown(hass, freezer)
     assert not len(repairs)
+
+
+async def test_identical_repair(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Test de-dup of identical repair tickets."""
+    repairs = async_capture_events(hass, ir.EVENT_REPAIRS_ISSUE_REGISTRY_UPDATED)
+    await async_setup(hass)
+    for _ in range(2):
+        await async_call(hass)
+        await async_shutdown(hass, freezer)
+    assert len(repairs) == 1
 
 
 async def test_unload(hass: HomeAssistant) -> None:

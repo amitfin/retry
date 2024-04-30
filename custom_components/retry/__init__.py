@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import functools
 import logging
-import uuid
 import voluptuous as vol
 
 from homeassistant.components.hassio.const import ATTR_DATA
@@ -288,6 +288,8 @@ class RetryCall:
             )
         )
 
+    @property
+    @functools.cache
     def _service_call_str(self) -> str:
         """Return a string with the service call parameters."""
         service_call = (
@@ -322,7 +324,7 @@ class RetryCall:
             prefix,
             self._attempt,
             self._params.retry_data[ATTR_RETRIES],
-            self._service_call_str(),
+            self._service_call_str,
             exc_info=stack_info,
         )
 
@@ -331,13 +333,13 @@ class RetryCall:
         ir.async_create_issue(
             self._hass,
             DOMAIN,
-            f"retry_{uuid.uuid4()}",
+            self._service_call_str,
             is_fixable=False,
             learn_more_url="https://github.com/amitfin/retry#retrycall",
             severity=ir.IssueSeverity.ERROR,
             translation_key="failure",
             translation_placeholders={
-                "service": self._service_call_str(),
+                "service": self._service_call_str,
                 "retries": self._params.retry_data[ATTR_RETRIES],
             },
         )
