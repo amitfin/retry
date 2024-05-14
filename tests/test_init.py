@@ -53,6 +53,7 @@ from pytest_homeassistant_custom_component.common import (
 from custom_components.retry.const import (
     ACTIONS_SERVICE,
     ATTR_EXPECTED_STATE,
+    ATTR_RETRY_ID,
     ATTR_RETRIES,
     ATTR_STATE_GRACE,
     ATTR_VALIDATION,
@@ -113,7 +114,7 @@ async def async_next_hour(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -
 
 async def async_shutdown(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
     """Make sure all pending retries were executed."""
-    for _ in range(10):
+    for _ in range(20):
         await async_next_hour(hass, freezer)
 
 
@@ -312,6 +313,81 @@ async def test_float_point_zero(
     )
     await async_shutdown(hass, freezer)
     assert len(calls) == 1
+
+
+async def test_retry_id_cancellation(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Test parallel reties cancellation logic."""
+    calls = await async_setup(hass)
+    for _ in range(2):
+        await async_call(hass)
+    await async_shutdown(hass, freezer)
+    assert len(calls) == 8  # = 1 + 7
+
+
+async def test_retry_id_sequence(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Test reties with the same ID running one after the other."""
+    calls = await async_setup(hass)
+    for _ in range(2):
+        await async_call(hass)
+        await async_shutdown(hass, freezer)
+    assert len(calls) == 14  # = 7 + 7
+
+
+async def test_retry_id_success_sequence(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Test successful reties with the same ID running one after the other."""
+    calls = await async_setup(hass, False)
+    for _ in range(2):
+        await async_call(hass)
+        await async_shutdown(hass, freezer)
+    assert len(calls) == 2  # = 1 + 1
+
+
+async def test_different_retry_ids(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test parallel reties with different IDs."""
+    calls = await async_setup(hass)
+    for i in range(2):
+        await async_call(hass, {ATTR_RETRY_ID: str(i)})
+    await async_shutdown(hass, freezer)
+    assert len(calls) == 14  # = 7 + 7
+    for i in range(2):
+        assert f"{DOMAIN}.{TEST_SERVICE}()[{ATTR_RETRY_ID}={str(i)}]" in caplog.text
+
+
+async def test_default_retry_id_is_entity_id(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Test parallel reties with different IDs."""
+    calls = await async_setup(hass)
+    await async_call(hass, {ATTR_ENTITY_ID: "binary_sensor.test"})
+    await async_call(hass, {ATTR_RETRY_ID: "binary_sensor.test"})
+    await async_shutdown(hass, freezer)
+    assert len(calls) == 8  # = 1 + 7
+
+
+async def test_default_retry_id_is_domain_service(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Test parallel reties with different IDs."""
+    calls = await async_setup(hass)
+    await async_call(hass)
+    await async_call(hass, {ATTR_RETRY_ID: f"{DOMAIN}.{TEST_SERVICE}"})
+    await async_shutdown(hass, freezer)
+    assert len(calls) == 8  # = 1 + 7
 
 
 @patch("custom_components.retry.asyncio.sleep")
@@ -748,6 +824,23 @@ async def test_actions_propagating_successful_validation(
     )
     await async_shutdown(hass, freezer)
     assert len(calls) == 1
+
+
+async def test_actions_propagating_retry_id(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Test action service propagating correctly the retry ID."""
+    calls = await async_setup(hass)
+    for i in range(2):
+        await hass.services.async_call(
+            DOMAIN,
+            ACTIONS_SERVICE,
+            {CONF_SEQUENCE: BASIC_SEQUENCE_DATA, ATTR_RETRY_ID: str(i)},
+            True,
+        )
+    await async_shutdown(hass, freezer)
+    assert len(calls) == 14  # = 7 + 7
 
 
 async def test_actions_inner_service_validation(
