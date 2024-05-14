@@ -44,6 +44,10 @@ call:
           max: 180.0
           unit_of_measurement: seconds
           mode: box
+    retry_id:
+      advanced: true
+      selector:
+        text:
 actions:
   fields:
     sequence:
@@ -89,3 +93,7 @@ actions:
           max: 180.0
           unit_of_measurement: seconds
           mode: box
+    retry_id:
+      advanced: true
+      selector:
+        text:

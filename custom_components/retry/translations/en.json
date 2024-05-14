@@ -49,6 +49,10 @@
                 "state_grace": {
                     "name": "State Grace Period",
                     "description": "Grace period (seconds) for expected state and validation (default is 0.2)."
+                },
+                "retry_id": {
+                    "name": "Retry ID",
+                    "description": "A new call cancels a previous call with the same ID (the default is the entity_id)."
                 }
             }
         },
@@ -75,6 +79,10 @@
                 "state_grace": {
                     "name": "State Grace Period",
                     "description": "Grace period (seconds) for expected state and validation (default is 0.2)."
+                },
+                "retry_id": {
+                    "name": "Retry ID",
+                    "description": "A new call cancels a previous call with the same ID (the default is the entity_id)."
                 }
             }
         }
