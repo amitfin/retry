@@ -5,6 +5,7 @@ import asyncio
 import datetime
 import functools
 import logging
+import threading
 import voluptuous as vol
 
 from homeassistant.components.hassio.const import ATTR_DATA
@@ -63,6 +64,7 @@ DEFAULT_RETRIES = 7
 DEFAULT_STATE_GRACE = 0.2
 
 _running_retries: dict[str, int] = {}
+_running_retries_write_lock = threading.Lock()
 
 
 def _template_parameter(value: any | None) -> str:
@@ -252,7 +254,7 @@ class RetryCall:
                 self._retry_id = self._entity_id
             else:
                 self._retry_id = f"{params.retry_data[ATTR_DOMAIN]}.{params.retry_data[ATTR_SERVICE]}"
-        _running_retries[self._retry_id] = id(self)
+        self._start_id()
 
     async def _async_validate(self) -> None:
         """Verify that the entity is available, in the expected state, and pass the validation."""
@@ -357,10 +359,26 @@ class RetryCall:
             },
         )
 
+    def _start_id(self) -> None:
+        """Add or override self as the retry ID running job."""
+        with _running_retries_write_lock:
+            _running_retries[self._retry_id] = id(self)
+
+    def _end_id(self) -> None:
+        """Remove self from being the retry ID running job."""
+        with _running_retries_write_lock:
+            # Verify that self is still the latest.
+            if self._check_id():
+                del _running_retries[self._retry_id]
+
+    def _check_id(self) -> bool:
+        """Check if self is the retry ID running job."""
+        return _running_retries.get(self._retry_id) == id(self)
+
     @callback
     async def async_retry(self, *_) -> None:
         """One service call attempt."""
-        if _running_retries[self._retry_id] != id(self):
+        if not self._check_id():
             return
         try:
             await self._hass.services.async_call(
@@ -374,7 +392,7 @@ class RetryCall:
             self._log(
                 logging.DEBUG if self._attempt == 1 else logging.INFO, "Succeeded"
             )
-            del _running_retries[self._retry_id]
+            self._end_id()
             return
         except Exception:  # pylint: disable=broad-except
             self._log(
@@ -387,7 +405,7 @@ class RetryCall:
         if self._attempt == self._params.retry_data[ATTR_RETRIES]:
             if not self._params.config_entry.options.get(CONF_DISABLE_REPAIR):
                 self._repair()
-            del _running_retries[self._retry_id]
+            self._end_id()
             return
         next_retry = dt_util.now() + datetime.timedelta(seconds=self._delay)
         self._delay *= EXPONENTIAL_BACKOFF_BASE
