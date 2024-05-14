@@ -318,6 +318,7 @@ async def test_float_point_zero(
 async def test_retry_id_cancellation(
     hass: HomeAssistant,
     freezer: FrozenDateTimeFactory,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test parallel reties cancellation logic."""
     calls = await async_setup(hass)
@@ -325,6 +326,7 @@ async def test_retry_id_cancellation(
         await async_call(hass)
     await async_shutdown(hass, freezer)
     assert len(calls) == 8  # = 1 + 7
+    assert "[Cancelled]: attempt 2/7: retry.test_service()" in caplog.text
 
 
 async def test_retry_id_sequence(
