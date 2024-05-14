@@ -112,11 +112,11 @@ Controls the grace period of `expected_state` and `validation` (has no impact if
 
 ### `retry_id` parameter (optional)
 
-One call canceles a previous running call with the same retry ID. This parameter can be used to set the retry ID explicitly but it should be rarely used, if at all. The default value of `retry_id` is the `entity_id` of the inner service call. For inner service calls with no `entity_id`, the default value of `retry_id` is the service name. 
+One call cancels a previous running call with the same retry ID. This parameter can be used to set the retry ID explicitly but it should be rarely used, if at all. The default value of `retry_id` is the `entity_id` of the inner service call. For inner service calls with no `entity_id`, the default value of `retry_id` is the service name. 
 
 An example of the cancellation scenario might be when turning off a light while the turn on retry loop of the same light is still running due to failures. The turn on retry loop will be getting canceled by the turn off call since both share the same `retry_id` by default (the entity ID). 
 
-Note that each entity is running individually when the inner service call has a list of entites. Therefore, they have a different default `retry_id`. However, if `retry_id` is set explicitely it will be shared for all entities.
+Note that each entity is running individually when the inner service call has a list of entities. Therefore, they have a different default `retry_id`. However, if `retry_id` is set explicitly it will be shared for all entities.
 
 ### Notes
 
