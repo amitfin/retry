@@ -379,7 +379,7 @@ class RetryCall:
     async def async_retry(self, *_) -> None:
         """One service call attempt."""
         if not self._check_id():
-            self._log(logging.DEBUG, "Cancelled")
+            self._log(logging.INFO, "Cancelled")
             return
         try:
             await self._hass.services.async_call(
