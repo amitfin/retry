@@ -110,6 +110,10 @@ The boolean expression is rendered after each call to the inner service. If the 
 
 Controls the grace period of `expected_state` and `validation` (has no impact if both are absent). The default value is 0.2 seconds. There is an additional check at the end of the period if the initial check (right after the service call) fails. The service call attempt is considered a failure only if the 2nd check fails. The `state_grace` parameter is not passed to the inner service call.
 
+### `retry_id` parameter (optional)
+
+Retry loops cancel previous running loops with the same retry ID. This parameter can be used to set the retry ID explicitly but it should be rarely used, if at all. The default value of `retry_id` is `entity_id`. For service calls with no `entity_id` the default value of `retry_id` is the service name. An example for usage of the cancellation logic is when turning off a light while the turn on retry loop of the same light is still running due to failures. The turn on retry loop is getting canceled by the turn off retry loop since both share the same `retry_id` with the value of the `entity_id` by default.
+
 ### Notes
 
 1. The service does not propagate inner service failures (exceptions) since the retries are done in the background. However, the service logs a warning when the inner function fails (on every attempt). It also logs an error and issue a repair ticket when the maximum amount of retries is reached. Repair tickets can be disabled via the [integration's configuration dialog](https://my.home-assistant.io/redirect/integration/?domain=retry).
