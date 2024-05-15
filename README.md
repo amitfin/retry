@@ -110,7 +110,7 @@ The boolean expression is rendered after each call to the inner service. If the 
 
 Controls the grace period of `expected_state` and `validation` (has no impact if both are absent). The default value is 0.2 seconds. There is an additional check at the end of the period if the initial check (right after the service call) fails. The service call attempt is considered a failure only if the 2nd check fails. The `state_grace` parameter is not passed to the inner service call.
 
-### `retry_id` parameter (optional)
+#### `retry_id` parameter (optional)
 
 A service call cancels a previous running call with the same retry ID. This parameter can be used to set the retry ID explicitly but it should be rarely used, if at all. The default value of `retry_id` is the `entity_id` of the inner service call. For inner service calls with no `entity_id`, the default value of `retry_id` is the service name. 
 
