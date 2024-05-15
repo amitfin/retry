@@ -99,7 +99,7 @@ SERVICE_SCHEMA_BASE_FIELDS = {
     vol.Optional(ATTR_EXPECTED_STATE): vol.All(cv.ensure_list, [_template_parameter]),
     vol.Optional(ATTR_VALIDATION): _validation_parameter,
     vol.Required(ATTR_STATE_GRACE, default=DEFAULT_STATE_GRACE): cv.positive_float,
-    vol.Optional(ATTR_RETRY_ID): cv.string,
+    vol.Optional(ATTR_RETRY_ID): vol.Any(cv.string, None),
 }
 CALL_SERVICE_SCHEMA = vol.Schema(
     {
@@ -249,7 +249,7 @@ class RetryCall:
         self._attempt = 1
         self._delay = 1
         self._retry_id = params.retry_data.get(ATTR_RETRY_ID)
-        if self._retry_id is None:
+        if ATTR_RETRY_ID not in params.retry_data:
             if self._entity_id:
                 self._retry_id = self._entity_id
             else:
@@ -325,8 +325,10 @@ class RetryCall:
             retry_params.append(
                 f"{ATTR_STATE_GRACE}={self._params.retry_data[ATTR_STATE_GRACE]}"
             )
-        if (retry_id := self._params.retry_data.get(ATTR_RETRY_ID)) is not None:
-            retry_params.append(f"{ATTR_RETRY_ID}={retry_id}")
+        if ATTR_RETRY_ID in self._params.retry_data:
+            retry_params.append(
+                f"{ATTR_RETRY_ID}={self._params.retry_data.get(ATTR_RETRY_ID)}"
+            )
         if len(retry_params) > 0:
             service_call += f"[{', '.join(retry_params)}]"
         return service_call
@@ -361,19 +363,21 @@ class RetryCall:
 
     def _start_id(self) -> None:
         """Add or override self as the retry ID running job."""
-        with _running_retries_write_lock:
-            _running_retries[self._retry_id] = id(self)
+        if self._retry_id:
+            with _running_retries_write_lock:
+                _running_retries[self._retry_id] = id(self)
 
     def _end_id(self) -> None:
         """Remove self from being the retry ID running job."""
-        with _running_retries_write_lock:
-            # Verify that self is still the latest.
-            if self._check_id():
-                del _running_retries[self._retry_id]
+        if self._retry_id:
+            with _running_retries_write_lock:
+                # Verify that self is still the latest.
+                if self._check_id():
+                    del _running_retries[self._retry_id]
 
     def _check_id(self) -> bool:
         """Check if self is the retry ID running job."""
-        return _running_retries.get(self._retry_id) == id(self)
+        return not self._retry_id or _running_retries.get(self._retry_id) == id(self)
 
     @callback
     async def async_retry(self, *_) -> None:

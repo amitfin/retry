@@ -52,7 +52,7 @@
                 },
                 "retry_id": {
                     "name": "Retry ID",
-                    "description": "A new call cancels a previous call with the same ID (the default is the entity_id)."
+                    "description": "A new call cancels a previous call with the same ID (the default is the entity ID)."
                 }
             }
         },
@@ -82,7 +82,7 @@
                 },
                 "retry_id": {
                     "name": "Retry ID",
-                    "description": "A new call cancels a previous call with the same ID (the default is the entity_id)."
+                    "description": "A new call cancels a previous call with the same ID (the default is the entity ID)."
                 }
             }
         }

@@ -391,6 +391,25 @@ async def test_default_retry_id_is_domain_service(
     await async_shutdown(hass, freezer)
     assert len(calls) == 8  # = 1 + 7
 
+@pytest.mark.parametrize(
+    ["value"],
+    [(None,), ("",)],
+    ids=["none", "empty"],
+)
+async def test_disable_retry_id(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    caplog: pytest.LogCaptureFixture,
+    value: str | None,
+) -> None:
+    """Test disabling retry_id."""
+    calls = await async_setup(hass)
+    for _ in range(2):
+        await async_call(hass, {ATTR_RETRY_ID: value})
+    await async_shutdown(hass, freezer)
+    assert len(calls) == 14  # = 7 + 7
+    assert f"{DOMAIN}.{TEST_SERVICE}()[{ATTR_RETRY_ID}={value}]" in caplog.text
+
 
 @patch("custom_components.retry.asyncio.sleep")
 async def test_validation_in_automation(
