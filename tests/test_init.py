@@ -864,6 +864,23 @@ async def test_actions_propagating_retry_id(
     assert len(calls) == 14  # = 7 + 7
 
 
+async def test_actions_propagating_disabled_retry_id(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Test action service propagating correctly disabled retry ID."""
+    calls = await async_setup(hass)
+    for _ in range(2):
+        await hass.services.async_call(
+            DOMAIN,
+            ACTIONS_SERVICE,
+            {CONF_SEQUENCE: BASIC_SEQUENCE_DATA, ATTR_RETRY_ID: None},
+            True,
+        )
+    await async_shutdown(hass, freezer)
+    assert len(calls) == 14  # = 7 + 7
+
+
 async def test_actions_inner_service_validation(
     hass: HomeAssistant,
 ) -> None:
