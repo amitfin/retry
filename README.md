@@ -56,7 +56,7 @@ The inner service call will get called again if one of the following happens:
 1. The inner service call raises an exception.
 2. The target entity is unavailable. Note that this is important since HA silently skips unavailable entities ([here](https://github.com/home-assistant/core/blob/580b20b0a83c561986e7571b83df4a4bcb158392/homeassistant/helpers/service.py#L763)).
 
-Here is the list of parameters to control the behvior of `retry.call` (directly or via `retry.actions`). These parameters are not passed to the inner service call and are consumed only by the `retry.call` service itself.
+Here is the list of parameters to control the behavior of `retry.call` (directly or via `retry.actions`). These parameters are not passed to the inner service call and are consumed only by the `retry.call` service itself.
 
 #### `service` parameter (mandatory)
 
