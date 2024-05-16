@@ -56,6 +56,8 @@ The inner service call will get called again if one of the following happens:
 1. The inner service call raises an exception.
 2. The target entity is unavailable. Note that this is important since HA silently skips unavailable entities ([here](https://github.com/home-assistant/core/blob/580b20b0a83c561986e7571b83df4a4bcb158392/homeassistant/helpers/service.py#L763)).
 
+Here is the list of parameters to control the behvior of `retry.call` (directly or via `retry.actions`). These parameters are not passed to the inner service call and are consumed only by the `retry.call` service itself.
+
 #### `service` parameter (mandatory)
 
 The `service` parameter is the only mandatory parameter. It contains the name of the inner service. It supports templates.
@@ -73,7 +75,7 @@ target:
   entity_id: light.kitchen
 ```
 
-The service implements an exponential backoff mechanism. These are the delay times (in seconds) of the first 7 attempts: [0, 1, 2, 4, 8, 16, 32] (each delay is twice than the previous one). The following are the seconds offsets from the initial call [0, 1, 3, 7, 15, 31, 63]. The `retries` parameter is not passed to the inner service call.
+The service implements an exponential backoff mechanism. These are the delay times (in seconds) of the first 7 attempts: [0, 1, 2, 4, 8, 16, 32] (each delay is twice than the previous one). The following are the seconds offsets from the initial call [0, 1, 3, 7, 15, 31, 63].
 
 #### `expected_state` parameter (optional)
 
@@ -88,7 +90,7 @@ target:
   entity_id: light.kitchen
 ```
 
-If the new state is different than expected, the attempt is considered a failure and the loop of retries continues. The `expected_state` parameter can be a list, it supports templates, and it's not passed to the inner service call.
+If the new state is different than expected, the attempt is considered a failure and the loop of retries continues. The `expected_state` parameter can be a list and it supports templates.
 
 #### `validation` parameter (optional)
 
@@ -104,11 +106,11 @@ target:
   entity_id: light.kitchen
 ```
 
-The boolean expression is rendered after each call to the inner service. If the value is False, the attempt is considered a failure and the loop of retries continues. The `validation` parameter is not passed to the inner service call.
+The boolean expression is rendered after each call to the inner service. If the value is False, the attempt is considered a failure and the loop of retries continues.
 
 #### `state_grace` parameter (optional)
 
-Controls the grace period of `expected_state` and `validation` (has no impact if both are absent). The default value is 0.2 seconds. There is an additional check at the end of the period if the initial check (right after the service call) fails. The service call attempt is considered a failure only if the 2nd check fails. The `state_grace` parameter is not passed to the inner service call.
+Controls the grace period of `expected_state` and `validation` (has no impact if both are absent). The default value is 0.2 seconds. There is an additional check at the end of the period if the initial check (right after the service call) fails. The service call attempt is considered a failure only if the 2nd check fails.
 
 #### `retry_id` parameter (optional)
 
@@ -118,7 +120,7 @@ An example of the cancellation scenario might be when turning off a light while 
 
 Note that each entity is running individually when the inner service call has a list of entities. Therefore, they have a different default `retry_id`. However, an explicit `retry_id` is shared for all entities of the same retry call.
 
-This parameter is not passed to the inner service call.
+It's possible to disable the cancellation logic by setting `retry_id` to an empty string (`retry_id: ""`) or null (`retry_id: null`). In such a case, the service call doesn't cancel any other running call and will not be canceled by any other future call. Note that it's not possible to set `retry_id` to an empty string or null via the "UI Mode" but instead the "YAML Mode" in the UI should be used.
 
 ### Notes
 
