@@ -847,9 +847,13 @@ async def test_actions_propagating_successful_validation(
     assert len(calls) == 1
 
 
+@pytest.mark.parametrize(
+    ["retry_ids"],
+    [(["a", "b"],), ([None, None],), (["a", None],)],
+    ids=["different", "disabled", "set & disabled"],
+)
 async def test_actions_propagating_retry_id(
-    hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, retry_ids: list[str | None]
 ) -> None:
     """Test action service propagating correctly the retry ID."""
     calls = await async_setup(hass)
@@ -857,24 +861,7 @@ async def test_actions_propagating_retry_id(
         await hass.services.async_call(
             DOMAIN,
             ACTIONS_SERVICE,
-            {CONF_SEQUENCE: BASIC_SEQUENCE_DATA, ATTR_RETRY_ID: str(i)},
-            True,
-        )
-    await async_shutdown(hass, freezer)
-    assert len(calls) == 14  # = 7 + 7
-
-
-async def test_actions_propagating_disabled_retry_id(
-    hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
-) -> None:
-    """Test action service propagating correctly disabled retry ID."""
-    calls = await async_setup(hass)
-    for _ in range(2):
-        await hass.services.async_call(
-            DOMAIN,
-            ACTIONS_SERVICE,
-            {CONF_SEQUENCE: BASIC_SEQUENCE_DATA, ATTR_RETRY_ID: None},
+            {CONF_SEQUENCE: BASIC_SEQUENCE_DATA, ATTR_RETRY_ID: retry_ids[i]},
             True,
         )
     await async_shutdown(hass, freezer)
