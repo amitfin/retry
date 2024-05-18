@@ -63,7 +63,7 @@ EXPONENTIAL_BACKOFF_BASE = 2
 DEFAULT_RETRIES = 7
 DEFAULT_STATE_GRACE = 0.2
 
-_running_retries: dict[str, int] = {}
+_running_retries: dict[str, (str, int)] = {}
 _running_retries_write_lock = threading.Lock()
 
 
