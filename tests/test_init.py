@@ -78,7 +78,14 @@ async def async_setup(
     assert await async_setup_component(
         hass,
         "template",
-        {"template": {"binary_sensor": [{"name": "test", "state": "{{ True }}"}]}},
+        {
+            "template": {
+                "binary_sensor": [
+                    {"name": "test", "state": "{{ True }}"},
+                    {"name": "test2", "state": "{{ False }}"},
+                ]
+            }
+        },
     )
     await hass.async_block_till_done()
 
@@ -409,6 +416,23 @@ async def test_disable_retry_id(
     await async_shutdown(hass, freezer)
     assert len(calls) == 14  # = 7 + 7
     assert f"{DOMAIN}.{TEST_SERVICE}()[{ATTR_RETRY_ID}={value}]" in caplog.text
+
+
+async def test_multi_entities_retry_id(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Test retry_id with multiple entities."""
+    calls = await async_setup(hass)
+    await async_call(
+        hass,
+        {
+            ATTR_ENTITY_ID: ["binary_sensor.test", "binary_sensor.test2"],
+            ATTR_RETRY_ID: "id",
+        },
+    )
+    await async_shutdown(hass, freezer)
+    assert len(calls) == 14  # = 7 + 7
 
 
 @patch("custom_components.retry.asyncio.sleep")
@@ -864,6 +888,22 @@ async def test_actions_propagating_retry_id(
             {CONF_SEQUENCE: BASIC_SEQUENCE_DATA, ATTR_RETRY_ID: retry_ids[i]},
             True,
         )
+    await async_shutdown(hass, freezer)
+    assert len(calls) == 14  # = 7 + 7
+
+
+async def test_actions_multi_calls_single_retry_id(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Test retry_id with multiple service calls."""
+    calls = await async_setup(hass)
+    await hass.services.async_call(
+        DOMAIN,
+        ACTIONS_SERVICE,
+        {CONF_SEQUENCE: BASIC_SEQUENCE_DATA + BASIC_SEQUENCE_DATA, ATTR_RETRY_ID: "id"},
+        True,
+    )
     await async_shutdown(hass, freezer)
     assert len(calls) == 14  # = 7 + 7
 

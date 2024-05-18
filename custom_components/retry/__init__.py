@@ -363,21 +363,36 @@ class RetryCall:
 
     def _start_id(self) -> None:
         """Add or override self as the retry ID running job."""
-        if self._retry_id:
-            with _running_retries_write_lock:
-                _running_retries[self._retry_id] = id(self)
+        if not self._retry_id:
+            return
+        with _running_retries_write_lock:
+            self._set_id(
+                1 if not self._check_id() else _running_retries[self._retry_id][1] + 1
+            )
 
     def _end_id(self) -> None:
         """Remove self from being the retry ID running job."""
-        if self._retry_id:
-            with _running_retries_write_lock:
-                # Verify that self is still the latest.
-                if self._check_id():
-                    del _running_retries[self._retry_id]
+        if not self._retry_id:
+            return
+        with _running_retries_write_lock:
+            if not self._check_id():
+                return
+            count = _running_retries[self._retry_id][1] - 1
+            if not count:
+                del _running_retries[self._retry_id]
+            else:
+                self._set_id(count)
+
+    def _set_id(self, count: int) -> None:
+        """Set the retry_id entry with a counter."""
+        _running_retries[self._retry_id] = (self._context.id, count)
 
     def _check_id(self) -> bool:
         """Check if self is the retry ID running job."""
-        return not self._retry_id or _running_retries.get(self._retry_id) == id(self)
+        return (
+            not self._retry_id
+            or _running_retries.get(self._retry_id, [None])[0] == self._context.id
+        )
 
     @callback
     async def async_retry(self, *_) -> None:
