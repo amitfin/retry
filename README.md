@@ -116,9 +116,9 @@ Controls the grace period of `expected_state` and `validation` (has no impact if
 
 A service call cancels a previous running call with the same retry ID. This parameter can be used to set the retry ID explicitly but it should be rarely used, if at all. The default value of `retry_id` is the `entity_id` of the inner service call. For inner service calls with no `entity_id`, the default value of `retry_id` is the service name. 
 
-An example of the cancellation scenario might be when turning off a light while the turn on retry loop of the same light is still running due to failures. The turn on retry loop will be getting canceled by the turn off call since both share the same `retry_id` by default (the entity ID). 
+An example of the cancellation scenario might be when turning off a light while the turn on retry loop of the same light is still running due to failures or light's transition time. The turn on retry loop will be getting canceled by the turn off call since both share the same `retry_id` by default (the entity ID). 
 
-Note that each entity is running individually when the inner service call has a list of entities. Therefore, they have a different default `retry_id`. However, an explicit `retry_id` is shared for all entities of the same retry call.
+Note that each entity is running individually when the inner service call has a list of entities. Therefore, they have a different default `retry_id`. However, an explicit `retry_id` is shared for all entities of the same retry call. However, retry loops created by the same service call (`retry.call` or `retry.actions`) are not canceling each other even when they have identical `retry_id`.
 
 It's possible to disable the cancellation logic by setting `retry_id` to an empty string (`retry_id: ""`) or null (`retry_id: null`). In such a case, the service call doesn't cancel any other running call and will not be canceled by any other future call. Note that it's not possible to set `retry_id` to an empty string or null via the "UI Mode" but instead the "YAML Mode" in the UI should be used.
 
