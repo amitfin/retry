@@ -901,11 +901,64 @@ async def test_actions_multi_calls_single_retry_id(
     await hass.services.async_call(
         DOMAIN,
         ACTIONS_SERVICE,
-        {CONF_SEQUENCE: BASIC_SEQUENCE_DATA + BASIC_SEQUENCE_DATA, ATTR_RETRY_ID: "id"},
+        {
+            ATTR_RETRY_ID: "id",
+            CONF_SEQUENCE: [
+                {**(BASIC_SEQUENCE_DATA[0])},
+                {
+                    CONF_REPEAT: {
+                        CONF_COUNT: 1,
+                        CONF_SEQUENCE: BASIC_SEQUENCE_DATA,
+                    },
+                },
+                {
+                    CONF_CHOOSE: [
+                        {
+                            CONF_CONDITIONS: [
+                                {
+                                    CONF_CONDITION: "template",
+                                    CONF_VALUE_TEMPLATE: "{{ True }}",
+                                }
+                            ],
+                            CONF_SEQUENCE: BASIC_SEQUENCE_DATA,
+                        }
+                    ],
+                },
+                {
+                    CONF_CHOOSE: [],
+                    CONF_DEFAULT: BASIC_SEQUENCE_DATA,
+                },
+                {
+                    CONF_IF: [
+                        {
+                            CONF_CONDITION: "template",
+                            CONF_VALUE_TEMPLATE: "{{ True }}",
+                        }
+                    ],
+                    CONF_THEN: BASIC_SEQUENCE_DATA,
+                },
+                {
+                    CONF_IF: [
+                        {
+                            CONF_CONDITION: "template",
+                            CONF_VALUE_TEMPLATE: "{{ False }}",
+                        }
+                    ],
+                    CONF_THEN: [],
+                    CONF_ELSE: BASIC_SEQUENCE_DATA,
+                },
+                {CONF_PARALLEL: BASIC_SEQUENCE_DATA},
+                {
+                    CONF_PARALLEL: {CONF_SEQUENCE: BASIC_SEQUENCE_DATA},
+                },
+                {CONF_CONDITION: "template", CONF_VALUE_TEMPLATE: "{{True}}"},
+                {**(BASIC_SEQUENCE_DATA[0])},
+            ],
+        },
         True,
     )
     await async_shutdown(hass, freezer)
-    assert len(calls) == 14  # = 7 + 7
+    assert len(calls) == 63  # = 9 * 7
 
 
 async def test_actions_inner_service_validation(
