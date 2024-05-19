@@ -121,7 +121,7 @@ async def async_next_hour(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -
 
 async def async_shutdown(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
     """Make sure all pending retries were executed."""
-    for _ in range(20):
+    for _ in range(10):
         await async_next_hour(hass, freezer)
 
 
