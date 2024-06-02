@@ -112,6 +112,36 @@ The boolean expression is rendered after each call to the inner service. If the 
 
 Controls the grace period of `expected_state` and `validation` (has no impact if both are absent). The default value is 0.2 seconds. There is an additional check at the end of the period if the initial check (right after the service call) fails. The service call attempt is considered a failure only if the 2nd check fails.
 
+#### `on_error` parameter (optional)
+
+A sequence of actions to execute if all retries fail. For example:
+
+```
+alias: Kitchen Evening Lights
+trigger:
+  - platform: sun
+    event: sunset
+action:
+  - service: retry.call
+    data:
+      service: light.turn_on
+      entity_id: light.kitchen_light
+      retries: 2
+      on_error:
+        - service: homeassistant.reload_config_entry
+          data:
+            entry_id: "{{ config_entry_id(entity_id) }}"
+        - delay:
+            seconds: 20
+        - service: automation.trigger
+          target:
+            entity_id: automation.kitchen_evening_lights
+```
+
+(This example can be configured in UI mode by using `retry.actions`. YAML is not needed.) 
+
+Note that each entity is running individually when the inner service call has a list of entities. In such a case `on_error` can get executed multiple times, once for each failed entity. Similarly, `retry.actions` has a sequence of actions which might include multiple service calls. This can also trigger multiple execution of `on_error`, once for each failed inner service call.
+
 #### `retry_id` parameter (optional)
 
 A service call cancels a previous running call with the same retry ID. This parameter can be used to set the retry ID explicitly but it should be rarely used, if at all. The default value of `retry_id` is the `entity_id` of the inner service call. For inner service calls with no `entity_id`, the default value of `retry_id` is the service name. 
