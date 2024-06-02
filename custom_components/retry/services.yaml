@@ -44,6 +44,10 @@ call:
           max: 180.0
           unit_of_measurement: seconds
           mode: box
+    on_error:
+      advanced: true
+      selector:
+        action:
     retry_id:
       advanced: true
       selector:
@@ -93,6 +97,10 @@ actions:
           max: 180.0
           unit_of_measurement: seconds
           mode: box
+    on_error:
+      advanced: true
+      selector:
+        action:
     retry_id:
       advanced: true
       selector:

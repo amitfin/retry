@@ -1,4 +1,5 @@
 """The tests for the retry integration."""
+
 from __future__ import annotations
 
 import datetime
@@ -53,6 +54,7 @@ from pytest_homeassistant_custom_component.common import (
 from custom_components.retry.const import (
     ACTIONS_SERVICE,
     ATTR_EXPECTED_STATE,
+    ATTR_ON_ERROR,
     ATTR_RETRY_ID,
     ATTR_RETRIES,
     ATTR_STATE_GRACE,
@@ -63,6 +65,7 @@ from custom_components.retry.const import (
 )
 
 TEST_SERVICE = "test_service"
+TEST_ON_ERROR_SERVICE = "test_on_error_service"
 BASIC_SEQUENCE_DATA = [{ATTR_SERVICE: f"{DOMAIN}.{TEST_SERVICE}"}]
 
 
@@ -95,7 +98,7 @@ async def async_setup(
     def async_service(service_call: ServiceCall):
         """Mock service call."""
         calls.append(service_call)
-        if raises:
+        if service_call.service == TEST_SERVICE and raises:
             raise Exception()  # pylint: disable=broad-exception-raised
 
     hass.services.async_register(
@@ -107,6 +110,12 @@ async def async_setup(
                 **cv.TARGET_SERVICE_FIELDS,
             },
         ),
+    )
+
+    hass.services.async_register(
+        DOMAIN,
+        TEST_ON_ERROR_SERVICE,
+        async_service,
     )
 
     return calls
@@ -398,6 +407,7 @@ async def test_default_retry_id_is_domain_service(
     await async_shutdown(hass, freezer)
     assert len(calls) == 8  # = 1 + 7
 
+
 @pytest.mark.parametrize(
     ["value"],
     [(None,), ("",)],
@@ -433,6 +443,30 @@ async def test_multi_entities_retry_id(
     )
     await async_shutdown(hass, freezer)
     assert len(calls) == 14  # = 7 + 7
+
+
+async def test_on_error(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Test on_error parameter."""
+    calls = await async_setup(hass)
+    await async_call(
+        hass,
+        {
+            ATTR_ENTITY_ID: "binary_sensor.test",
+            ATTR_ON_ERROR: [
+                {
+                    ATTR_SERVICE: f"{DOMAIN}.{TEST_ON_ERROR_SERVICE}",
+                    ATTR_DATA: {ATTR_ENTITY_ID: "{{ entity_id }}"},
+                }
+            ],
+        },
+    )
+    await async_shutdown(hass, freezer)
+    assert len(calls) == 8
+    assert calls[-1].service == TEST_ON_ERROR_SERVICE
+    assert calls[-1].data[ATTR_ENTITY_ID] == "binary_sensor.test"
 
 
 @patch("custom_components.retry.asyncio.sleep")
@@ -848,11 +882,12 @@ async def test_actions_propagating_args(
             CONF_SEQUENCE: BASIC_SEQUENCE_DATA,
             ATTR_RETRIES: 3,
             ATTR_VALIDATION: "[[ False ]]",
+            ATTR_ON_ERROR: [{ATTR_SERVICE: f"{DOMAIN}.{TEST_ON_ERROR_SERVICE}"}],
         },
         True,
     )
     await async_shutdown(hass, freezer)
-    assert len(calls) == 3
+    assert len(calls) == 4
 
 
 async def test_actions_propagating_successful_validation(
@@ -954,6 +989,7 @@ async def test_actions_multi_calls_single_retry_id(
                 {
                     CONF_PARALLEL: {CONF_SEQUENCE: BASIC_SEQUENCE_DATA},
                 },
+                {CONF_SEQUENCE: [{CONF_SEQUENCE: BASIC_SEQUENCE_DATA}]},
                 {CONF_CONDITION: "template", CONF_VALUE_TEMPLATE: "{{True}}"},
                 {**(BASIC_SEQUENCE_DATA[0])},
             ],
@@ -961,7 +997,7 @@ async def test_actions_multi_calls_single_retry_id(
         True,
     )
     await async_shutdown(hass, freezer)
-    assert len(calls) == 63  # = 9 * 7
+    assert len(calls) == 70  # = 10 * 7
 
 
 async def test_actions_inner_service_validation(
@@ -1016,29 +1052,37 @@ async def test_call_in_actions(
 async def test_event_context(
     hass: HomeAssistant,
     hass_admin_user: MockUser,
+    freezer: FrozenDateTimeFactory,
 ) -> None:
     """Test the context of the events which are generated."""
     listener = Mock()
     hass.bus.async_listen(EVENT_CALL_SERVICE, listener)
 
-    await async_setup(hass, False)
+    await async_setup(hass)
     await hass.services.async_call(
         DOMAIN,
         ACTIONS_SERVICE,
-        {CONF_SEQUENCE: BASIC_SEQUENCE_DATA},
+        {
+            CONF_SEQUENCE: BASIC_SEQUENCE_DATA,
+            ATTR_RETRIES: 1,
+            ATTR_ON_ERROR: [{ATTR_SERVICE: f"{DOMAIN}.{TEST_ON_ERROR_SERVICE}"}],
+        },
         True,
         context=Context(hass_admin_user.id),
     )
     await hass.async_block_till_done()
+    await async_shutdown(hass, freezer)
 
     calls = [call_args.args[0] for call_args in listener.call_args_list]
-    assert len(calls) == 3
+    assert len(calls) == 4
     for call in calls:
         assert call.context.user_id == hass_admin_user.id
         assert call.data["domain"] == DOMAIN
     assert calls[0].data["service"] == ACTIONS_SERVICE
-    assert calls[1].data["service"] == CALL_SERVICE
-    assert calls[2].data["service"] == TEST_SERVICE
     assert calls[0].context.parent_id is None
+    assert calls[1].data["service"] == CALL_SERVICE
     assert calls[1].context.parent_id == calls[0].context.id
+    assert calls[2].data["service"] == TEST_SERVICE
     assert calls[2].context.parent_id == calls[1].context.id
+    assert calls[3].data["service"] == TEST_ON_ERROR_SERVICE
+    assert calls[3].context.parent_id == calls[1].context.id
