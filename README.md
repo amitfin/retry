@@ -114,7 +114,9 @@ Controls the grace period of `expected_state` and `validation` (has no impact if
 
 #### `on_error` parameter (optional)
 
-A sequence of actions to execute if all retries fail. For example:
+A sequence of actions to execute if all retries fail. 
+
+Here is an automation rule example with a self remediation logic:
 
 ```
 alias: Kitchen Evening Lights
