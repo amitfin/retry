@@ -118,6 +118,7 @@ A sequence of actions to execute if all retries fail. For example:
 
 ```
 alias: Kitchen Evening Lights
+mode: restart
 trigger:
   - platform: sun
     event: sunset
