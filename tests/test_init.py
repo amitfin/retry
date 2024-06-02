@@ -771,6 +771,7 @@ async def test_configuration_yaml(hass: HomeAssistant) -> None:
                 ],
             },
         ),
+        ({CONF_SEQUENCE: [{CONF_SEQUENCE: BASIC_SEQUENCE_DATA}]},),
         (
             {
                 CONF_SEQUENCE: [
@@ -789,6 +790,7 @@ async def test_configuration_yaml(hass: HomeAssistant) -> None:
         "if-else",
         "parallel-short",
         "parallel",
+        "sequence",
         "multiple",
     ],
 )
@@ -822,6 +824,7 @@ async def test_action_types() -> None:
         cv.SCRIPT_ACTION_IF,
         cv.SCRIPT_ACTION_PARALLEL,
         cv.SCRIPT_ACTION_REPEAT,
+        cv.SCRIPT_ACTION_SEQUENCE,
         cv.SCRIPT_ACTION_SET_CONVERSATION_RESPONSE,
         cv.SCRIPT_ACTION_STOP,
         cv.SCRIPT_ACTION_VARIABLES,

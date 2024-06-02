@@ -472,6 +472,8 @@ def _wrap_service_calls(
             case cv.SCRIPT_ACTION_PARALLEL:
                 for parallel in action[CONF_PARALLEL]:
                     _wrap_service_calls(hass, parallel[CONF_SEQUENCE], retry_params)
+            case cv.SCRIPT_ACTION_SEQUENCE:
+                _wrap_service_calls(hass, action[CONF_SEQUENCE], retry_params)
 
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
