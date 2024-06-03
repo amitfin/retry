@@ -145,7 +145,7 @@ action:
 
 `entity_id` is provided as a variable and can be used by `on_error` templates.
 
-Note that each entity is running individually when the inner service call has a list of entities. In such a case `on_error` can get executed multiple times, once for each failed entity. Similarly, `retry.actions` has a sequence of actions which might include multiple service calls. This can also trigger multiple execution of `on_error`, once for each failed inner service call.
+Note that each entity is running individually when the inner service call has a list of entities. In such a case `on_error` can get executed multiple times, once per each failed entity. Similarly, `retry.actions` has a sequence of actions which might include multiple service calls. This can also trigger multiple execution of `on_error`, once per each failed inner service call.
 
 #### `retry_id` parameter (optional)
 
