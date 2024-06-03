@@ -449,7 +449,8 @@ def _wrap_service_calls(
 ) -> None:
     """Warp any service call with retry."""
     for action in sequence:
-        match cv.determine_script_action(action):
+        action_type = cv.determine_script_action(action)
+        match action_type:
             case cv.SCRIPT_ACTION_CALL_SERVICE:
                 if action[ATTR_SERVICE] == f"{DOMAIN}.{ACTIONS_SERVICE}":
                     raise IntegrationError("Nested retry.actions are disallowed")
@@ -483,8 +484,9 @@ def _wrap_service_calls(
             case cv.SCRIPT_ACTION_PARALLEL:
                 for parallel in action[CONF_PARALLEL]:
                     _wrap_service_calls(hass, parallel[CONF_SEQUENCE], retry_params)
-            case cv.SCRIPT_ACTION_SEQUENCE:
-                _wrap_service_calls(hass, action[CONF_SEQUENCE], retry_params)
+            case _:
+                if action_type == getattr(cv, "SCRIPT_ACTION_SEQUENCE", "sequence"):
+                    _wrap_service_calls(hass, action[CONF_SEQUENCE], retry_params)
 
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
