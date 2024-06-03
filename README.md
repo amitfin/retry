@@ -120,7 +120,7 @@ Here is an automation rule example with a self remediation logic:
 
 ```
 alias: Kitchen Evening Lights
-mode: restart
+mode: parallel
 trigger:
   - platform: sun
     event: sunset
