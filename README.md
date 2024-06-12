@@ -112,7 +112,18 @@ Note: `validation: "[[ states(entity_id) == 'on' ]]"` has an identical logic and
 
 #### `state_grace` parameter (optional)
 
-Controls the grace period of `expected_state` and `validation` (has no impact if both are absent). The default value is 0.2 seconds. There is an additional check at the end of the period if the initial check (right after the service call) fails. The service call attempt is considered a failure only if the 2nd check fails.
+Controls the grace period of `expected_state` and `validation` (has no impact if both are absent). The default value is 0.2 seconds. There is an additional check at the end of the period if the initial check (right after the service call) fails. The service call attempt is considered a failure only if the 2nd check fails. For example:
+
+```
+service: retry.call
+data:
+  service: light.turn_off
+  transition: 5
+  state_grace: 5.1
+  expected_state: "off"
+target:
+  entity_id: light.kitchen
+```
 
 #### `on_error` parameter (optional)
 
@@ -155,7 +166,7 @@ A service call cancels a previous running call with the same retry ID. This para
 
 An example of the cancellation scenario might be when turning off a light while the turn on retry loop of the same light is still running due to failures or light's transition time. The turn on retry loop will be getting canceled by the turn off call since both share the same `retry_id` by default (the entity ID). 
 
-Note that each entity is running individually when the inner service call has a list of entities. Therefore, they have a different default `retry_id`. However, an explicit `retry_id` is shared for all entities of the same retry call. However, retry loops created by the same service call (`retry.call` or `retry.actions`) are not canceling each other even when they have identical `retry_id`.
+Note that each entity is running individually when the inner service call has a list of entities. Therefore, they have a different default `retry_id`. However, an explicit `retry_id` is shared for all entities of the same retry call. Nevertheless, retry loops created by the same service call (`retry.call` or `retry.actions`) are not canceling each other even when they share the same `retry_id`.
 
 It's possible to disable the cancellation logic by setting `retry_id` to an empty string (`retry_id: ""`) or null (`retry_id: null`). In such a case, the service call doesn't cancel any other running call and will not be canceled by any other future call. Note that it's not possible to set `retry_id` to an empty string or null via the "UI Mode" but instead the "YAML Mode" in the UI should be used.
 
