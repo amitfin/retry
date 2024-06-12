@@ -108,6 +108,8 @@ target:
 
 The boolean expression is rendered after each call to the inner service. If the value is False, the attempt is considered a failure and the loop of retries continues.
 
+Note: `validation: "[[ states(entity_id) == 'on' ]]"` has an identical logic and impact as setting `expected_state: "on"`. Therefore, the later is preferable from simplicity reasons.
+
 #### `state_grace` parameter (optional)
 
 Controls the grace period of `expected_state` and `validation` (has no impact if both are absent). The default value is 0.2 seconds. There is an additional check at the end of the period if the initial check (right after the service call) fails. The service call attempt is considered a failure only if the 2nd check fails.
