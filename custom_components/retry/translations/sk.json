@@ -49,6 +49,14 @@
                 "state_grace": {
                     "name": "Statusová ochranná lehota",
                     "description": "Ochranná lehota (v sekundách) pre očakávaný stav a overenie (predvolená hodnota je 0,2)."
+                },
+                "on_error": {
+                    "name": "Pri chybe",
+                    "description": "Postupnosť akcií, ktoré sa majú vykonať, ak všetky pokusy zlyhajú."
+                },
+                "retry_id": {
+                    "name": "Zopakovať ID",
+                    "description": "Nový hovor zruší predchádzajúci hovor s rovnakým ID (predvolené je ID entity)."
                 }
             }
         },
@@ -75,6 +83,14 @@
                 "state_grace": {
                     "name": "Statusová ochranná lehota",
                     "description": "Ochranná lehota (v sekundách) pre očakávaný stav a overenie (predvolená hodnota je 0,2)."
+                },
+                "on_error": {
+                    "name": "Pri chybe",
+                    "description": "Postupnosť akcií, ktoré sa majú vykonať, ak všetky pokusy zlyhajú."
+                },
+                "retry_id": {
+                    "name": "Zopakovať ID",
+                    "description": "Nový hovor zruší predchádzajúci hovor s rovnakým ID (predvolené je ID entity)."
                 }
             }
         }
