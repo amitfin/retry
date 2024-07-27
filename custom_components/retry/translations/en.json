@@ -36,11 +36,11 @@
                 },
                 "retries": {
                     "name": "Retries",
-                    "description": "Max amount of calls (default is 7)."
+                    "description": "Maximum amount of call attempts (default is 7)."
                 },
                 "backoff": {
                     "name": "Backoff",
-                    "description": "Special template with square brackets instead of curly brackets for the amount of seconds to wait between retries. Default is '[[ 2 ** attempt ]]'."
+                    "description": "Special template with square brackets instead of curly brackets for the amount of seconds to wait between attempts. Default is '[[ 2 ** attempt ]]'."
                 },
                 "expected_state": {
                     "name": "Expected State",
@@ -74,11 +74,11 @@
                 },
                 "retries": {
                     "name": "Retries",
-                    "description": "Max amount of calls (default is 7)."
+                    "description": "Maximum amount of call attempts (default is 7)."
                 },
                 "backoff": {
                     "name": "Backoff",
-                    "description": "Special template with square brackets instead of curly brackets for the amount of seconds to wait between retries. Default is '[[ 2 ** attempt ]]'."
+                    "description": "Special template with square brackets instead of curly brackets for the amount of seconds to wait between attempts. Default is '[[ 2 ** attempt ]]'."
                 },
                 "expected_state": {
                     "name": "Expected State",
