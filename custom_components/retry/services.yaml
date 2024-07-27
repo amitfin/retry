@@ -14,6 +14,11 @@ call:
           max: 100
           unit_of_measurement: retries
           mode: box
+    backoff:
+      advanced: true
+      example: "[[ 10 * 2 ** attempt ]]"
+      selector:
+        text:
     expected_state:
       advanced: true
       example: "on"
@@ -67,6 +72,11 @@ actions:
           max: 100
           unit_of_measurement: retries
           mode: box
+    backoff:
+      advanced: true
+      example: "[[ 10 * 2 ** attempt ]]"
+      selector:
+        text:
     expected_state:
       advanced: true
       example: "on"

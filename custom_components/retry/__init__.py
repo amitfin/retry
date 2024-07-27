@@ -1,4 +1,5 @@
 """Retry integration."""
+
 from __future__ import annotations
 
 import asyncio
@@ -46,6 +47,7 @@ import homeassistant.util.dt as dt_util
 
 from .const import (
     ACTIONS_SERVICE,
+    ATTR_BACKOFF,
     ATTR_EXPECTED_STATE,
     ATTR_ON_ERROR,
     ATTR_RETRY_ID,
@@ -60,7 +62,7 @@ from .const import (
 
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
-EXPONENTIAL_BACKOFF_BASE = 2
+DEFAULT_BACKOFF = "[[ 2 ** attempt ]]"
 DEFAULT_RETRIES = 7
 DEFAULT_STATE_GRACE = 0.2
 
@@ -90,6 +92,14 @@ def _fix_template_tokens(value: str) -> str:
     return value
 
 
+DEFAULT_BACKOFF_FIXED = _fix_template_tokens(DEFAULT_BACKOFF)
+
+
+def _backoff_parameter(value: any | None) -> Template:
+    """Convert backoff parameter to template."""
+    return cv.template(_fix_template_tokens(cv.string(value)))
+
+
 def _validation_parameter(value: any | None) -> Template:
     """Convert validation parameter to template."""
     return cv.dynamic_template(_fix_template_tokens(cv.string(value)))
@@ -97,6 +107,7 @@ def _validation_parameter(value: any | None) -> Template:
 
 SERVICE_SCHEMA_BASE_FIELDS = {
     vol.Required(ATTR_RETRIES, default=DEFAULT_RETRIES): cv.positive_int,
+    vol.Required(ATTR_BACKOFF, default=DEFAULT_BACKOFF): _backoff_parameter,
     vol.Optional(ATTR_EXPECTED_STATE): vol.All(cv.ensure_list, [_template_parameter]),
     vol.Optional(ATTR_VALIDATION): _validation_parameter,
     vol.Required(ATTR_STATE_GRACE, default=DEFAULT_STATE_GRACE): cv.positive_float,
@@ -249,7 +260,6 @@ class RetryCall:
         self._entity_id = entity_id
         self._context = context
         self._attempt = 1
-        self._delay = 1
         self._retry_id = params.retry_data.get(ATTR_RETRY_ID)
         if ATTR_RETRY_ID not in params.retry_data:
             if self._entity_id:
@@ -312,6 +322,10 @@ class RetryCall:
             f"({', '.join([f'{key}={value}' for key, value in self._inner_data.items()])})"
         )
         retry_params = []
+        if (
+            backoff := self._params.retry_data[ATTR_BACKOFF].template
+        ) != DEFAULT_BACKOFF_FIXED:
+            retry_params.append(f'{ATTR_BACKOFF}="{backoff}"')
         if (
             expected_state := self._params.retry_data.get(ATTR_EXPECTED_STATE)
         ) is not None:
@@ -438,8 +452,13 @@ class RetryCall:
                     context=Context(self._context.user_id, self._context.id),
                 )
             return
-        next_retry = dt_util.now() + datetime.timedelta(seconds=self._delay)
-        self._delay *= EXPONENTIAL_BACKOFF_BASE
+        next_retry = dt_util.now() + datetime.timedelta(
+            seconds=float(
+                self._params.retry_data[ATTR_BACKOFF].async_render(
+                    variables={"attempt": self._attempt - 1}
+                )
+            )
+        )
         self._attempt += 1
         event.async_track_point_in_time(self._hass, self.async_retry, next_retry)
 
@@ -510,9 +529,10 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
             for key in service_call.data
             if key in SERVICE_SCHEMA_BASE_FIELDS
         }
-        if ATTR_VALIDATION in retry_params:
-            # Revert it back to string so it won't get rendered in advance.
-            retry_params[ATTR_VALIDATION] = retry_params[ATTR_VALIDATION].template
+        for key in [ATTR_BACKOFF, ATTR_VALIDATION]:
+            if key in retry_params:
+                # Revert it back to string so it won't get rendered in advance.
+                retry_params[key] = retry_params[key].template
         _wrap_service_calls(hass, sequence, retry_params)
         await script.Script(hass, sequence, ACTIONS_SERVICE, DOMAIN).async_run(
             context=Context(service_call.context.user_id, service_call.context.id)

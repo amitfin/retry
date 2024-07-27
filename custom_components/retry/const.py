@@ -1,4 +1,5 @@
 """Constants for the retry integration."""
+
 import logging
 from typing import Final
 
@@ -8,6 +9,7 @@ LOGGER = logging.getLogger(__package__)
 ACTIONS_SERVICE: Final = "actions"
 CALL_SERVICE: Final = "call"
 CONF_DISABLE_REPAIR = "disable_repair"
+ATTR_BACKOFF: Final = "backoff"
 ATTR_EXPECTED_STATE: Final = "expected_state"
 ATTR_ON_ERROR: Final = "on_error"
 ATTR_RETRY_ID: Final = "retry_id"

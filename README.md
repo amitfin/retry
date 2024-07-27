@@ -75,7 +75,15 @@ target:
   entity_id: light.kitchen
 ```
 
-The service implements an exponential backoff mechanism. These are the delay times (in seconds) of the first 7 attempts: [0, 1, 2, 4, 8, 16, 32] (each delay is twice than the previous one). The following are the seconds offsets from the initial call [0, 1, 3, 7, 15, 31, 63].
+#### `backoff` parameter (optional)
+
+The amount of seconds to wait between retries. It's expressed in a special template format with square brackets `"[[ ... ]]"` instead of curly brackets `"{{ ... }}"`. This is needed to prevent from rendering the expression in advance. `attempt` is provided as a variable, holding a zero-based counter. `attempt` is zero for 1st expression evaluation, and increasing by one for subsequence evaluations. Note that there is no delay for the initial attempt, so the list of delays always starts with a zero.
+
+The default value is `"[[ 2 ** attempt ]]"` which is an exponential backoff. These are the delay times of the first 7 attempts: [0, 1, 2, 4, 8, 16, 32] (each delay is twice than the previous one). The following are the second offsets from the initial call [0, 1, 3, 7, 15, 31, 63].
+
+A different strategy can be a constant wait time which can be expressed as a simple non-template string. For example, these are the delay times of the first 7 attempts when using `"10"`: [0, 10, 10, 10, 10, 10, 10]. The following are the second offsets from the initial call [0, 10, 20, 30, 40, 50, 60].
+
+Another example is `"[[ 10 * 2 ** attempt ]]"` which is a slower exponential backoff. These are the delay times of the first 7 attempts: [0, 10, 20, 40, 80, 160, 320]. The following are the second offsets from the initial call [0, 10, 30, 70, 150, 310, 630].
 
 #### `expected_state` parameter (optional)
 
@@ -127,7 +135,7 @@ target:
 
 #### `on_error` parameter (optional)
 
-A sequence of actions to execute if all retries fail. 
+A sequence of actions to execute if all retries fail.
 
 Here is an automation rule example with a self remediation logic:
 
@@ -162,9 +170,9 @@ Note that each entity is running individually when the inner service call has a 
 
 #### `retry_id` parameter (optional)
 
-A service call cancels a previous running call with the same retry ID. This parameter can be used to set the retry ID explicitly but it should be rarely used, if at all. The default value of `retry_id` is the `entity_id` of the inner service call. For inner service calls with no `entity_id`, the default value of `retry_id` is the service name. 
+A service call cancels a previous running call with the same retry ID. This parameter can be used to set the retry ID explicitly but it should be rarely used, if at all. The default value of `retry_id` is the `entity_id` of the inner service call. For inner service calls with no `entity_id`, the default value of `retry_id` is the service name.
 
-An example of the cancellation scenario might be when turning off a light while the turn on retry loop of the same light is still running due to failures or light's transition time. The turn on retry loop will be getting canceled by the turn off call since both share the same `retry_id` by default (the entity ID). 
+An example of the cancellation scenario might be when turning off a light while the turn on retry loop of the same light is still running due to failures or light's transition time. The turn on retry loop will be getting canceled by the turn off call since both share the same `retry_id` by default (the entity ID).
 
 Note that each entity is running individually when the inner service call has a list of entities. Therefore, they have a different default `retry_id`. However, an explicit `retry_id` is shared for all entities of the same retry call. Nevertheless, retry loops created by the same service call (`retry.call` or `retry.actions`) are not canceling each other even when they share the same `retry_id`.
 

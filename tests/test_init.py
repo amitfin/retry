@@ -53,6 +53,7 @@ from pytest_homeassistant_custom_component.common import (
 
 from custom_components.retry.const import (
     ACTIONS_SERVICE,
+    ATTR_BACKOFF,
     ATTR_EXPECTED_STATE,
     ATTR_ON_ERROR,
     ATTR_RETRY_ID,
@@ -121,9 +122,11 @@ async def async_setup(
     return calls
 
 
-async def async_next_hour(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
-    """Jump to the next hour and execute all pending timers."""
-    freezer.move_to(dt_util.now() + datetime.timedelta(hours=1))
+async def async_next_seconds(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, seconds: float
+) -> None:
+    """Jump to the next "seconds" and execute all pending timers."""
+    freezer.move_to(dt_util.now() + datetime.timedelta(seconds=seconds))
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
@@ -131,7 +134,7 @@ async def async_next_hour(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -
 async def async_shutdown(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
     """Make sure all pending retries were executed."""
     for _ in range(10):
-        await async_next_hour(hass, freezer)
+        await async_next_seconds(hass, freezer, 3600)
 
 
 async def async_call(
@@ -177,7 +180,7 @@ async def test_failure(
     for i in range(20):
         if i < retries:
             assert len(calls) == (i + 1)
-        await async_next_hour(hass, freezer)
+        await async_next_seconds(hass, freezer, 3600)
     assert len(calls) == retries
     assert (
         f"[Failed]: attempt {retries}/{retries}: {DOMAIN}.{TEST_SERVICE}()"
@@ -888,6 +891,54 @@ async def test_actions_propagating_args(
     )
     await async_shutdown(hass, freezer)
     assert len(calls) == 4
+
+
+@pytest.mark.parametrize(
+    ["backoff", "backoff_fixed", "delays"],
+    [
+        (None, None, [1, 2, 4, 8, 16, 32]),
+        ("10", "10", [10] * 6),
+        (
+            "[[ 10 * 2 ** attempt ]]",
+            "{{ 10 * 2 ** attempt }}",
+            [10, 20, 40, 80, 160, 320],
+        ),
+    ],
+    ids=["default - exponential backoff", "linear", "slow exponential backoff"],
+)
+@patch("custom_components.retry.asyncio.sleep")
+async def test_actions_backoff(
+    _: AsyncMock,
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    caplog: pytest.LogCaptureFixture,
+    backoff: str | None,
+    backoff_fixed: str | None,
+    delays: list[str],
+) -> None:
+    """Test action service backoff parameter."""
+    calls = await async_setup(hass)
+    await hass.services.async_call(
+        DOMAIN,
+        ACTIONS_SERVICE,
+        {
+            **{CONF_SEQUENCE: BASIC_SEQUENCE_DATA},
+            **({ATTR_BACKOFF: backoff} if backoff else {}),
+        },
+        True,
+    )
+    calls.pop()
+    for i, delay in enumerate(delays):
+        await async_next_seconds(hass, freezer, delay - 1)
+        assert len(calls) == i
+        await async_next_seconds(hass, freezer, 1)
+        assert len(calls) == i + 1
+    await async_shutdown(hass, freezer)
+    if backoff:
+        assert (
+            f'[Failed]: attempt 7/7: {DOMAIN}.{TEST_SERVICE}()[backoff="{backoff_fixed}"]'
+            in caplog.text
+        )
 
 
 async def test_actions_propagating_successful_validation(

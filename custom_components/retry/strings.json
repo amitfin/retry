@@ -38,6 +38,10 @@
           "name": "Retries",
           "description": "Max amount of calls (default is 7)."
         },
+        "backoff": {
+          "name": "Backoff",
+          "description": "Special template with square brackets instead of curly brackets for the amount of seconds to wait between retries. Default is '[[ 2 ** attempt ]]'."
+        },
         "expected_state": {
           "name": "Expected State",
           "description": "The expected state of the entities after the service call."
@@ -71,6 +75,10 @@
         "retries": {
           "name": "Retries",
           "description": "Max amount of calls (default is 7)."
+        },
+        "backoff": {
+          "name": "Backoff",
+          "description": "Special template with square brackets instead of curly brackets for the amount of seconds to wait between retries. Default is '[[ 2 ** attempt ]]'."
         },
         "expected_state": {
           "name": "Expected State",
