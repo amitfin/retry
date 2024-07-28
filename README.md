@@ -77,13 +77,13 @@ target:
 
 #### `backoff` parameter (optional)
 
-The amount of seconds to wait between attempts. It's expressed in a special template format with square brackets `"[[ ... ]]"` instead of curly brackets `"{{ ... }}"`. This is needed to prevent from rendering the expression in advance. `attempt` is provided as a variable, holding a zero-based counter. `attempt` is zero for 1st expression evaluation, and increasing by one for subsequence evaluations. Note that there is no delay for the initial attempt, so the list of delays always starts with a zero.
+The amount of seconds to wait between attempts. It's expressed in a special template format with square brackets `"[[ ... ]]"` instead of curly brackets `"{{ ... }}"`. This is needed to prevent from rendering the expression in advance. `attempt` is provided as a variable, holding a zero-based counter - it's zero for 1st time the expression is evaluated, and increasing by one for subsequence evaluations. Note that there is no delay for the initial attempt, so the list of delays always starts with a zero.
 
-The default value is `"[[ 2 ** attempt ]]"` which is an exponential backoff. These are the delay times of the first 7 attempts: [0, 1, 2, 4, 8, 16, 32] (each delay is twice than the previous one). The following are the second offsets from the initial call [0, 1, 3, 7, 15, 31, 63].
+The default value is `"[[ 2 ** attempt ]]"` which is an exponential backoff. These are the delay times of the first 7 attempts: [0, 1, 2, 4, 8, 16, 32] (each delay is twice than the previous one). The following are the offsets from the initial call [0, 1, 3, 7, 15, 31, 63].
 
-A different strategy can be a constant wait time which can be expressed as a simple non-template string. For example, these are the delay times of the first 7 attempts when using `"10"`: [0, 10, 10, 10, 10, 10, 10]. The following are the second offsets from the initial call [0, 10, 20, 30, 40, 50, 60].
+A different strategy can be a constant wait time which can be expressed as a simple non-template string. For example, these are the delay times of the first 7 attempts when using `"10"`: [0, 10, 10, 10, 10, 10, 10]. The following are the offsets from the initial call [0, 10, 20, 30, 40, 50, 60].
 
-Another example is `"[[ 10 * 2 ** attempt ]]"` which is a slower exponential backoff. These are the delay times of the first 7 attempts: [0, 10, 20, 40, 80, 160, 320]. The following are the second offsets from the initial call [0, 10, 30, 70, 150, 310, 630].
+Another example is `"[[ 10 * 2 ** attempt ]]"` which is a slower exponential backoff. These are the delay times of the first 7 attempts: [0, 10, 20, 40, 80, 160, 320]. The following are the offsets from the initial call [0, 10, 30, 70, 150, 310, 630].
 
 #### `expected_state` parameter (optional)
 
