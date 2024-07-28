@@ -85,6 +85,15 @@ Linear backoff is a different strategy which can be expressed as a simple non-te
 
 Another example is `"[[ 10 * 2 ** attempt ]]"` which is a slower exponential backoff. These are the delay times of the first 7 attempts: [0, 10, 20, 40, 80, 160, 320]. The following are the offsets from the initial call [0, 10, 30, 70, 150, 310, 630].
 
+```
+service: retry.call
+data:
+  service: homeassistant.turn_on
+  backoff: "[[ 10 * 2 ** attempt ]]"
+target:
+  entity_id: light.kitchen
+```
+
 #### `expected_state` parameter (optional)
 
 Validation of the entity's state after the inner service call. For example:
