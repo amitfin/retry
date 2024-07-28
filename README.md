@@ -81,7 +81,7 @@ The amount of seconds to wait between attempts. It's expressed in a special temp
 
 The default value is `"[[ 2 ** attempt ]]"` which is an exponential backoff. These are the delay times of the first 7 attempts: [0, 1, 2, 4, 8, 16, 32] (each delay is twice than the previous one). The following are the offsets from the initial call [0, 1, 3, 7, 15, 31, 63].
 
-A different strategy can be a constant wait time which can be expressed as a simple non-template string. For example, these are the delay times of the first 7 attempts when using `"10"`: [0, 10, 10, 10, 10, 10, 10]. The following are the offsets from the initial call [0, 10, 20, 30, 40, 50, 60].
+Linear backoff is a different strategy which can be expressed as a simple non-template string (without brackets). For example, these are the delay times of the first 7 attempts when using `"10"`: [0, 10, 10, 10, 10, 10, 10]. The following are the offsets from the initial call [0, 10, 20, 30, 40, 50, 60].
 
 Another example is `"[[ 10 * 2 ** attempt ]]"` which is a slower exponential backoff. These are the delay times of the first 7 attempts: [0, 10, 20, 40, 80, 160, 320]. The following are the offsets from the initial call [0, 10, 30, 70, 150, 310, 630].
 
