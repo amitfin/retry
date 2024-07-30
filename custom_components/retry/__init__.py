@@ -327,10 +327,6 @@ class RetryCall:
         )
         retry_params = []
         if (
-            backoff := self._params.retry_data[ATTR_BACKOFF].template
-        ) != DEFAULT_BACKOFF_FIXED:
-            retry_params.append(f'{ATTR_BACKOFF}="{backoff}"')
-        if (
             expected_state := self._params.retry_data.get(ATTR_EXPECTED_STATE)
         ) is not None:
             if len(expected_state) == 1:
@@ -339,20 +335,35 @@ class RetryCall:
                 retry_params.append(
                     f"expected_state in ({', '.join(state for state in expected_state)})"
                 )
-        if (validation := self._params.retry_data.get(ATTR_VALIDATION)) is not None:
-            retry_params.append(f'{ATTR_VALIDATION}="{validation.template}"')
-        if self._params.retry_data[ATTR_STATE_DELAY]:
-            retry_params.append(
-                f"{ATTR_STATE_DELAY}={self._params.retry_data[ATTR_STATE_DELAY]}"
-            )
-        if self._params.retry_data[ATTR_STATE_GRACE] != DEFAULT_STATE_GRACE:
-            retry_params.append(
-                f"{ATTR_STATE_GRACE}={self._params.retry_data[ATTR_STATE_GRACE]}"
-            )
-        if ATTR_RETRY_ID in self._params.retry_data:
-            retry_params.append(
-                f"{ATTR_RETRY_ID}={self._params.retry_data.get(ATTR_RETRY_ID)}"
-            )
+        for name, value, default in (
+            (
+                ATTR_BACKOFF,
+                self._params.retry_data[ATTR_BACKOFF].template,
+                DEFAULT_BACKOFF_FIXED,
+            ),
+            (
+                ATTR_VALIDATION,
+                self._params.retry_data[ATTR_VALIDATION].template
+                if ATTR_VALIDATION in self._params.retry_data
+                else None,
+                None,
+            ),
+            (ATTR_STATE_DELAY, self._params.retry_data[ATTR_STATE_DELAY], 0),
+            (
+                ATTR_STATE_GRACE,
+                self._params.retry_data[ATTR_STATE_GRACE],
+                DEFAULT_STATE_GRACE,
+            ),
+            (
+                ATTR_RETRY_ID,
+                self._params.retry_data.get(ATTR_RETRY_ID),
+                None if ATTR_RETRY_ID not in self._params.retry_data else "add",
+            ),
+        ):
+            if value != default:
+                if isinstance(value, str):
+                    value = f'"{value}"'
+                retry_params.append(f"{name}={value}")
         if len(retry_params) > 0:
             service_call += f"[{', '.join(retry_params)}]"
         return service_call

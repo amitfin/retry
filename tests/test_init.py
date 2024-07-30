@@ -412,7 +412,7 @@ async def test_different_retry_ids(
     await async_shutdown(hass, freezer)
     assert len(calls) == 14  # = 7 + 7
     for i in range(2):
-        assert f"{DOMAIN}.{TEST_SERVICE}()[{ATTR_RETRY_ID}={str(i)}]" in caplog.text
+        assert f'{DOMAIN}.{TEST_SERVICE}()[{ATTR_RETRY_ID}="{str(i)}"]' in caplog.text
 
 
 async def test_default_retry_id_is_entity_id(
@@ -456,6 +456,8 @@ async def test_disable_retry_id(
         await async_call(hass, {ATTR_RETRY_ID: value})
     await async_shutdown(hass, freezer)
     assert len(calls) == 14  # = 7 + 7
+    if value is not None:
+        value = f'"{value}"'
     assert f"{DOMAIN}.{TEST_SERVICE}()[{ATTR_RETRY_ID}={value}]" in caplog.text
 
 
@@ -903,6 +905,7 @@ async def test_actions_propagating_args(
     _: AsyncMock,
     hass: HomeAssistant,
     freezer: FrozenDateTimeFactory,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test action service propagate correctly the arguments."""
     calls = await async_setup(hass, False)
@@ -919,6 +922,10 @@ async def test_actions_propagating_args(
     )
     await async_shutdown(hass, freezer)
     assert len(calls) == 4
+    assert (
+        f'[Failed]: attempt 3/3: {DOMAIN}.{TEST_SERVICE}()[validation="{{{{ False }}}}"]'
+        in caplog.text
+    )
 
 
 @pytest.mark.parametrize(
