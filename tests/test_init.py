@@ -58,6 +58,7 @@ from custom_components.retry.const import (
     ATTR_ON_ERROR,
     ATTR_RETRY_ID,
     ATTR_RETRIES,
+    ATTR_STATE_DELAY,
     ATTR_STATE_GRACE,
     ATTR_VALIDATION,
     CALL_SERVICE,
@@ -268,6 +269,33 @@ async def test_entity_wrong_state(
         assert f'"{validation}" is False' in caplog.text
     wait_times = [x.args[0] for x in sleep_mock.await_args_list]
     assert wait_times.count(grace or 0.2) == 7
+
+
+@patch("custom_components.retry.asyncio.sleep")
+async def test_state_delay(
+    sleep_mock: AsyncMock,
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test initial state delay time."""
+    await async_setup(hass, False)
+    await async_call(
+        hass,
+        {
+            ATTR_ENTITY_ID: "binary_sensor.test",
+            ATTR_EXPECTED_STATE: "off",
+            ATTR_STATE_DELAY: 1.2,
+        },
+    )
+    await async_shutdown(hass, freezer)
+    wait_times = [x.args[0] for x in sleep_mock.await_args_list]
+    assert wait_times.count(1.2) == 7  # state_delay
+    assert wait_times.count(0.2) == 7  # state_grace
+    assert (
+        f"[Failed]: attempt 7/7: {DOMAIN}.{TEST_SERVICE}(entity_id=binary_sensor.test)[expected_state=off, state_delay=1.2]"
+        in caplog.text
+    )
 
 
 async def test_entity_expected_state_list(

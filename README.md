@@ -127,9 +127,23 @@ The boolean expression is rendered after each call to the inner service. If the 
 
 Note: `validation: "[[ states(entity_id) == 'on' ]]"` has an identical logic and impact as setting `expected_state: "on"`. Therefore, the later is preferable from simplicity reasons.
 
+#### `state_delay` parameter (optional)
+
+Controls the amount of seconds to wait before the initial check of `expected_state` and `validation` (has no impact if both are absent). The default value is zero (no delay). This option can be used if the new state is being updated immediately but later on getting reverted to the previous state since the operation failed on the remote device. It's not the common behavior as integrations should update the state only when getting a new state from the device. Here is a configuration example:
+
+```
+service: retry.call
+data:
+  service: light.turn_off
+  state_delay: 2
+  expected_state: "off"
+target:
+  entity_id: light.kitchen
+```
+
 #### `state_grace` parameter (optional)
 
-Controls the grace period of `expected_state` and `validation` (has no impact if both are absent). The default value is 0.2 seconds. There is an additional check at the end of the period if the initial check (right after the service call) fails. The service call attempt is considered a failure only if the 2nd check fails. For example:
+Controls the amount of seconds to wait before the final check of `expected_state` and `validation` (has no impact if both are absent). The default value is 0.2 seconds. The 2nd (final) check is done if the initial check fails. The service call attempt is considered a failure only if the 2nd check fails. Here is a configuration example:
 
 ```
 service: retry.call
