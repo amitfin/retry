@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import datetime
-import functools
 import logging
 import threading
-import voluptuous as vol
+from typing import TYPE_CHECKING, Any
 
+import homeassistant.util.dt as dt_util
+import voluptuous as vol
 from homeassistant.components.hassio.const import ATTR_DATA
-from homeassistant.components.group import DOMAIN as GROUP_DOMAIN
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
 from homeassistant.const import (
     ATTR_DOMAIN,
@@ -34,24 +34,29 @@ from homeassistant.exceptions import (
 )
 from homeassistant.helpers import (
     config_validation as cv,
+)
+from homeassistant.helpers import (
     event,
-    issue_registry as ir,
     script,
 )
-from homeassistant.helpers.entity import Entity
+from homeassistant.helpers import (
+    issue_registry as ir,
+)
 from homeassistant.helpers.entity_component import DATA_INSTANCES, EntityComponent
 from homeassistant.helpers.service import async_extract_referenced_entity_ids
 from homeassistant.helpers.template import Template, result_as_boolean
-from homeassistant.helpers.typing import ConfigType
-import homeassistant.util.dt as dt_util
+
+if TYPE_CHECKING:
+    from homeassistant.helpers.entity import Entity
+    from homeassistant.helpers.typing import ConfigType
 
 from .const import (
     ACTIONS_SERVICE,
     ATTR_BACKOFF,
     ATTR_EXPECTED_STATE,
     ATTR_ON_ERROR,
-    ATTR_RETRY_ID,
     ATTR_RETRIES,
+    ATTR_RETRY_ID,
     ATTR_STATE_DELAY,
     ATTR_STATE_GRACE,
     ATTR_VALIDATION,
@@ -66,16 +71,18 @@ CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 DEFAULT_BACKOFF = "[[ 2 ** attempt ]]"
 DEFAULT_RETRIES = 7
 DEFAULT_STATE_GRACE = 0.2
+GROUP_DOMAIN = "group"
 
-_running_retries: dict[str, (str, int)] = {}
+_running_retries: dict[str, tuple[str, int]] = {}
 _running_retries_write_lock = threading.Lock()
 
 
-def _template_parameter(value: any | None) -> str:
+def _template_parameter(value: Any) -> str:
     """Render template parameter."""
     output = cv.template(value).async_render(parse_result=False)
     if not isinstance(output, str):
-        raise vol.Invalid("template rendered value should be a string")
+        message = "template rendered value should be a string"
+        raise vol.Invalid(message)
     return output
 
 
@@ -96,23 +103,23 @@ def _fix_template_tokens(value: str) -> str:
 DEFAULT_BACKOFF_FIXED = _fix_template_tokens(DEFAULT_BACKOFF)
 
 
-def _backoff_parameter(value: any | None) -> Template:
+def _backoff_parameter(value: Any | None) -> Template:
     """Convert backoff parameter to template."""
     return cv.template(_fix_template_tokens(cv.string(value)))
 
 
-def _validation_parameter(value: any | None) -> Template:
+def _validation_parameter(value: Any | None) -> Template:
     """Convert validation parameter to template."""
     return cv.dynamic_template(_fix_template_tokens(cv.string(value)))
 
 
 SERVICE_SCHEMA_BASE_FIELDS = {
-    vol.Required(ATTR_RETRIES, default=DEFAULT_RETRIES): cv.positive_int,
-    vol.Required(ATTR_BACKOFF, default=DEFAULT_BACKOFF): _backoff_parameter,
+    vol.Required(ATTR_RETRIES, default=DEFAULT_RETRIES): cv.positive_int,  # type: ignore[reportArgumentType]
+    vol.Required(ATTR_BACKOFF, default=DEFAULT_BACKOFF): _backoff_parameter,  # type: ignore[reportArgumentType]
     vol.Optional(ATTR_EXPECTED_STATE): vol.All(cv.ensure_list, [_template_parameter]),
     vol.Optional(ATTR_VALIDATION): _validation_parameter,
-    vol.Required(ATTR_STATE_DELAY, default=0): cv.positive_float,
-    vol.Required(ATTR_STATE_GRACE, default=DEFAULT_STATE_GRACE): cv.positive_float,
+    vol.Required(ATTR_STATE_DELAY, default=0): cv.positive_float,  # type: ignore[reportArgumentType]
+    vol.Required(ATTR_STATE_GRACE, default=DEFAULT_STATE_GRACE): cv.positive_float,  # type: ignore[reportArgumentType]
     vol.Optional(ATTR_RETRY_ID): vol.Any(cv.string, None),
     vol.Optional(ATTR_ON_ERROR): cv.SCRIPT_SCHEMA,
 }
@@ -151,7 +158,7 @@ class RetryParams:
         self,
         hass: HomeAssistant,
         config_entry: ConfigEntry | None,
-        data: dict[str, any],
+        data: dict[str, Any],
     ) -> None:
         """Initialize the object."""
         self.config_entry = config_entry
@@ -161,8 +168,8 @@ class RetryParams:
 
     @staticmethod
     def _retry_service_data(
-        hass: HomeAssistant, data: dict[str, any]
-    ) -> dict[str, any]:
+        hass: HomeAssistant, data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Compose retry parameters."""
         retry_data = {
             key: data[key] for key in data if key in SERVICE_SCHEMA_BASE_FIELDS
@@ -176,8 +183,8 @@ class RetryParams:
         return retry_data
 
     def _inner_service_data(
-        self, hass: HomeAssistant, data: dict[str, any]
-    ) -> dict[str, any]:
+        self, hass: HomeAssistant, data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Compose inner service parameters."""
         inner_data = {
             key: value
@@ -205,7 +212,9 @@ class RetryParams:
             and entity_obj.platform is not None
             and entity_obj.platform.platform_name == GROUP_DOMAIN
         ):
-            for member_id in entity_obj.extra_state_attributes.get(ATTR_ENTITY_ID, []):
+            for member_id in getattr(entity_obj, "extra_state_attributes", {}).get(
+                ATTR_ENTITY_ID, []
+            ):
                 entity_ids.extend(self._expand_group(hass, member_id))
         else:
             entity_ids.append(entity_id)
@@ -256,7 +265,7 @@ class RetryCall:
                 if key in self._inner_data:
                     del self._inner_data[key]
             self._inner_data = {
-                **{ATTR_ENTITY_ID: entity_id},
+                ATTR_ENTITY_ID: entity_id,
                 **self._inner_data,
             }
         self._entity_id = entity_id
@@ -267,16 +276,21 @@ class RetryCall:
             if self._entity_id:
                 self._retry_id = self._entity_id
             else:
-                self._retry_id = f"{params.retry_data[ATTR_DOMAIN]}.{params.retry_data[ATTR_SERVICE]}"
+                self._retry_id = (
+                    f"{params.retry_data[ATTR_DOMAIN]}."
+                    + params.retry_data[ATTR_SERVICE]
+                )
+        self._service_call_str_value = None
         self._start_id()
 
     async def _async_validate(self) -> None:
-        """Verify that the entity is available, in the expected state, and pass the validation."""
+        """Check the entity is available has expected state and pass validation."""
         if self._entity_id:
             if (
                 ent_obj := _get_entity(self._hass, self._entity_id)
             ) is None or not ent_obj.available:
-                raise InvalidStateError(f"{self._entity_id} is not available")
+                message = f"{self._entity_id} is not available"
+                raise InvalidStateError(message)
         else:
             ent_obj = None
         if (state_delay := self._params.retry_data[ATTR_STATE_DELAY]) > 0:
@@ -284,14 +298,17 @@ class RetryCall:
         if not self._check_state(ent_obj) or not self._check_validation():
             await asyncio.sleep(self._params.retry_data[ATTR_STATE_GRACE])
             if not self._check_state(ent_obj):
-                raise InvalidStateError(
-                    f'{self._entity_id} state is "{ent_obj.state}" but '
-                    f'expecting one of "{self._params.retry_data[ATTR_EXPECTED_STATE]}"'
+                message = (
+                    f'{self._entity_id} state is "{getattr(ent_obj, "state", "None")}" '
+                    "but expecting one of "
+                    f'"{self._params.retry_data[ATTR_EXPECTED_STATE]}"'
                 )
+                raise InvalidStateError(message)
             if not self._check_validation():
-                raise InvalidStateError(
+                message = (
                     f'"{self._params.retry_data[ATTR_VALIDATION].template}" is False'
                 )
+                raise InvalidStateError(message)
 
     def _check_state(self, entity: Entity | None) -> bool:
         """Check if the entity's state is expected."""
@@ -301,7 +318,7 @@ class RetryCall:
             if entity.state == expected:
                 return True
             try:
-                if float(entity.state) == float(expected):
+                if float(entity.state) == float(expected):  # type: ignore[reportArgumentType]
                     return True
             except ValueError:
                 pass
@@ -318,12 +335,19 @@ class RetryCall:
         )
 
     @property
-    @functools.cache
     def _service_call_str(self) -> str:
+        if self._service_call_str_value is None:
+            self._service_call_str_value = self._compose_service_call_str()
+        return self._service_call_str_value
+
+    def _compose_service_call_str(self) -> str:
         """Return a string with the service call parameters."""
         service_call = (
-            f"{self._params.retry_data[ATTR_DOMAIN]}.{self._params.retry_data[ATTR_SERVICE]}"
-            f"({', '.join([f'{key}={value}' for key, value in self._inner_data.items()])})"
+            f"{self._params.retry_data[ATTR_DOMAIN]}."
+            f"{self._params.retry_data[ATTR_SERVICE]}"
+            f"({', '.join(
+                [f'{key}={value}' for key, value in self._inner_data.items()]
+            )})"
         )
         retry_params = []
         if (
@@ -333,7 +357,9 @@ class RetryCall:
                 retry_params.append(f"expected_state={expected_state[0]}")
             else:
                 retry_params.append(
-                    f"expected_state in ({', '.join(state for state in expected_state)})"
+                    f"expected_state in ({', '.join(
+                        state for state in expected_state
+                    )})"
                 )
         for name, value, default in (
             (
@@ -362,13 +388,14 @@ class RetryCall:
         ):
             if value != default:
                 if isinstance(value, str):
-                    value = f'"{value}"'
-                retry_params.append(f"{name}={value}")
+                    retry_params.append(f'{name}="{value}"')
+                else:
+                    retry_params.append(f"{name}={value}")
         if len(retry_params) > 0:
             service_call += f"[{', '.join(retry_params)}]"
         return service_call
 
-    def _log(self, level: int, prefix: str, stack_info: bool = False) -> None:
+    def _log(self, level: int, prefix: str, stack_info: bool = False) -> None:  # noqa: FBT001, FBT002
         """Log entry."""
         LOGGER.log(
             level,
@@ -420,7 +447,8 @@ class RetryCall:
 
     def _set_id(self, count: int) -> None:
         """Set the retry_id entry with a counter."""
-        _running_retries[self._retry_id] = (self._context.id, count)
+        if self._retry_id:
+            _running_retries[self._retry_id] = (self._context.id, count)
 
     def _check_id(self) -> bool:
         """Check if self is the retry ID running job."""
@@ -430,7 +458,7 @@ class RetryCall:
         )
 
     @callback
-    async def async_retry(self, *_) -> None:
+    async def async_retry(self, _: datetime.datetime | None = None) -> None:
         """One service call attempt."""
         if not self._check_id():
             self._log(logging.INFO, "Cancelled")
@@ -440,50 +468,51 @@ class RetryCall:
                 self._params.retry_data[ATTR_DOMAIN],
                 self._params.retry_data[ATTR_SERVICE],
                 self._inner_data.copy(),
-                True,
-                Context(self._context.user_id, self._context.id),
+                blocking=True,
+                context=Context(self._context.user_id, self._context.id),
             )
             await self._async_validate()
             self._log(
                 logging.DEBUG if self._attempt == 1 else logging.INFO, "Succeeded"
             )
             self._end_id()
-            return
-        except Exception:  # pylint: disable=broad-except
+        except Exception:  # noqa: BLE001
             self._log(
                 logging.WARNING
                 if self._attempt < self._params.retry_data[ATTR_RETRIES]
                 else logging.ERROR,
                 "Failed",
-                True,
+                stack_info=True,
             )
-        if self._attempt == self._params.retry_data[ATTR_RETRIES]:
-            if not self._params.config_entry.options.get(CONF_DISABLE_REPAIR):
-                self._repair()
-            self._end_id()
-            if (on_error := self._params.retry_data.get(ATTR_ON_ERROR)) is not None:
-                await script.Script(
-                    self._hass, on_error, CALL_SERVICE, DOMAIN
-                ).async_run(
-                    run_variables={ATTR_ENTITY_ID: self._entity_id}
-                    if self._entity_id
-                    else None,
-                    context=Context(self._context.user_id, self._context.id),
-                )
-            return
-        next_retry = dt_util.now() + datetime.timedelta(
-            seconds=float(
-                self._params.retry_data[ATTR_BACKOFF].async_render(
-                    variables={"attempt": self._attempt - 1}
+            if self._attempt == self._params.retry_data[ATTR_RETRIES]:
+                if not getattr(self._params.config_entry, "options", {}).get(
+                    CONF_DISABLE_REPAIR
+                ):
+                    self._repair()
+                self._end_id()
+                if (on_error := self._params.retry_data.get(ATTR_ON_ERROR)) is not None:
+                    await script.Script(
+                        self._hass, on_error, CALL_SERVICE, DOMAIN
+                    ).async_run(
+                        run_variables={ATTR_ENTITY_ID: self._entity_id}
+                        if self._entity_id
+                        else None,
+                        context=Context(self._context.user_id, self._context.id),
+                    )
+                return
+            next_retry = dt_util.now() + datetime.timedelta(
+                seconds=float(
+                    self._params.retry_data[ATTR_BACKOFF].async_render(
+                        variables={"attempt": self._attempt - 1}
+                    )
                 )
             )
-        )
-        self._attempt += 1
-        event.async_track_point_in_time(self._hass, self.async_retry, next_retry)
+            self._attempt += 1
+            event.async_track_point_in_time(self._hass, self.async_retry, next_retry)
 
 
-def _wrap_service_calls(
-    hass: HomeAssistant, sequence: list[dict], retry_params: dict[str, any]
+def _wrap_service_calls(  # noqa: PLR0912
+    hass: HomeAssistant, sequence: list[dict], retry_params: dict[str, Any]
 ) -> None:
     """Warp any service call with retry."""
     for action in sequence:
@@ -491,11 +520,11 @@ def _wrap_service_calls(
         match action_type:
             case cv.SCRIPT_ACTION_CALL_SERVICE:
                 if action[ATTR_SERVICE] == f"{DOMAIN}.{ACTIONS_SERVICE}":
-                    raise IntegrationError("Nested retry.actions are disallowed")
+                    message = "Nested retry.actions are disallowed"
+                    raise IntegrationError(message)
                 if action[ATTR_SERVICE] == f"{DOMAIN}.{CALL_SERVICE}":
-                    raise IntegrationError(
-                        "retry.call inside retry.actions is disallowed"
-                    )
+                    message = "retry.call inside retry.actions is disallowed"
+                    raise IntegrationError(message)
                 action[ATTR_DATA] = action.get(ATTR_DATA, {})
                 action[ATTR_DATA][ATTR_SERVICE] = action[ATTR_SERVICE]
                 action[ATTR_DATA].update(retry_params)

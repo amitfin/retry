@@ -3,17 +3,16 @@
 from __future__ import annotations
 
 import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, Mock, patch
-import voluptuous as vol
 
-from freezegun.api import FrozenDateTimeFactory
+import homeassistant.util.dt as dt_util
 import pytest
-
+import voluptuous as vol
 from homeassistant.components.hassio.const import ATTR_DATA
 from homeassistant.const import (
-    ATTR_ENTITY_ID,
     ATTR_DEVICE_ID,
+    ATTR_ENTITY_ID,
     ATTR_SERVICE,
     CONF_CHOOSE,
     CONF_CONDITION,
@@ -40,10 +39,9 @@ from homeassistant.exceptions import (
     IntegrationError,
     ServiceNotFound,
 )
-from homeassistant.helpers import config_validation as cv, issue_registry as ir
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.setup import async_setup_component
-import homeassistant.util.dt as dt_util
-
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     MockUser,
@@ -56,8 +54,8 @@ from custom_components.retry.const import (
     ATTR_BACKOFF,
     ATTR_EXPECTED_STATE,
     ATTR_ON_ERROR,
-    ATTR_RETRY_ID,
     ATTR_RETRIES,
+    ATTR_RETRY_ID,
     ATTR_STATE_DELAY,
     ATTR_STATE_GRACE,
     ATTR_VALIDATION,
@@ -65,6 +63,9 @@ from custom_components.retry.const import (
     CONF_DISABLE_REPAIR,
     DOMAIN,
 )
+
+if TYPE_CHECKING:
+    from freezegun.api import FrozenDateTimeFactory
 
 TEST_SERVICE = "test_service"
 TEST_ON_ERROR_SERVICE = "test_on_error_service"
@@ -97,11 +98,11 @@ async def async_setup(
     calls = []
 
     @callback
-    def async_service(service_call: ServiceCall):
+    def async_service(service_call: ServiceCall) -> None:
         """Mock service call."""
         calls.append(service_call)
         if service_call.service == TEST_SERVICE and raises:
-            raise Exception()  # pylint: disable=broad-exception-raised
+            raise Exception  # pylint: disable=broad-exception-raised
 
     hass.services.async_register(
         DOMAIN,
@@ -146,12 +147,14 @@ async def async_call(
     """Call a service via the retry service."""
     data = data or {}
     data[ATTR_SERVICE] = f"{DOMAIN}.{TEST_SERVICE}"
-    await hass.services.async_call(DOMAIN, CALL_SERVICE, data, True, target=target)
+    await hass.services.async_call(
+        DOMAIN, CALL_SERVICE, data, blocking=True, target=target
+    )
 
 
 async def test_success(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
     """Test success case."""
-    calls = await async_setup(hass, False)
+    calls = await async_setup(hass, raises=False)
     await async_call(
         hass, {ATTR_ENTITY_ID: ["binary_sensor.test", "binary_sensor.test"]}
     )
@@ -160,8 +163,8 @@ async def test_success(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> N
 
 
 @pytest.mark.parametrize(
-    ["retries"],
-    [(7,), (3,), (10,)],
+    "retries",
+    [7, 3, 10],
     ids=["default", "3-retries", "10-retries"],
 )
 async def test_failure(
@@ -171,7 +174,7 @@ async def test_failure(
     retries: int,
 ) -> None:
     """Test failed service calls."""
-    repairs = async_capture_events(hass, ir.EVENT_REPAIRS_ISSUE_REGISTRY_UPDATED)
+    repairs = async_capture_events(hass, str(ir.EVENT_REPAIRS_ISSUE_REGISTRY_UPDATED))
     calls = await async_setup(hass)
     data = {}
     if retries != 7:
@@ -200,7 +203,7 @@ async def test_entity_unavailable(
 ) -> None:
     """Test entities are not available."""
     entities = ["binary_sensor.invalid1", "binary_sensor.invalid2"]
-    await async_setup(hass, False)
+    await async_setup(hass, raises=False)
     await async_call(hass, {ATTR_ENTITY_ID: entities, ATTR_EXPECTED_STATE: "on"})
     await async_shutdown(hass, freezer)
     for entity in entities:
@@ -217,7 +220,7 @@ async def test_selective_retry(
 ) -> None:
     """Test retry on part of entities."""
     entities = ["binary_sensor.test", "binary_sensor.invalid"]
-    calls = await async_setup(hass, False)
+    calls = await async_setup(hass, raises=False)
     await async_call(
         hass, {ATTR_ENTITY_ID: entities, ATTR_DEVICE_ID: ENTITY_MATCH_NONE}
     )
@@ -229,7 +232,7 @@ async def test_selective_retry(
 
 
 @pytest.mark.parametrize(
-    ["expected_state", "validation", "grace"],
+    ("expected_state", "validation", "grace"),
     [
         ("{{ 'off' }}", None, None),
         ("{{ 'off' }}", None, 3.21),
@@ -248,7 +251,7 @@ async def test_entity_wrong_state(
     grace: float | None,
 ) -> None:
     """Test entity has the wrong state."""
-    await async_setup(hass, False)
+    await async_setup(hass, raises=False)
     await async_call(
         hass,
         {
@@ -264,7 +267,7 @@ async def test_entity_wrong_state(
             'binary_sensor.test state is "on" but expecting one of "[\'off\']"'
             in caplog.text
         )
-    else:
+    if validation:
         validation = validation.replace("[", "{").replace("]", "}")
         assert f'"{validation}" is False' in caplog.text
     wait_times = [x.args[0] for x in sleep_mock.await_args_list]
@@ -279,7 +282,7 @@ async def test_state_delay(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test initial state delay time."""
-    await async_setup(hass, False)
+    await async_setup(hass, raises=False)
     await async_call(
         hass,
         {
@@ -303,7 +306,7 @@ async def test_entity_expected_state_list(
     freezer: FrozenDateTimeFactory,
 ) -> None:
     """Test list of expected states."""
-    calls = await async_setup(hass, False)
+    calls = await async_setup(hass, raises=False)
     await async_call(
         hass,
         {
@@ -322,12 +325,14 @@ async def test_validation_success(
     freezer: FrozenDateTimeFactory,
 ) -> None:
     """Test successful validation."""
-    calls = await async_setup(hass, False)
+    calls = await async_setup(hass, raises=False)
     await async_call(
         hass,
         {
             ATTR_ENTITY_ID: "binary_sensor.test",
-            ATTR_VALIDATION: "[# Test #][% set x = entity_id %][[ states(x) in ['on'] ]]",
+            ATTR_VALIDATION: (
+                "[# Test #][% set x = entity_id %][[ states(x) in ['on'] ]]"
+            ),
         },
     )
     await async_shutdown(hass, freezer)
@@ -341,7 +346,7 @@ async def test_float_point_zero(
     freezer: FrozenDateTimeFactory,
 ) -> None:
     """Test validation of a float with point zero."""
-    calls = await async_setup(hass, False)
+    calls = await async_setup(hass, raises=False)
     await async_setup_component(
         hass,
         "input_number",
@@ -393,7 +398,7 @@ async def test_retry_id_success_sequence(
     freezer: FrozenDateTimeFactory,
 ) -> None:
     """Test successful reties with the same ID running one after the other."""
-    calls = await async_setup(hass, False)
+    calls = await async_setup(hass, raises=False)
     for _ in range(2):
         await async_call(hass)
         await async_shutdown(hass, freezer)
@@ -412,7 +417,7 @@ async def test_different_retry_ids(
     await async_shutdown(hass, freezer)
     assert len(calls) == 14  # = 7 + 7
     for i in range(2):
-        assert f'{DOMAIN}.{TEST_SERVICE}()[{ATTR_RETRY_ID}="{str(i)}"]' in caplog.text
+        assert f'{DOMAIN}.{TEST_SERVICE}()[{ATTR_RETRY_ID}="{i}"]' in caplog.text
 
 
 async def test_default_retry_id_is_entity_id(
@@ -440,8 +445,8 @@ async def test_default_retry_id_is_domain_service(
 
 
 @pytest.mark.parametrize(
-    ["value"],
-    [(None,), ("",)],
+    "value",
+    [None, ""],
     ids=["none", "empty"],
 )
 async def test_disable_retry_id(
@@ -513,7 +518,7 @@ async def test_validation_in_automation(
     await async_setup(hass)
 
     @callback
-    def async_service(service_call: ServiceCall):
+    def async_service(service_call: ServiceCall) -> None:
         """Mock service call."""
         calls.append(service_call)
         freezer.tick(datetime.timedelta(seconds=1))
@@ -547,7 +552,7 @@ async def test_validation_in_automation(
     )
     await hass.async_block_till_done()
     await hass.services.async_call(
-        "automation", "trigger", {ATTR_ENTITY_ID: "automation.test"}, True
+        "automation", "trigger", {ATTR_ENTITY_ID: "automation.test"}, blocking=True
     )
     await async_shutdown(hass, freezer)
     assert len(calls) == 7
@@ -560,7 +565,7 @@ async def test_group_entity_unavailable(
 ) -> None:
     """Test entity is not available."""
     entity = "light.invalid"
-    await async_setup(hass, False)
+    await async_setup(hass, raises=False)
     assert await async_setup_component(
         hass, "group", {"group": {"test": {CONF_ENTITIES: [entity]}}}
     )
@@ -577,7 +582,7 @@ async def test_group_platform_entity_unavailable(
 ) -> None:
     """Test entity is not available."""
     entity = "light.invalid"
-    await async_setup(hass, False)
+    await async_setup(hass, raises=False)
     assert await async_setup_component(
         hass,
         "light",
@@ -595,9 +600,12 @@ async def test_group_platform_entity_unavailable(
 
 async def test_template(hass: HomeAssistant) -> None:
     """Test retry_service with template."""
-    calls = await async_setup(hass, False)
+    calls = await async_setup(hass, raises=False)
     await hass.services.async_call(
-        DOMAIN, CALL_SERVICE, {ATTR_SERVICE: '{{ "retry.test_service" }}'}, True
+        DOMAIN,
+        CALL_SERVICE,
+        {ATTR_SERVICE: '{{ "retry.test_service" }}'},
+        blocking=True,
     )
     await hass.async_block_till_done()
     assert len(calls) == 1
@@ -608,7 +616,7 @@ async def test_invalid_service(hass: HomeAssistant) -> None:
     await async_setup(hass)
     with pytest.raises(ServiceNotFound):
         await hass.services.async_call(
-            DOMAIN, CALL_SERVICE, {ATTR_SERVICE: "invalid.service"}, True
+            DOMAIN, CALL_SERVICE, {ATTR_SERVICE: "invalid.service"}, blocking=True
         )
 
 
@@ -627,7 +635,7 @@ async def test_invalid_validation(hass: HomeAssistant) -> None:
 
 
 @pytest.mark.parametrize(
-    ["service", "param", "target"],
+    ("service", "param", "target"),
     [
         (
             CALL_SERVICE,
@@ -683,7 +691,7 @@ async def test_all_entities(
         DOMAIN,
         service,
         param,
-        True,
+        blocking=True,
         target=target,
     )
     await async_shutdown(hass, freezer)
@@ -699,7 +707,7 @@ async def test_disable_repair(
     freezer: FrozenDateTimeFactory,
 ) -> None:
     """Test disabling repair tickets."""
-    repairs = async_capture_events(hass, ir.EVENT_REPAIRS_ISSUE_REGISTRY_UPDATED)
+    repairs = async_capture_events(hass, str(ir.EVENT_REPAIRS_ISSUE_REGISTRY_UPDATED))
     await async_setup(hass, options={CONF_DISABLE_REPAIR: True})
     await async_call(hass)
     await async_shutdown(hass, freezer)
@@ -711,7 +719,7 @@ async def test_identical_repair(
     freezer: FrozenDateTimeFactory,
 ) -> None:
     """Test de-dup of identical repair tickets."""
-    repairs = async_capture_events(hass, ir.EVENT_REPAIRS_ISSUE_REGISTRY_UPDATED)
+    repairs = async_capture_events(hass, str(ir.EVENT_REPAIRS_ISSUE_REGISTRY_UPDATED))
     await async_setup(hass)
     for _ in range(2):
         await async_call(hass)
@@ -747,106 +755,90 @@ async def test_configuration_yaml(hass: HomeAssistant) -> None:
 
 
 @pytest.mark.parametrize(
-    ["service_data"],
+    "service_data",
     [
-        ({CONF_SEQUENCE: BASIC_SEQUENCE_DATA},),
-        (
-            {
-                CONF_SEQUENCE: [
-                    {
-                        CONF_REPEAT: {
-                            CONF_COUNT: 1,
+        {CONF_SEQUENCE: BASIC_SEQUENCE_DATA},
+        {
+            CONF_SEQUENCE: [
+                {
+                    CONF_REPEAT: {
+                        CONF_COUNT: 1,
+                        CONF_SEQUENCE: BASIC_SEQUENCE_DATA,
+                    },
+                },
+            ],
+        },
+        {
+            CONF_SEQUENCE: [
+                {
+                    CONF_CHOOSE: [
+                        {
+                            CONF_CONDITIONS: [
+                                {
+                                    CONF_CONDITION: "template",
+                                    CONF_VALUE_TEMPLATE: "{{ True }}",
+                                }
+                            ],
                             CONF_SEQUENCE: BASIC_SEQUENCE_DATA,
-                        },
-                    },
-                ],
-            },
-        ),
-        (
-            {
-                CONF_SEQUENCE: [
-                    {
-                        CONF_CHOOSE: [
-                            {
-                                CONF_CONDITIONS: [
-                                    {
-                                        CONF_CONDITION: "template",
-                                        CONF_VALUE_TEMPLATE: "{{ True }}",
-                                    }
-                                ],
-                                CONF_SEQUENCE: BASIC_SEQUENCE_DATA,
-                            }
-                        ],
-                    }
-                ]
-            },
-        ),
-        (
-            {
-                CONF_SEQUENCE: [
-                    {
-                        CONF_CHOOSE: [],
-                        CONF_DEFAULT: BASIC_SEQUENCE_DATA,
-                    }
-                ]
-            },
-        ),
-        (
-            {
-                CONF_SEQUENCE: [
-                    {
-                        CONF_IF: [
-                            {
-                                CONF_CONDITION: "template",
-                                CONF_VALUE_TEMPLATE: "{{ True }}",
-                            }
-                        ],
-                        CONF_THEN: BASIC_SEQUENCE_DATA,
-                    }
-                ],
-            },
-        ),
-        (
-            {
-                CONF_SEQUENCE: [
-                    {
-                        CONF_IF: [
-                            {
-                                CONF_CONDITION: "template",
-                                CONF_VALUE_TEMPLATE: "{{ False }}",
-                            }
-                        ],
-                        CONF_THEN: [],
-                        CONF_ELSE: BASIC_SEQUENCE_DATA,
-                    }
-                ],
-            },
-        ),
-        (
-            {
-                CONF_SEQUENCE: [
-                    {CONF_PARALLEL: BASIC_SEQUENCE_DATA},
-                ],
-            },
-        ),
-        (
-            {
-                CONF_SEQUENCE: [
-                    {
-                        CONF_PARALLEL: {CONF_SEQUENCE: BASIC_SEQUENCE_DATA},
-                    },
-                ],
-            },
-        ),
-        ({CONF_SEQUENCE: [{CONF_SEQUENCE: BASIC_SEQUENCE_DATA}]},),
-        (
-            {
-                CONF_SEQUENCE: [
-                    {CONF_CONDITION: "template", CONF_VALUE_TEMPLATE: "{{True}}"},
-                    {**(BASIC_SEQUENCE_DATA[0])},
-                ],
-            },
-        ),
+                        }
+                    ],
+                }
+            ]
+        },
+        {
+            CONF_SEQUENCE: [
+                {
+                    CONF_CHOOSE: [],
+                    CONF_DEFAULT: BASIC_SEQUENCE_DATA,
+                }
+            ]
+        },
+        {
+            CONF_SEQUENCE: [
+                {
+                    CONF_IF: [
+                        {
+                            CONF_CONDITION: "template",
+                            CONF_VALUE_TEMPLATE: "{{ True }}",
+                        }
+                    ],
+                    CONF_THEN: BASIC_SEQUENCE_DATA,
+                }
+            ],
+        },
+        {
+            CONF_SEQUENCE: [
+                {
+                    CONF_IF: [
+                        {
+                            CONF_CONDITION: "template",
+                            CONF_VALUE_TEMPLATE: "{{ False }}",
+                        }
+                    ],
+                    CONF_THEN: [],
+                    CONF_ELSE: BASIC_SEQUENCE_DATA,
+                }
+            ],
+        },
+        {
+            CONF_SEQUENCE: [
+                {CONF_PARALLEL: BASIC_SEQUENCE_DATA},
+            ],
+        },
+        {
+            CONF_SEQUENCE: [
+                {
+                    CONF_PARALLEL: {CONF_SEQUENCE: BASIC_SEQUENCE_DATA},
+                },
+            ],
+        },
+        {CONF_SEQUENCE: [{CONF_SEQUENCE: BASIC_SEQUENCE_DATA}]},
+        {
+            CONF_SEQUENCE: [
+                {CONF_CONDITION: "template", CONF_VALUE_TEMPLATE: "{{True}}"},
+                {**(BASIC_SEQUENCE_DATA[0])},
+            ],
+        },
     ],
     ids=[
         "service call",
@@ -864,7 +856,7 @@ async def test_configuration_yaml(hass: HomeAssistant) -> None:
 async def test_actions_service(
     hass: HomeAssistant,
     freezer: FrozenDateTimeFactory,
-    service_data: dict[str, any],
+    service_data: dict[str, Any],
 ) -> None:
     """Test action service."""
     calls = await async_setup(hass)
@@ -872,7 +864,7 @@ async def test_actions_service(
         DOMAIN,
         ACTIONS_SERVICE,
         service_data,
-        True,
+        blocking=True,
     )
     await async_shutdown(hass, freezer)
     assert len(calls) == 7
@@ -908,7 +900,7 @@ async def test_actions_propagating_args(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test action service propagate correctly the arguments."""
-    calls = await async_setup(hass, False)
+    calls = await async_setup(hass, raises=False)
     await hass.services.async_call(
         DOMAIN,
         ACTIONS_SERVICE,
@@ -918,7 +910,7 @@ async def test_actions_propagating_args(
             ATTR_VALIDATION: "[[ False ]]",
             ATTR_ON_ERROR: [{ATTR_SERVICE: f"{DOMAIN}.{TEST_ON_ERROR_SERVICE}"}],
         },
-        True,
+        blocking=True,
     )
     await async_shutdown(hass, freezer)
     assert len(calls) == 4
@@ -929,7 +921,7 @@ async def test_actions_propagating_args(
 
 
 @pytest.mark.parametrize(
-    ["backoff", "backoff_fixed", "delays"],
+    ("backoff", "backoff_fixed", "delays"),
     [
         (None, None, [1, 2, 4, 8, 16, 32]),
         ("10", "10", [10] * 6),
@@ -949,7 +941,7 @@ async def test_actions_backoff(
     caplog: pytest.LogCaptureFixture,
     backoff: str | None,
     backoff_fixed: str | None,
-    delays: list[str],
+    delays: list[float],
 ) -> None:
     """Test action service backoff parameter."""
     calls = await async_setup(hass)
@@ -957,10 +949,10 @@ async def test_actions_backoff(
         DOMAIN,
         ACTIONS_SERVICE,
         {
-            **{CONF_SEQUENCE: BASIC_SEQUENCE_DATA},
+            CONF_SEQUENCE: BASIC_SEQUENCE_DATA,
             **({ATTR_BACKOFF: backoff} if backoff else {}),
         },
-        True,
+        blocking=True,
     )
     calls.pop()
     for i, delay in enumerate(delays):
@@ -971,9 +963,9 @@ async def test_actions_backoff(
     await async_shutdown(hass, freezer)
     if backoff:
         assert (
-            f'[Failed]: attempt 7/7: {DOMAIN}.{TEST_SERVICE}()[backoff="{backoff_fixed}"]'
-            in caplog.text
-        )
+            f"[Failed]: attempt 7/7: {DOMAIN}.{TEST_SERVICE}()"
+            f'[backoff="{backoff_fixed}"]'
+        ) in caplog.text
 
 
 async def test_actions_propagating_successful_validation(
@@ -981,7 +973,7 @@ async def test_actions_propagating_successful_validation(
     freezer: FrozenDateTimeFactory,
 ) -> None:
     """Test action service with successful validation."""
-    calls = await async_setup(hass, False)
+    calls = await async_setup(hass, raises=False)
     await hass.services.async_call(
         DOMAIN,
         ACTIONS_SERVICE,
@@ -989,15 +981,15 @@ async def test_actions_propagating_successful_validation(
             CONF_SEQUENCE: BASIC_SEQUENCE_DATA,
             ATTR_VALIDATION: "[[ True ]]",
         },
-        True,
+        blocking=True,
     )
     await async_shutdown(hass, freezer)
     assert len(calls) == 1
 
 
 @pytest.mark.parametrize(
-    ["retry_ids"],
-    [(["a", "b"],), ([None, None],), (["a", None],)],
+    "retry_ids",
+    [["a", "b"], [None, None], ["a", None]],
     ids=["different", "disabled", "set & disabled"],
 )
 async def test_actions_propagating_retry_id(
@@ -1010,7 +1002,7 @@ async def test_actions_propagating_retry_id(
             DOMAIN,
             ACTIONS_SERVICE,
             {CONF_SEQUENCE: BASIC_SEQUENCE_DATA, ATTR_RETRY_ID: retry_ids[i]},
-            True,
+            blocking=True,
         )
     await async_shutdown(hass, freezer)
     assert len(calls) == 14  # = 7 + 7
@@ -1080,7 +1072,7 @@ async def test_actions_multi_calls_single_retry_id(
                 {**(BASIC_SEQUENCE_DATA[0])},
             ],
         },
-        True,
+        blocking=True,
     )
     await async_shutdown(hass, freezer)
     assert len(calls) == 70  # = 10 * 7
@@ -1096,7 +1088,7 @@ async def test_actions_inner_service_validation(
             DOMAIN,
             ACTIONS_SERVICE,
             {CONF_SEQUENCE: [{ATTR_SERVICE: f"{DOMAIN}.invalid"}]},
-            True,
+            blocking=True,
         )
 
 
@@ -1117,7 +1109,7 @@ async def test_nested_actions(
                     }
                 ]
             },
-            True,
+            blocking=True,
         )
 
 
@@ -1131,7 +1123,7 @@ async def test_call_in_actions(
             DOMAIN,
             ACTIONS_SERVICE,
             {CONF_SEQUENCE: [{ATTR_SERVICE: f"{DOMAIN}.{CALL_SERVICE}"}]},
-            True,
+            blocking=True,
         )
 
 
@@ -1153,7 +1145,7 @@ async def test_event_context(
             ATTR_RETRIES: 1,
             ATTR_ON_ERROR: [{ATTR_SERVICE: f"{DOMAIN}.{TEST_ON_ERROR_SERVICE}"}],
         },
-        True,
+        blocking=True,
         context=Context(hass_admin_user.id),
     )
     await hass.async_block_till_done()

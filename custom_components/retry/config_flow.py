@@ -1,14 +1,21 @@
 """Config flow for retry integration."""
+
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
-
-from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlow,
+)
 from homeassistant.core import callback
-from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
+
+if TYPE_CHECKING:
+    from homeassistant.data_entry_flow import FlowResult
 
 from .const import CONF_DISABLE_REPAIR, DOMAIN
 
@@ -28,7 +35,9 @@ class RetryConfigFlow(ConfigFlow, domain=DOMAIN):
 
         return await self.async_step_import()
 
-    async def async_step_import(self, _=None):
+    async def async_step_import(
+        self, _: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
         """Occurs when an entry is setup through config."""
         return self.async_create_entry(
             title=DOMAIN.title(),

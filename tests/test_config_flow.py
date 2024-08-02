@@ -1,13 +1,17 @@
 """Tests for the retry config flow."""
+
 from __future__ import annotations
 
-from homeassistant.config_entries import SOURCE_IMPORT, SOURCE_USER
-from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResultType
+from typing import TYPE_CHECKING
 
+from homeassistant.config_entries import SOURCE_IMPORT, SOURCE_USER
+from homeassistant.data_entry_flow import FlowResultType
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.retry.const import DOMAIN
+
+if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
 
 
 async def test_simple(hass: HomeAssistant) -> None:
@@ -30,8 +34,8 @@ async def test_already_setup(hass: HomeAssistant) -> None:
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": SOURCE_USER}
     )
-    assert result["type"] == FlowResultType.ABORT
-    assert result["reason"] == "single_instance_allowed"
+    assert result.get("type") == FlowResultType.ABORT
+    assert result.get("reason") == "single_instance_allowed"
 
 
 async def test_import(hass: HomeAssistant) -> None:
