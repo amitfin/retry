@@ -1,42 +1,47 @@
 {
-  "name": "retry",
-  "image": "mcr.microsoft.com/devcontainers/python:3.12-bookworm",
-  "postCreateCommand": "scripts/setup",
-  "forwardPorts": [8123],
-  "portsAttributes": {
-    "8123": {
-      "label": "Home Assistant",
-      "onAutoForward": "notify"
-    }
-  },
-  "customizations": {
-    "vscode": {
-      "extensions": [
-        "charliermarsh.ruff",
-        "ms-python.python",
-        "github.vscode-pull-request-github",
-        "ryanluker.vscode-coverage-gutters",
-        "ms-python.vscode-pylance",
-        "esbenp.prettier-vscode",
-        "streetsidesoftware.code-spell-checker"
-      ],
-      "settings": {
-        "files.eol": "\n",
-        "editor.tabSize": 4,
-        "python.pythonPath": "/usr/bin/python3",
-        "python.analysis.autoSearchPaths": false,
-        "python.testing.pytestArgs": ["tests"],
-        "python.testing.unittestEnabled": false,
-        "python.testing.pytestEnabled": true,
-        "editor.formatOnPaste": false,
-        "editor.formatOnSave": true,
-        "editor.formatOnType": true,
-        "files.trimTrailingWhitespace": true,
-        "[python]": {
-          "editor.defaultFormatter": "charliermarsh.ruff"
+    "name": "retry",
+    "image": "mcr.microsoft.com/devcontainers/python:3.12",
+    "postCreateCommand": "scripts/setup",
+    "forwardPorts": [
+        8123
+    ],
+    "portsAttributes": {
+        "8123": {
+            "label": "Home Assistant",
+            "onAutoForward": "notify"
         }
-      }
-    }
-  },
-  "remoteUser": "vscode"
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "charliermarsh.ruff",
+                "github.vscode-pull-request-github",
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "ryanluker.vscode-coverage-gutters",
+                "streetsidesoftware.code-spell-checker"
+            ],
+            "settings": {
+                "files.eol": "\n",
+                "editor.tabSize": 4,
+                "python.pythonPath": "/usr/bin/python3",
+                "python.analysis.autoSearchPaths": false,
+                "python.testing.pytestArgs": ["tests"],
+                "python.testing.unittestEnabled": false,
+                "python.testing.pytestEnabled": true,
+                "editor.formatOnPaste": false,
+                "editor.formatOnSave": true,
+                "editor.formatOnType": true,
+                "files.trimTrailingWhitespace": true,
+                "python.analysis.typeCheckingMode": "basic",
+                "python.analysis.autoImportCompletions": true,
+                "python.defaultInterpreterPath": "/usr/local/bin/python",
+                "[python]": {
+                    "editor.defaultFormatter": "charliermarsh.ruff"
+                }
+            }
+        }
+    },
+    "remoteUser": "vscode",
+    "features": {}
 }
