@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import datetime
 from typing import TYPE_CHECKING, Any
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import homeassistant.util.dt as dt_util
 import pytest
@@ -74,7 +74,7 @@ BASIC_SEQUENCE_DATA = [{ATTR_SERVICE: f"{DOMAIN}.{TEST_SERVICE}"}]
 
 async def async_setup(
     hass: HomeAssistant,
-    raises: bool = True,
+    raises: bool = True,  # noqa: FBT001, FBT002
     options: dict | None = None,
 ) -> list[ServiceCall]:
     """Load retry custom integration and basic environment."""
@@ -102,7 +102,7 @@ async def async_setup(
         """Mock service call."""
         calls.append(service_call)
         if service_call.service == TEST_SERVICE and raises:
-            raise Exception  # pylint: disable=broad-exception-raised
+            raise Exception  # noqa: TRY002
 
     hass.services.async_register(
         DOMAIN,
@@ -209,9 +209,9 @@ async def test_entity_unavailable(
     for entity in entities:
         assert f"{entity} is not available" in caplog.text
         assert (
-            f"[Failed]: attempt 7/7: {DOMAIN}.{TEST_SERVICE}(entity_id={entity})[expected_state=on]"
-            in caplog.text
-        )
+            f"[Failed]: attempt 7/7: {DOMAIN}.{TEST_SERVICE}(entity_id={entity})"
+            "[expected_state=on]"
+        ) in caplog.text
 
 
 async def test_selective_retry(
@@ -240,12 +240,11 @@ async def test_selective_retry(
     ],
     ids=["default", "grace", "validation"],
 )
-@patch("custom_components.retry.asyncio.sleep")
-async def test_entity_wrong_state(
-    sleep_mock: AsyncMock,
+async def test_entity_wrong_state(  # noqa: PLR0913
     hass: HomeAssistant,
     freezer: FrozenDateTimeFactory,
     caplog: pytest.LogCaptureFixture,
+    sleep: AsyncMock,
     expected_state: str | None,
     validation: str | None,
     grace: float | None,
@@ -270,16 +269,15 @@ async def test_entity_wrong_state(
     if validation:
         validation = validation.replace("[", "{").replace("]", "}")
         assert f'"{validation}" is False' in caplog.text
-    wait_times = [x.args[0] for x in sleep_mock.await_args_list]
+    wait_times = [x.args[0] for x in sleep.await_args_list]
     assert wait_times.count(grace or 0.2) == 7
 
 
-@patch("custom_components.retry.asyncio.sleep")
 async def test_state_delay(
-    sleep_mock: AsyncMock,
     hass: HomeAssistant,
     freezer: FrozenDateTimeFactory,
     caplog: pytest.LogCaptureFixture,
+    sleep: AsyncMock,
 ) -> None:
     """Test initial state delay time."""
     await async_setup(hass, raises=False)
@@ -292,13 +290,13 @@ async def test_state_delay(
         },
     )
     await async_shutdown(hass, freezer)
-    wait_times = [x.args[0] for x in sleep_mock.await_args_list]
+    wait_times = [x.args[0] for x in sleep.await_args_list]
     assert wait_times.count(1.2) == 7  # state_delay
     assert wait_times.count(0.2) == 7  # state_grace
     assert (
-        f"[Failed]: attempt 7/7: {DOMAIN}.{TEST_SERVICE}(entity_id=binary_sensor.test)[expected_state=off, state_delay=1.2]"
-        in caplog.text
-    )
+        f"[Failed]: attempt 7/7: {DOMAIN}.{TEST_SERVICE}(entity_id=binary_sensor.test)"
+        "[expected_state=off, state_delay=1.2]"
+    ) in caplog.text
 
 
 async def test_entity_expected_state_list(
@@ -318,9 +316,7 @@ async def test_entity_expected_state_list(
     assert len(calls) == 1
 
 
-@patch("custom_components.retry.asyncio.sleep")
 async def test_validation_success(
-    _: AsyncMock,
     hass: HomeAssistant,
     freezer: FrozenDateTimeFactory,
 ) -> None:
@@ -339,9 +335,7 @@ async def test_validation_success(
     assert len(calls) == 1
 
 
-@patch("custom_components.retry.asyncio.sleep")
 async def test_float_point_zero(
-    _: AsyncMock,
     hass: HomeAssistant,
     freezer: FrozenDateTimeFactory,
 ) -> None:
@@ -507,9 +501,7 @@ async def test_on_error(
     assert calls[-1].data[ATTR_ENTITY_ID] == "binary_sensor.test"
 
 
-@patch("custom_components.retry.asyncio.sleep")
 async def test_validation_in_automation(
-    _: AsyncMock,
     hass: HomeAssistant,
     freezer: FrozenDateTimeFactory,
 ) -> None:
@@ -542,7 +534,10 @@ async def test_validation_in_automation(
                             ATTR_SERVICE: f"{DOMAIN}.{CALL_SERVICE}",
                             "data": {
                                 ATTR_SERVICE: f"{DOMAIN}.tick",
-                                ATTR_VALIDATION: f"[[ now().timestamp() == {dt_util.now().timestamp()} ]]",
+                                ATTR_VALIDATION: (
+                                    "[[ now().timestamp() == "
+                                    f"{dt_util.now().timestamp()} ]]"
+                                ),
                             },
                         }
                     ],
@@ -670,9 +665,7 @@ async def test_invalid_validation(hass: HomeAssistant) -> None:
     ],
     ids=["call-param", "call-target", "actions"],
 )
-@patch("custom_components.retry.asyncio.sleep")
-async def test_all_entities(
-    _: AsyncMock,
+async def test_all_entities(  # noqa: PLR0913
     hass: HomeAssistant,
     freezer: FrozenDateTimeFactory,
     caplog: pytest.LogCaptureFixture,
@@ -697,9 +690,9 @@ async def test_all_entities(
     await async_shutdown(hass, freezer)
     for i in [1, 2]:
         assert (
-            f"[Failed]: attempt 7/7: script.turn_off(entity_id=script.test{i})[expected_state=on]"
-            in caplog.text
-        )
+            f"[Failed]: attempt 7/7: script.turn_off(entity_id=script.test{i})"
+            "[expected_state=on]"
+        ) in caplog.text
 
 
 async def test_disable_repair(
@@ -892,9 +885,7 @@ async def test_action_types() -> None:
     ]
 
 
-@patch("custom_components.retry.asyncio.sleep")
 async def test_actions_propagating_args(
-    _: AsyncMock,
     hass: HomeAssistant,
     freezer: FrozenDateTimeFactory,
     caplog: pytest.LogCaptureFixture,
@@ -915,9 +906,8 @@ async def test_actions_propagating_args(
     await async_shutdown(hass, freezer)
     assert len(calls) == 4
     assert (
-        f'[Failed]: attempt 3/3: {DOMAIN}.{TEST_SERVICE}()[validation="{{{{ False }}}}"]'
-        in caplog.text
-    )
+        f"[Failed]: attempt 3/3: {DOMAIN}.{TEST_SERVICE}()" '[validation="{{ False }}"]'
+    ) in caplog.text
 
 
 @pytest.mark.parametrize(
@@ -933,9 +923,7 @@ async def test_actions_propagating_args(
     ],
     ids=["default - exponential backoff", "linear", "slow exponential backoff"],
 )
-@patch("custom_components.retry.asyncio.sleep")
-async def test_actions_backoff(
-    _: AsyncMock,
+async def test_actions_backoff(  # noqa: PLR0913
     hass: HomeAssistant,
     freezer: FrozenDateTimeFactory,
     caplog: pytest.LogCaptureFixture,

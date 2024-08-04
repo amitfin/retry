@@ -20,13 +20,6 @@ ignore = [
 "tests/*" = [
     "S101", # Assert
     "PLR2004", # Magic value comparison
-    "PT019", # Fixture
-    "PLR0913", # Too many arguments
-    "E501", # Lint too long
-    "FBT001", # Boolean positional argument
-    "FBT002", # Boolean positional argument
-    "TRY002", # Exception
-    "ARG001", # Unused function
 ]
 
 [lint.flake8-pytest-style]
