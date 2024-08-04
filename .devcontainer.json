@@ -26,7 +26,9 @@
                 "editor.tabSize": 4,
                 "python.pythonPath": "/usr/bin/python3",
                 "python.analysis.autoSearchPaths": false,
-                "python.testing.pytestArgs": ["tests"],
+                "python.testing.pytestArgs": [
+                    "tests"
+                ],
                 "python.testing.unittestEnabled": false,
                 "python.testing.pytestEnabled": true,
                 "editor.formatOnPaste": false,
@@ -34,6 +36,7 @@
                 "editor.formatOnType": true,
                 "files.trimTrailingWhitespace": true,
                 "python.analysis.typeCheckingMode": "basic",
+                "python.analysis.diagnosticMode": "workspace",
                 "python.analysis.autoImportCompletions": true,
                 "python.defaultInterpreterPath": "/usr/local/bin/python",
                 "[python]": {
