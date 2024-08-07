@@ -60,7 +60,7 @@
                 },
                 "on_error": {
                     "name": "On Error",
-                    "description": "Sequence of actions to execute if all retries fail."
+                    "description": "Sequence of actions to perform if all retries fail."
                 },
                 "retry_id": {
                     "name": "Retry ID",
@@ -78,7 +78,7 @@
                 },
                 "retries": {
                     "name": "Retries",
-                    "description": "Maximum amount of call attempts (default is 7)."
+                    "description": "Maximum amount of attempts (default is 7)."
                 },
                 "backoff": {
                     "name": "Backoff",
@@ -102,11 +102,11 @@
                 },
                 "on_error": {
                     "name": "On Error",
-                    "description": "Sequence of actions to execute if all retries fail."
+                    "description": "Sequence of actions to perform if all retries fail."
                 },
                 "retry_id": {
                     "name": "Retry ID",
-                    "description": "A new call cancels a previous call with the same ID (the default is the entity ID)."
+                    "description": "A new action cancels a previous action with the same ID (the default is the entity ID)."
                 }
             }
         },
@@ -120,7 +120,7 @@
                 },
                 "retries": {
                     "name": "Retries",
-                    "description": "Maximum amount of call attempts (default is 7)."
+                    "description": "Maximum amount of attempts (default is 7)."
                 },
                 "backoff": {
                     "name": "Backoff",
@@ -144,11 +144,11 @@
                 },
                 "on_error": {
                     "name": "On Error",
-                    "description": "Sequence of actions to execute if all retries fail."
+                    "description": "Sequence of actions to perform if all retries fail."
                 },
                 "retry_id": {
                     "name": "Retry ID",
-                    "description": "A new call cancels a previous call with the same ID (the default is the entity ID)."
+                    "description": "A new action cancels a previous action with the same ID (the default is the entity ID)."
                 }
             }
         }

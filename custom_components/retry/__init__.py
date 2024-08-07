@@ -253,7 +253,7 @@ class RetryParams:
 
 
 class RetryAction:
-    """Handle a single service call with retries."""
+    """Perform an action with retries on failures."""
 
     def __init__(
         self,
@@ -571,7 +571,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     """Set up domain."""
 
     async def async_action(service_call: ServiceCall) -> None:
-        """Execute action with background retries."""
+        """Perform action with background retries."""
         params = RetryParams(hass, config_entry, service_call.data)
         for entity_id in params.entities or [None]:
             hass.async_create_task(
@@ -586,7 +586,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     )
 
     async def async_actions(service_call: ServiceCall) -> None:
-        """Execute actions and retry failed actions."""
+        """Perform actions and retry failed actions."""
         sequence = service_call.data[CONF_SEQUENCE].copy()
         retry_params: dict[str, Any] = {
             key: service_call.data[key]

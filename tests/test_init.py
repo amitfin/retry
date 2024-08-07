@@ -136,7 +136,7 @@ async def async_next_seconds(
 
 
 async def async_shutdown(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
-    """Make sure all pending retries were executed."""
+    """Make sure all pending retries were performed."""
     for _ in range(10):
         await async_next_seconds(hass, freezer, 3600)
 
@@ -665,7 +665,7 @@ async def test_invalid_validation(hass: HomeAssistant) -> None:
             None,
         ),
     ],
-    ids=["call-param", "call-target", "actions"],
+    ids=["action-param", "action-target", "actions"],
 )
 async def test_all_entities(  # noqa: PLR0913
     hass: HomeAssistant,
@@ -840,7 +840,7 @@ async def test_configuration_yaml(hass: HomeAssistant) -> None:
         },
     ],
     ids=[
-        "service call",
+        "action",
         "repeat",
         "choose",
         "choose-default",
@@ -1075,7 +1075,7 @@ async def test_actions_multi_calls_single_retry_id(
 async def test_actions_inner_service_validation(
     hass: HomeAssistant,
 ) -> None:
-    """Test action service validate retry call parameters."""
+    """Test 'actions' validate 'action' parameters."""
     await async_setup(hass)
     with pytest.raises(ServiceNotFound):
         await hass.services.async_call(
