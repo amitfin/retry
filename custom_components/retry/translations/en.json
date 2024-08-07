@@ -134,9 +134,13 @@
                     "name": "Validation",
                     "description": "Special template with square brackets instead of curly brackets for validating success."
                 },
+                "state_delay": {
+                    "name": "State Delay Period",
+                    "description": "Delay period (seconds) before initial expected state and validation (default is 0)."
+                },
                 "state_grace": {
                     "name": "State Grace Period",
-                    "description": "Grace period (seconds) for expected state and validation (default is 0.2)."
+                    "description": "Grace period (seconds) before final expected state and validation (default is 0.2)."
                 },
                 "on_error": {
                     "name": "On Error",
