@@ -21,8 +21,8 @@
   },
   "issues": {
     "failure": {
-      "title": "Service call failure",
-      "description": "`{service}` failed after {retries} retries. Check the log for additional information."
+      "title": "Action failure",
+      "description": "`{action}` failed after {retries} retries. Check the log for additional information."
     }
   },
   "services": {
@@ -68,9 +68,51 @@
         }
       }
     },
+    "action": {
+      "name": "Action",
+      "description": "Retry an action on failure.",
+      "fields": {
+        "action": {
+          "name": "Action",
+          "description": "The action to retry on failure."
+        },
+        "retries": {
+          "name": "Retries",
+          "description": "Maximum amount of call attempts (default is 7)."
+        },
+        "backoff": {
+          "name": "Backoff",
+          "description": "Special template with square brackets instead of curly brackets for the amount of seconds to wait between attempts. Default is '[[ 2 ** attempt ]]'."
+        },
+        "expected_state": {
+          "name": "Expected State",
+          "description": "The expected state of the entities after the action."
+        },
+        "validation": {
+          "name": "Validation",
+          "description": "Special template with square brackets instead of curly brackets for validating success."
+        },
+        "state_delay": {
+          "name": "State Delay Period",
+          "description": "Delay period (seconds) before initial expected state and validation (default is 0)."
+        },
+        "state_grace": {
+          "name": "State Grace Period",
+          "description": "Grace period (seconds) before final expected state and validation (default is 0.2)."
+        },
+        "on_error": {
+          "name": "On Error",
+          "description": "Sequence of actions to execute if all retries fail."
+        },
+        "retry_id": {
+          "name": "Retry ID",
+          "description": "A new call cancels a previous call with the same ID (the default is the entity ID)."
+        }
+      }
+    },
     "actions": {
       "name": "Actions",
-      "description": "Perform a sequence of actions with retries on service call failures.",
+      "description": "Perform a sequence of actions with retries on action failures.",
       "fields": {
         "sequence": {
           "name": "Actions",
@@ -86,7 +128,7 @@
         },
         "expected_state": {
           "name": "Expected State",
-          "description": "The expected state of the entities after any service call."
+          "description": "The expected state of the entities after any action."
         },
         "validation": {
           "name": "Validation",

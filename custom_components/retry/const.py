@@ -6,6 +6,7 @@ from typing import Final
 DOMAIN: Final = "retry"
 LOGGER = logging.getLogger(__package__)
 
+ACTION_SERVICE: Final = "action"
 ACTIONS_SERVICE: Final = "actions"
 CALL_SERVICE: Final = "call"
 CONF_DISABLE_REPAIR = "disable_repair"

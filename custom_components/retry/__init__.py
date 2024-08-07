@@ -16,6 +16,7 @@ from homeassistant.const import (
     ATTR_DOMAIN,
     ATTR_ENTITY_ID,
     ATTR_SERVICE,
+    CONF_ACTION,
     CONF_CHOOSE,
     CONF_DEFAULT,
     CONF_ELSE,
@@ -51,6 +52,7 @@ if TYPE_CHECKING:
     from homeassistant.helpers.typing import ConfigType
 
 from .const import (
+    ACTION_SERVICE,
     ACTIONS_SERVICE,
     ATTR_BACKOFF,
     ATTR_EXPECTED_STATE,
@@ -113,6 +115,14 @@ def _validation_parameter(value: Any | None) -> Template:
     return cv.dynamic_template(_fix_template_tokens(cv.string(value)))
 
 
+def _rename_legacy_service_key(value: Any | None) -> Any:
+    if not isinstance(value, dict):
+        return value
+    if ATTR_SERVICE in value:
+        value[CONF_ACTION] = value.pop(ATTR_SERVICE)
+    return value
+
+
 SERVICE_SCHEMA_BASE_FIELDS = {
     vol.Required(ATTR_RETRIES, default=DEFAULT_RETRIES): cv.positive_int,  # type: ignore[reportArgumentType]
     vol.Required(ATTR_BACKOFF, default=DEFAULT_BACKOFF): _backoff_parameter,  # type: ignore[reportArgumentType]
@@ -123,12 +133,19 @@ SERVICE_SCHEMA_BASE_FIELDS = {
     vol.Optional(ATTR_RETRY_ID): vol.Any(cv.string, None),
     vol.Optional(ATTR_ON_ERROR): cv.SCRIPT_SCHEMA,
 }
-CALL_SERVICE_SCHEMA = vol.Schema(
+ACTION_SERVICE_PARAMS = vol.Schema(
     {
         **SERVICE_SCHEMA_BASE_FIELDS,
-        vol.Required(ATTR_SERVICE): _template_parameter,
+        vol.Optional(ATTR_SERVICE): _template_parameter,
+        vol.Optional(CONF_ACTION): _template_parameter,
     },
     extra=vol.ALLOW_EXTRA,
+)
+ACTION_SERVICE_SCHEMA = vol.All(
+    cv.has_at_least_one_key(ATTR_SERVICE, CONF_ACTION),
+    cv.has_at_most_one_key(ATTR_SERVICE, CONF_ACTION),
+    _rename_legacy_service_key,
+    ACTION_SERVICE_PARAMS,
 )
 
 ACTIONS_SERVICE_SCHEMA = vol.Schema(
@@ -162,43 +179,34 @@ class RetryParams:
     ) -> None:
         """Initialize the object."""
         self.config_entry = config_entry
-        self.retry_data = self._retry_service_data(hass, data)
-        self.inner_data = self._inner_service_data(hass, data)
-        self.service_entities = self._service_entity_ids(hass)
+        self.retry_data = self._retry_data(hass, data)
+        self.inner_data = self._inner_data(hass, data)
+        self.entities = self._entity_ids(hass)
 
     @staticmethod
-    def _retry_service_data(
-        hass: HomeAssistant, data: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _retry_data(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
         """Compose retry parameters."""
-        retry_data = {
+        retry_data: dict[str, Any] = {
             key: data[key] for key in data if key in SERVICE_SCHEMA_BASE_FIELDS
         }
-        retry_service = data[ATTR_SERVICE]
-        domain, service = retry_service.lower().split(".")
+        retry_action = data[CONF_ACTION]
+        domain, service = retry_action.lower().split(".")
         if not hass.services.has_service(domain, service):
             raise ServiceNotFound(domain, service)
         retry_data[ATTR_DOMAIN] = domain
         retry_data[ATTR_SERVICE] = service
         return retry_data
 
-    def _inner_service_data(
-        self, hass: HomeAssistant, data: dict[str, Any]
-    ) -> dict[str, Any]:
-        """Compose inner service parameters."""
+    def _inner_data(self, hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
+        """Compose inner action parameters."""
         inner_data = {
             key: value
             for key, value in data.items()
-            if key not in CALL_SERVICE_SCHEMA.schema
+            if key not in ACTION_SERVICE_PARAMS.schema
         }
-        if hasattr(hass.services, "async_services_for_domain"):
-            domain_services = hass.services.async_services_for_domain(
-                self.retry_data[ATTR_DOMAIN]
-            )
-        else:
-            domain_services = hass.services.async_services()[
-                self.retry_data[ATTR_DOMAIN]
-            ]
+        domain_services = hass.services.async_services_for_domain(
+            self.retry_data[ATTR_DOMAIN]
+        )
         if schema := domain_services[self.retry_data[ATTR_SERVICE]].schema:
             schema(inner_data)
         return inner_data
@@ -220,8 +228,8 @@ class RetryParams:
             entity_ids.append(entity_id)
         return entity_ids
 
-    def _service_entity_ids(self, hass: HomeAssistant) -> list[str]:
-        """Get entity ids for a service call."""
+    def _entity_ids(self, hass: HomeAssistant) -> list[str]:
+        """Extract and expand entity ids."""
         if self.inner_data.get(ATTR_ENTITY_ID) == ENTITY_MATCH_ALL:
             # Assuming it's a component (domain) service and not platform specific.
             # AFAIK, it's not possible to get the platform by the service name.
@@ -231,7 +239,7 @@ class RetryParams:
                 for entity in (entity_comp.entities if entity_comp else [])
             ]
         entity_ids = []
-        service_entities = async_extract_referenced_entity_ids(
+        entities = async_extract_referenced_entity_ids(
             hass,
             ServiceCall(
                 self.retry_data[ATTR_DOMAIN],
@@ -239,14 +247,12 @@ class RetryParams:
                 self.inner_data,
             ),
         )
-        for entity_id in (
-            service_entities.referenced | service_entities.indirectly_referenced
-        ):
+        for entity_id in entities.referenced | entities.indirectly_referenced:
             entity_ids.extend(self._expand_group(hass, entity_id))
         return entity_ids
 
 
-class RetryCall:
+class RetryAction:
     """Handle a single service call with retries."""
 
     def __init__(
@@ -280,7 +286,7 @@ class RetryCall:
                     f"{params.retry_data[ATTR_DOMAIN]}."
                     + params.retry_data[ATTR_SERVICE]
                 )
-        self._service_call_str_value = None
+        self._action_str_value = None
         self._start_id()
 
     async def _async_validate(self) -> None:
@@ -335,12 +341,12 @@ class RetryCall:
         )
 
     @property
-    def _service_call_str(self) -> str:
-        if self._service_call_str_value is None:
-            self._service_call_str_value = self._compose_service_call_str()
-        return self._service_call_str_value
+    def _action_str(self) -> str:
+        if self._action_str_value is None:
+            self._action_str_value = self._compose_action_str()
+        return self._action_str_value
 
-    def _compose_service_call_str(self) -> str:
+    def _compose_action_str(self) -> str:
         """Return a string with the service call parameters."""
         service_call = (
             f"{self._params.retry_data[ATTR_DOMAIN]}."
@@ -403,7 +409,7 @@ class RetryCall:
             prefix,
             self._attempt,
             self._params.retry_data[ATTR_RETRIES],
-            self._service_call_str,
+            self._action_str,
             exc_info=stack_info,
         )
 
@@ -412,13 +418,13 @@ class RetryCall:
         ir.async_create_issue(
             self._hass,
             DOMAIN,
-            self._service_call_str,
+            self._action_str,
             is_fixable=False,
-            learn_more_url="https://github.com/amitfin/retry#retrycall",
+            learn_more_url="https://github.com/amitfin/retry#retryaction",
             severity=ir.IssueSeverity.ERROR,
             translation_key="failure",
             translation_placeholders={
-                "service": self._service_call_str,
+                "action": self._action_str,
                 "retries": self._params.retry_data[ATTR_RETRIES],
             },
         )
@@ -459,7 +465,7 @@ class RetryCall:
 
     @callback
     async def async_retry(self, _: datetime.datetime | None = None) -> None:
-        """One service call attempt."""
+        """One attempt."""
         if not self._check_id():
             self._log(logging.INFO, "Cancelled")
             return
@@ -492,7 +498,7 @@ class RetryCall:
                 self._end_id()
                 if (on_error := self._params.retry_data.get(ATTR_ON_ERROR)) is not None:
                     await script.Script(
-                        self._hass, on_error, CALL_SERVICE, DOMAIN
+                        self._hass, on_error, ACTION_SERVICE, DOMAIN
                     ).async_run(
                         run_variables={ATTR_ENTITY_ID: self._entity_id}
                         if self._entity_id
@@ -511,24 +517,32 @@ class RetryCall:
             event.async_track_point_in_time(self._hass, self.async_retry, next_retry)
 
 
-def _wrap_service_calls(  # noqa: PLR0912
+def _wrap_actions(  # noqa: PLR0912
     hass: HomeAssistant, sequence: list[dict], retry_params: dict[str, Any]
 ) -> None:
-    """Warp any service call with retry."""
+    """Warp any action with retry."""
     for action in sequence:
         action_type = cv.determine_script_action(action)
         match action_type:
             case cv.SCRIPT_ACTION_CALL_SERVICE:
-                if action[ATTR_SERVICE] == f"{DOMAIN}.{ACTIONS_SERVICE}":
+                domain_service = (
+                    action[CONF_ACTION]
+                    if CONF_ACTION in action
+                    else action[ATTR_SERVICE]
+                )
+                if domain_service == f"{DOMAIN}.{ACTIONS_SERVICE}":
                     message = "Nested retry.actions are disallowed"
                     raise IntegrationError(message)
-                if action[ATTR_SERVICE] == f"{DOMAIN}.{CALL_SERVICE}":
-                    message = "retry.call inside retry.actions is disallowed"
+                if domain_service in [
+                    f"{DOMAIN}.{ACTION_SERVICE}",
+                    f"{DOMAIN}.{CALL_SERVICE}",
+                ]:
+                    message = f"{domain_service} inside retry.actions is disallowed"
                     raise IntegrationError(message)
                 action[ATTR_DATA] = action.get(ATTR_DATA, {})
-                action[ATTR_DATA][ATTR_SERVICE] = action[ATTR_SERVICE]
+                action[ATTR_DATA][CONF_ACTION] = domain_service
                 action[ATTR_DATA].update(retry_params)
-                action[ATTR_SERVICE] = f"{DOMAIN}.{CALL_SERVICE}"
+                action[CONF_ACTION] = f"{DOMAIN}.{ACTION_SERVICE}"
                 # Validate parameters so errors are not raised in the background.
                 RetryParams(
                     hass,
@@ -536,43 +550,45 @@ def _wrap_service_calls(  # noqa: PLR0912
                     {**action[ATTR_DATA], **action.get(CONF_TARGET, {})},
                 )
             case cv.SCRIPT_ACTION_REPEAT:
-                _wrap_service_calls(
-                    hass, action[CONF_REPEAT][CONF_SEQUENCE], retry_params
-                )
+                _wrap_actions(hass, action[CONF_REPEAT][CONF_SEQUENCE], retry_params)
             case cv.SCRIPT_ACTION_CHOOSE:
                 for choose in action[CONF_CHOOSE]:
-                    _wrap_service_calls(hass, choose[CONF_SEQUENCE], retry_params)
+                    _wrap_actions(hass, choose[CONF_SEQUENCE], retry_params)
                 if CONF_DEFAULT in action:
-                    _wrap_service_calls(hass, action[CONF_DEFAULT], retry_params)
+                    _wrap_actions(hass, action[CONF_DEFAULT], retry_params)
             case cv.SCRIPT_ACTION_IF:
-                _wrap_service_calls(hass, action[CONF_THEN], retry_params)
+                _wrap_actions(hass, action[CONF_THEN], retry_params)
                 if CONF_ELSE in action:
-                    _wrap_service_calls(hass, action[CONF_ELSE], retry_params)
+                    _wrap_actions(hass, action[CONF_ELSE], retry_params)
             case cv.SCRIPT_ACTION_PARALLEL:
                 for parallel in action[CONF_PARALLEL]:
-                    _wrap_service_calls(hass, parallel[CONF_SEQUENCE], retry_params)
-            case _:
-                if action_type == getattr(cv, "SCRIPT_ACTION_SEQUENCE", "sequence"):
-                    _wrap_service_calls(hass, action[CONF_SEQUENCE], retry_params)
+                    _wrap_actions(hass, parallel[CONF_SEQUENCE], retry_params)
+            case cv.SCRIPT_ACTION_SEQUENCE:
+                _wrap_actions(hass, action[CONF_SEQUENCE], retry_params)
 
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Set up domain."""
 
-    async def async_call(service_call: ServiceCall) -> None:
-        """Call service with background retries."""
+    async def async_action(service_call: ServiceCall) -> None:
+        """Execute action with background retries."""
         params = RetryParams(hass, config_entry, service_call.data)
-        for entity_id in params.service_entities or [None]:
+        for entity_id in params.entities or [None]:
             hass.async_create_task(
-                RetryCall(hass, params, service_call.context, entity_id).async_retry()
+                RetryAction(hass, params, service_call.context, entity_id).async_retry()
             )
 
-    hass.services.async_register(DOMAIN, CALL_SERVICE, async_call, CALL_SERVICE_SCHEMA)
+    hass.services.async_register(
+        DOMAIN, ACTION_SERVICE, async_action, ACTION_SERVICE_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN, CALL_SERVICE, async_action, ACTION_SERVICE_SCHEMA
+    )
 
     async def async_actions(service_call: ServiceCall) -> None:
-        """Execute actions and retry failed service calls."""
+        """Execute actions and retry failed actions."""
         sequence = service_call.data[CONF_SEQUENCE].copy()
-        retry_params = {
+        retry_params: dict[str, Any] = {
             key: service_call.data[key]
             for key in service_call.data
             if key in SERVICE_SCHEMA_BASE_FIELDS
@@ -581,7 +597,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
             if key in retry_params:
                 # Revert it back to string so it won't get rendered in advance.
                 retry_params[key] = retry_params[key].template
-        _wrap_service_calls(hass, sequence, retry_params)
+        _wrap_actions(hass, sequence, retry_params)
         await script.Script(hass, sequence, ACTIONS_SERVICE, DOMAIN).async_run(
             context=Context(service_call.context.user_id, service_call.context.id)
         )
@@ -606,6 +622,7 @@ async def async_setup(hass: HomeAssistant, _: ConfigType) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
     """Unload a config entry."""
+    hass.services.async_remove(DOMAIN, ACTION_SERVICE)
     hass.services.async_remove(DOMAIN, CALL_SERVICE)
     hass.services.async_remove(DOMAIN, ACTIONS_SERVICE)
     return True

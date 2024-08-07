@@ -14,6 +14,7 @@ from homeassistant.const import (
     ATTR_DEVICE_ID,
     ATTR_ENTITY_ID,
     ATTR_SERVICE,
+    CONF_ACTION,
     CONF_CHOOSE,
     CONF_CONDITION,
     CONF_CONDITIONS,
@@ -50,6 +51,7 @@ from pytest_homeassistant_custom_component.common import (
 )
 
 from custom_components.retry.const import (
+    ACTION_SERVICE,
     ACTIONS_SERVICE,
     ATTR_BACKOFF,
     ATTR_EXPECTED_STATE,
@@ -69,7 +71,7 @@ if TYPE_CHECKING:
 
 TEST_SERVICE = "test_service"
 TEST_ON_ERROR_SERVICE = "test_on_error_service"
-BASIC_SEQUENCE_DATA = [{ATTR_SERVICE: f"{DOMAIN}.{TEST_SERVICE}"}]
+BASIC_SEQUENCE_DATA = [{CONF_ACTION: f"{DOMAIN}.{TEST_SERVICE}"}]
 
 
 async def async_setup(
@@ -146,9 +148,9 @@ async def async_call(
 ) -> None:
     """Call a service via the retry service."""
     data = data or {}
-    data[ATTR_SERVICE] = f"{DOMAIN}.{TEST_SERVICE}"
+    data[CONF_ACTION] = f"{DOMAIN}.{TEST_SERVICE}"
     await hass.services.async_call(
-        DOMAIN, CALL_SERVICE, data, blocking=True, target=target
+        DOMAIN, ACTION_SERVICE, data, blocking=True, target=target
     )
 
 
@@ -489,7 +491,7 @@ async def test_on_error(
             ATTR_ENTITY_ID: "binary_sensor.test",
             ATTR_ON_ERROR: [
                 {
-                    ATTR_SERVICE: f"{DOMAIN}.{TEST_ON_ERROR_SERVICE}",
+                    CONF_ACTION: f"{DOMAIN}.{TEST_ON_ERROR_SERVICE}",
                     ATTR_DATA: {ATTR_ENTITY_ID: "{{ entity_id }}"},
                 }
             ],
@@ -531,9 +533,9 @@ async def test_validation_in_automation(
                     "trigger": [],
                     "action": [
                         {
-                            ATTR_SERVICE: f"{DOMAIN}.{CALL_SERVICE}",
+                            CONF_ACTION: f"{DOMAIN}.{ACTION_SERVICE}",
                             "data": {
-                                ATTR_SERVICE: f"{DOMAIN}.tick",
+                                CONF_ACTION: f"{DOMAIN}.tick",
                                 ATTR_VALIDATION: (
                                     "[[ now().timestamp() == "
                                     f"{dt_util.now().timestamp()} ]]"
@@ -598,8 +600,8 @@ async def test_template(hass: HomeAssistant) -> None:
     calls = await async_setup(hass, raises=False)
     await hass.services.async_call(
         DOMAIN,
-        CALL_SERVICE,
-        {ATTR_SERVICE: '{{ "retry.test_service" }}'},
+        ACTION_SERVICE,
+        {CONF_ACTION: '{{ "retry.test_service" }}'},
         blocking=True,
     )
     await hass.async_block_till_done()
@@ -611,7 +613,7 @@ async def test_invalid_service(hass: HomeAssistant) -> None:
     await async_setup(hass)
     with pytest.raises(ServiceNotFound):
         await hass.services.async_call(
-            DOMAIN, CALL_SERVICE, {ATTR_SERVICE: "invalid.service"}, blocking=True
+            DOMAIN, ACTION_SERVICE, {CONF_ACTION: "invalid.service"}, blocking=True
         )
 
 
@@ -633,18 +635,18 @@ async def test_invalid_validation(hass: HomeAssistant) -> None:
     ("service", "param", "target"),
     [
         (
-            CALL_SERVICE,
+            ACTION_SERVICE,
             {
-                ATTR_SERVICE: "script.turn_off",
+                CONF_ACTION: "script.turn_off",
                 ATTR_EXPECTED_STATE: "on",
                 ATTR_ENTITY_ID: ENTITY_MATCH_ALL,
             },
             None,
         ),
         (
-            CALL_SERVICE,
+            ACTION_SERVICE,
             {
-                ATTR_SERVICE: "script.turn_off",
+                CONF_ACTION: "script.turn_off",
                 ATTR_EXPECTED_STATE: "on",
             },
             {ATTR_ENTITY_ID: ENTITY_MATCH_ALL},
@@ -654,7 +656,7 @@ async def test_invalid_validation(hass: HomeAssistant) -> None:
             {
                 CONF_SEQUENCE: [
                     {
-                        ATTR_SERVICE: "script.turn_off",
+                        CONF_ACTION: "script.turn_off",
                         CONF_TARGET: {ATTR_ENTITY_ID: ENTITY_MATCH_ALL},
                     }
                 ],
@@ -727,24 +729,28 @@ async def test_unload(hass: HomeAssistant) -> None:
     assert await hass.config_entries.async_setup(config_entry.entry_id)
     await hass.async_block_till_done()
 
-    assert hass.services.has_service(DOMAIN, CALL_SERVICE)
+    assert hass.services.has_service(DOMAIN, ACTION_SERVICE)
     assert hass.services.has_service(DOMAIN, ACTIONS_SERVICE)
+    assert hass.services.has_service(DOMAIN, CALL_SERVICE)
 
     assert await hass.config_entries.async_remove(config_entry.entry_id)
     await hass.async_block_till_done()
 
-    assert not hass.services.has_service(DOMAIN, CALL_SERVICE)
+    assert not hass.services.has_service(DOMAIN, ACTION_SERVICE)
     assert not hass.services.has_service(DOMAIN, ACTIONS_SERVICE)
+    assert not hass.services.has_service(DOMAIN, CALL_SERVICE)
 
 
 async def test_configuration_yaml(hass: HomeAssistant) -> None:
     """Test initialization via configuration.yaml."""
-    assert not hass.services.has_service(DOMAIN, CALL_SERVICE)
+    assert not hass.services.has_service(DOMAIN, ACTION_SERVICE)
     assert not hass.services.has_service(DOMAIN, ACTIONS_SERVICE)
+    assert not hass.services.has_service(DOMAIN, CALL_SERVICE)
     assert await async_setup_component(hass, DOMAIN, {})
     await hass.async_block_till_done()
-    assert hass.services.has_service(DOMAIN, CALL_SERVICE)
+    assert hass.services.has_service(DOMAIN, ACTION_SERVICE)
     assert hass.services.has_service(DOMAIN, ACTIONS_SERVICE)
+    assert hass.services.has_service(DOMAIN, CALL_SERVICE)
 
 
 @pytest.mark.parametrize(
@@ -899,7 +905,7 @@ async def test_actions_propagating_args(
             CONF_SEQUENCE: BASIC_SEQUENCE_DATA,
             ATTR_RETRIES: 3,
             ATTR_VALIDATION: "[[ False ]]",
-            ATTR_ON_ERROR: [{ATTR_SERVICE: f"{DOMAIN}.{TEST_ON_ERROR_SERVICE}"}],
+            ATTR_ON_ERROR: [{CONF_ACTION: f"{DOMAIN}.{TEST_ON_ERROR_SERVICE}"}],
         },
         blocking=True,
     )
@@ -1075,7 +1081,7 @@ async def test_actions_inner_service_validation(
         await hass.services.async_call(
             DOMAIN,
             ACTIONS_SERVICE,
-            {CONF_SEQUENCE: [{ATTR_SERVICE: f"{DOMAIN}.invalid"}]},
+            {CONF_SEQUENCE: [{CONF_ACTION: f"{DOMAIN}.invalid"}]},
             blocking=True,
         )
 
@@ -1092,7 +1098,7 @@ async def test_nested_actions(
             {
                 CONF_SEQUENCE: [
                     {
-                        ATTR_SERVICE: f"{DOMAIN}.{ACTIONS_SERVICE}",
+                        CONF_ACTION: f"{DOMAIN}.{ACTIONS_SERVICE}",
                         ATTR_DATA: {CONF_SEQUENCE: BASIC_SEQUENCE_DATA},
                     }
                 ]
@@ -1110,7 +1116,7 @@ async def test_call_in_actions(
         await hass.services.async_call(
             DOMAIN,
             ACTIONS_SERVICE,
-            {CONF_SEQUENCE: [{ATTR_SERVICE: f"{DOMAIN}.{CALL_SERVICE}"}]},
+            {CONF_SEQUENCE: [{CONF_ACTION: f"{DOMAIN}.{ACTION_SERVICE}"}]},
             blocking=True,
         )
 
@@ -1131,7 +1137,7 @@ async def test_event_context(
         {
             CONF_SEQUENCE: BASIC_SEQUENCE_DATA,
             ATTR_RETRIES: 1,
-            ATTR_ON_ERROR: [{ATTR_SERVICE: f"{DOMAIN}.{TEST_ON_ERROR_SERVICE}"}],
+            ATTR_ON_ERROR: [{CONF_ACTION: f"{DOMAIN}.{TEST_ON_ERROR_SERVICE}"}],
         },
         blocking=True,
         context=Context(hass_admin_user.id),
@@ -1146,9 +1152,99 @@ async def test_event_context(
         assert call.data["domain"] == DOMAIN
     assert calls[0].data["service"] == ACTIONS_SERVICE
     assert calls[0].context.parent_id is None
-    assert calls[1].data["service"] == CALL_SERVICE
+    assert calls[1].data["service"] == ACTION_SERVICE
     assert calls[1].context.parent_id == calls[0].context.id
     assert calls[2].data["service"] == TEST_SERVICE
     assert calls[2].context.parent_id == calls[1].context.id
     assert calls[3].data["service"] == TEST_ON_ERROR_SERVICE
     assert calls[3].context.parent_id == calls[1].context.id
+
+
+async def test_legacy_service_key_call(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Test legacy service key in 'call' service."""
+    calls = await async_setup(hass)
+    await hass.services.async_call(
+        DOMAIN,
+        CALL_SERVICE,
+        {ATTR_SERVICE: f"{DOMAIN}.{TEST_SERVICE}"},
+        blocking=True,
+    )
+    await async_shutdown(hass, freezer)
+    assert len(calls) == 7
+
+
+async def test_action_and_service_key_call(
+    hass: HomeAssistant,
+) -> None:
+    """Test 'action' and 'service' key in 'call' service."""
+    await async_setup(hass)
+    with pytest.raises(vol.MultipleInvalid) as exception:
+        await hass.services.async_call(
+            DOMAIN,
+            CALL_SERVICE,
+            {
+                CONF_ACTION: f"{DOMAIN}.{TEST_SERVICE}",
+                ATTR_SERVICE: f"{DOMAIN}.{TEST_SERVICE}",
+            },
+            blocking=True,
+        )
+    assert exception.value.msg == "must contain at most one of service, action."
+
+
+async def test_no_action_and_no_service_key_call(
+    hass: HomeAssistant,
+) -> None:
+    """Test 'action' and 'service' key in 'call' service."""
+    await async_setup(hass)
+    with pytest.raises(vol.MultipleInvalid) as exception:
+        await hass.services.async_call(
+            DOMAIN,
+            CALL_SERVICE,
+            {},
+            blocking=True,
+        )
+    assert exception.value.msg == "must contain at least one of service, action."
+
+
+async def test_legacy_service_key_actions(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Test legacy service key in 'actions' service."""
+    calls = await async_setup(hass)
+    await hass.services.async_call(
+        DOMAIN,
+        ACTIONS_SERVICE,
+        {CONF_SEQUENCE: [{ATTR_SERVICE: f"{DOMAIN}.{TEST_SERVICE}"}]},
+        blocking=True,
+    )
+    await async_shutdown(hass, freezer)
+    assert len(calls) == 7
+
+
+async def test_action_and_service_key_actions(
+    hass: HomeAssistant,
+) -> None:
+    """Test 'action' and 'service' key in 'actions' service."""
+    await async_setup(hass)
+    with pytest.raises(vol.MultipleInvalid) as exception:
+        await hass.services.async_call(
+            DOMAIN,
+            ACTIONS_SERVICE,
+            {
+                CONF_SEQUENCE: [
+                    {
+                        CONF_ACTION: f"{DOMAIN}.{TEST_SERVICE}",
+                        ATTR_SERVICE: f"{DOMAIN}.{TEST_SERVICE}",
+                    }
+                ]
+            },
+            blocking=True,
+        )
+    assert (
+        exception.value.msg
+        == "Cannot specify both 'service' and 'action'. Please use 'action' only."
+    )
