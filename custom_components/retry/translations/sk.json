@@ -22,7 +22,7 @@
     "issues": {
         "failure": {
             "title": "Zlyhanie servisného volania",
-            "description": "`{service}` zlyhané po {retries} pokusoch. Ďalšie informácie nájdete v denníku."
+            "description": "`{action}` zlyhané po {retries} pokusoch. Ďalšie informácie nájdete v denníku."
         }
     },
     "services": {

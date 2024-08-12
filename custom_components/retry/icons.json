@@ -1,6 +1,7 @@
 {
   "services": {
     "call": "mdi:clipboard-check-outline",
+    "action": "mdi:clipboard-check-outline",
     "actions": "mdi:clipboard-check-multiple-outline"
   }
 }

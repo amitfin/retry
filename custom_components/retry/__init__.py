@@ -357,7 +357,7 @@ class RetryAction:
         return self._action_str_value
 
     def _compose_action_str(self) -> str:
-        """Return a string with the service call parameters."""
+        """Return a string with the action parameters."""
         service_call = (
             f"{self._params.retry_data[ATTR_DOMAIN]}."
             f"{self._params.retry_data[ATTR_SERVICE]}"
