@@ -120,6 +120,16 @@ def _rename_legacy_service_key(value: Any | None) -> Any:
         return value
     if ATTR_SERVICE in value:
         value[CONF_ACTION] = value.pop(ATTR_SERVICE)
+        LOGGER.log(
+            logging.WARNING,
+            (
+                "'service: %s' should be renamed to 'action: %s'. "
+                "Support for the deprecated 'service' field will be removed "
+                "in a future release."
+            ),
+            value[CONF_ACTION],
+            value[CONF_ACTION],
+        )
     return value
 
 
@@ -581,8 +591,21 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     hass.services.async_register(
         DOMAIN, ACTION_SERVICE, async_action, ACTION_SERVICE_SCHEMA
     )
+
+    async def async_call(service_call: ServiceCall) -> None:
+        """Legacy 'retry.call' action."""
+        LOGGER.log(
+            logging.WARNING,
+            (
+                "'retry.call' should be renamed to 'retry.action'. "
+                "Support for the deprecated 'retry.call' action will be removed "
+                "in a future release."
+            ),
+        )
+        return await async_action(service_call)
+
     hass.services.async_register(
-        DOMAIN, CALL_SERVICE, async_action, ACTION_SERVICE_SCHEMA
+        DOMAIN, CALL_SERVICE, async_call, ACTION_SERVICE_SCHEMA
     )
 
     async def async_actions(service_call: ServiceCall) -> None:

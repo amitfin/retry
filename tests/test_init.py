@@ -1163,6 +1163,7 @@ async def test_event_context(
 async def test_legacy_service_key_call(
     hass: HomeAssistant,
     freezer: FrozenDateTimeFactory,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test legacy service key in 'call' service."""
     calls = await async_setup(hass)
@@ -1174,6 +1175,14 @@ async def test_legacy_service_key_call(
     )
     await async_shutdown(hass, freezer)
     assert len(calls) == 7
+    assert (
+        "Support for the deprecated 'retry.call' action will be removed "
+        "in a future release."
+    ) in caplog.text
+    assert (
+        "Support for the deprecated 'service' field will be removed "
+        "in a future release."
+    ) in caplog.text
 
 
 async def test_action_and_service_key_call(
