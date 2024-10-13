@@ -42,6 +42,7 @@ from homeassistant.exceptions import (
 )
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers import script
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -962,6 +963,35 @@ async def test_actions_backoff(  # noqa: PLR0913
         ) in caplog.text
 
 
+@pytest.mark.parametrize(
+    ("backoff", "valid"),
+    [("[[ 1 ]]", True), ("[[ 'A' ]]", False)],
+    ids=["valid", "non number"],
+)
+async def test_backoff_rendered_value(
+    hass: HomeAssistant,
+    backoff: str,
+    valid: bool,  # noqa: FBT001
+) -> None:
+    """Test backoff rendered value validation."""
+    await async_setup(hass, raises=False)
+    async_call = hass.services.async_call(
+        DOMAIN,
+        ACTION_SERVICE,
+        {
+            CONF_ACTION: f"{DOMAIN}.{TEST_SERVICE}",
+            ATTR_BACKOFF: backoff,
+        },
+        blocking=True,
+    )
+    if valid:
+        await async_call
+    else:
+        with pytest.raises(vol.MultipleInvalid) as exception:
+            await async_call
+        assert exception.value.msg == "expected float"
+
+
 async def test_actions_propagating_successful_validation(
     hass: HomeAssistant,
     freezer: FrozenDateTimeFactory,
@@ -1257,3 +1287,40 @@ async def test_action_and_service_key_actions(
         exception.value.msg
         == "Cannot specify both 'service' and 'action'. Please use 'action' only."
     )
+
+
+@pytest.mark.parametrize(
+    ("backoff", "valid"),
+    [("[[ attempt ]]", True), ("{{ attempt }}", False)],
+    ids=["special syntax", "regular syntax - invalid"],
+)
+async def test_script_run_templates(
+    hass: HomeAssistant,
+    backoff: str,
+    valid: bool,  # noqa: FBT001
+) -> None:
+    """Test template parameters when calling via script."""
+    await async_setup(hass, raises=False)
+    async_call = script.Script(
+        hass,
+        cv.SCRIPT_SCHEMA(
+            [
+                {
+                    CONF_ACTION: f"{DOMAIN}.{ACTION_SERVICE}",
+                    ATTR_DATA: {
+                        CONF_ACTION: f"{DOMAIN}.{TEST_SERVICE}",
+                        ATTR_BACKOFF: backoff,
+                    },
+                }
+            ]
+        ),
+        ACTION_SERVICE,
+        DOMAIN,
+    ).async_run()
+    if valid:
+        await async_call
+    else:
+        with pytest.raises(vol.MultipleInvalid) as exception:
+            await async_call
+        assert exception.value.msg == "expected float"
+    await hass.async_block_till_done()

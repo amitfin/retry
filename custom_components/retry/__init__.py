@@ -70,7 +70,7 @@ from .const import (
 
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
-DEFAULT_BACKOFF = "[[ 2 ** attempt ]]"
+DEFAULT_BACKOFF = "{{ 2 ** attempt }}"
 DEFAULT_RETRIES = 7
 DEFAULT_STATE_GRACE = 0.2
 GROUP_DOMAIN = "group"
@@ -102,17 +102,20 @@ def _fix_template_tokens(value: str) -> str:
     return value
 
 
-DEFAULT_BACKOFF_FIXED = _fix_template_tokens(DEFAULT_BACKOFF)
+def _backoff_parameter(value: Any | None) -> str | None:
+    """Check backoff parameter."""
+    cv.positive_float(
+        cv.template(_fix_template_tokens(cv.string(value))).async_render(
+            variables={"attempt": 0}
+        )
+    )
+    return value
 
 
-def _backoff_parameter(value: Any | None) -> Template:
-    """Convert backoff parameter to template."""
-    return cv.template(_fix_template_tokens(cv.string(value)))
-
-
-def _validation_parameter(value: Any | None) -> Template:
-    """Convert validation parameter to template."""
-    return cv.dynamic_template(_fix_template_tokens(cv.string(value)))
+def _validation_parameter(value: Any | None) -> str | None:
+    """Check validation parameter."""
+    cv.dynamic_template(_fix_template_tokens(cv.string(value)))
+    return value
 
 
 def _rename_legacy_service_key(value: Any | None) -> Any:
@@ -205,6 +208,9 @@ class RetryParams:
             raise ServiceNotFound(domain, service)
         retry_data[ATTR_DOMAIN] = domain
         retry_data[ATTR_SERVICE] = service
+        for key in [ATTR_BACKOFF, ATTR_VALIDATION]:
+            if key in retry_data:
+                retry_data[key] = Template(_fix_template_tokens(retry_data[key]), hass)
         return retry_data
 
     def _inner_data(self, hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
@@ -381,7 +387,7 @@ class RetryAction:
             (
                 ATTR_BACKOFF,
                 self._params.retry_data[ATTR_BACKOFF].template,
-                DEFAULT_BACKOFF_FIXED,
+                DEFAULT_BACKOFF,
             ),
             (
                 ATTR_VALIDATION,
@@ -500,7 +506,7 @@ class RetryAction:
                 "Failed",
                 stack_info=True,
             )
-            if self._attempt == self._params.retry_data[ATTR_RETRIES]:
+            if self._attempt >= self._params.retry_data[ATTR_RETRIES]:
                 if not getattr(self._params.config_entry, "options", {}).get(
                     CONF_DISABLE_REPAIR
                 ):
@@ -616,10 +622,6 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
             for key in service_call.data
             if key in SERVICE_SCHEMA_BASE_FIELDS
         }
-        for key in [ATTR_BACKOFF, ATTR_VALIDATION]:
-            if key in retry_params:
-                # Revert it back to string so it won't get rendered in advance.
-                retry_params[key] = retry_params[key].template
         _wrap_actions(hass, sequence, retry_params)
         await script.Script(hass, sequence, ACTIONS_SERVICE, DOMAIN).async_run(
             context=Context(service_call.context.user_id, service_call.context.id)
