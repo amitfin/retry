@@ -720,7 +720,12 @@ async def test_identical_repair(
     for _ in range(2):
         await async_call(hass)
         await async_shutdown(hass, freezer)
-    assert len(repairs) == 1
+    assert [repair.data["action"] for repair in repairs] == [
+        "create",
+        "remove",
+        "create",
+    ]
+    assert len(ir.async_get(hass).issues) == 1
 
 
 async def test_unload(hass: HomeAssistant) -> None:

@@ -431,6 +431,7 @@ class RetryAction:
 
     def _repair(self) -> None:
         """Create a repair ticket."""
+        ir.async_delete_issue(self._hass, DOMAIN, self._action_str)
         ir.async_create_issue(
             self._hass,
             DOMAIN,
