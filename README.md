@@ -17,7 +17,7 @@ The integration increases the automation reliability by implementing 2 custom ac
 
 Here is a short demo of using `retry.actions` in the automation rule editor:
 
-https://github.com/amitfin/retry/assets/19599059/318c2129-901f-4f6c-8e79-e155ae097ba4
+https://github.com/user-attachments/assets/69b4db6b-80c6-4527-b088-e10b68e0f18c
 
 `retry.actions` wraps any action inside the sequence of actions with `retry.action`. `retry.action` performs the original action with a background retry logic on failures. A complex sequence of actions with a nested structure and conditions is supported. `retry.actions` traverses through the actions and wraps any action step. There is no impact or changes to the rest of the steps. The detailed behavior and the list of optional parameters of `retry.action` is explained in the section below. All features and parameters of `retry.action` are also supported by `retry.actions`, so there is no reason to use a YAML configuration. A straightforward UI usage as demonstrated above should be the way to go.
 
@@ -129,7 +129,7 @@ target:
 
 The boolean expression is rendered after each inner action attempt. If the value is False, the attempt is considered a failure and the loop of retries continues.
 
-Note: `validation: "[[ states(entity_id) == 'on' ]]"` has an identical logic and impact as setting `expected_state: "on"`. Therefore, the later is preferable from simplicity reasons.
+Note: `validation: "[[ states(entity_id) == 'on' ]]"` has an identical logic and impact as setting `expected_state: "on"`. Therefore, `expected_state` is preferable from simplicity reasons.
 
 #### `state_delay` parameter (optional)
 
@@ -162,7 +162,7 @@ target:
 
 #### `on_error` parameter (optional)
 
-A sequence of actions to perform if all retries fail.
+A sequence of actions to execute if all retries fail.
 
 Here is an automation rule example with a self remediation logic:
 
@@ -193,7 +193,7 @@ action:
 
 `entity_id` is provided as a variable and can be used by `on_error` templates.
 
-Note that each entity is running individually when the inner action has a list of entities. In such a case `on_error` can get performed multiple times, once per each failed entity. Similarly, `retry.actions` has a sequence of actions which might include multiple actions. This can also cause `on_error` to get performed multiple times, once per each failed inner action.
+Note that each entity is running individually when the inner action has a list of entities. In such a case `on_error` can get executed multiple times, once per each failed entity. Similarly, `retry.actions` has a sequence of actions which might include multiple actions. This can also cause `on_error` to get executed multiple times, once per each failed inner action.
 
 #### `retry_id` parameter (optional)
 
