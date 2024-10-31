@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Any
 
 import homeassistant.util.dt as dt_util
 import voluptuous as vol
-from homeassistant.components.hassio.const import ATTR_DATA
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
 from homeassistant.const import (
     ATTR_DOMAIN,
@@ -23,6 +22,7 @@ from homeassistant.const import (
     CONF_PARALLEL,
     CONF_REPEAT,
     CONF_SEQUENCE,
+    CONF_SERVICE_DATA,
     CONF_TARGET,
     CONF_THEN,
     ENTITY_MATCH_ALL,
@@ -556,15 +556,15 @@ def _wrap_actions(  # noqa: PLR0912
                 ]:
                     message = f"{domain_service} inside retry.actions is disallowed"
                     raise IntegrationError(message)
-                action[ATTR_DATA] = action.get(ATTR_DATA, {})
-                action[ATTR_DATA][CONF_ACTION] = domain_service
-                action[ATTR_DATA].update(retry_params)
+                action[CONF_SERVICE_DATA] = action.get(CONF_SERVICE_DATA, {})
+                action[CONF_SERVICE_DATA][CONF_ACTION] = domain_service
+                action[CONF_SERVICE_DATA].update(retry_params)
                 action[CONF_ACTION] = f"{DOMAIN}.{ACTION_SERVICE}"
                 # Validate parameters so errors are not raised in the background.
                 RetryParams(
                     hass,
                     None,
-                    {**action[ATTR_DATA], **action.get(CONF_TARGET, {})},
+                    {**action[CONF_SERVICE_DATA], **action.get(CONF_TARGET, {})},
                 )
             case cv.SCRIPT_ACTION_REPEAT:
                 _wrap_actions(hass, action[CONF_REPEAT][CONF_SEQUENCE], retry_params)

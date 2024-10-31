@@ -9,7 +9,6 @@ from unittest.mock import AsyncMock, Mock
 import homeassistant.util.dt as dt_util
 import pytest
 import voluptuous as vol
-from homeassistant.components.hassio.const import ATTR_DATA
 from homeassistant.const import (
     ATTR_DEVICE_ID,
     ATTR_ENTITY_ID,
@@ -28,6 +27,7 @@ from homeassistant.const import (
     CONF_PLATFORM,
     CONF_REPEAT,
     CONF_SEQUENCE,
+    CONF_SERVICE_DATA,
     CONF_TARGET,
     CONF_THEN,
     CONF_VALUE_TEMPLATE,
@@ -493,7 +493,7 @@ async def test_on_error(
             ATTR_ON_ERROR: [
                 {
                     CONF_ACTION: f"{DOMAIN}.{TEST_ON_ERROR_SERVICE}",
-                    ATTR_DATA: {ATTR_ENTITY_ID: "{{ entity_id }}"},
+                    CONF_SERVICE_DATA: {ATTR_ENTITY_ID: "{{ entity_id }}"},
                 }
             ],
         },
@@ -1134,7 +1134,7 @@ async def test_nested_actions(
                 CONF_SEQUENCE: [
                     {
                         CONF_ACTION: f"{DOMAIN}.{ACTIONS_SERVICE}",
-                        ATTR_DATA: {CONF_SEQUENCE: BASIC_SEQUENCE_DATA},
+                        CONF_SERVICE_DATA: {CONF_SEQUENCE: BASIC_SEQUENCE_DATA},
                     }
                 ]
             },
@@ -1312,7 +1312,7 @@ async def test_script_run_templates(
             [
                 {
                     CONF_ACTION: f"{DOMAIN}.{ACTION_SERVICE}",
-                    ATTR_DATA: {
+                    CONF_SERVICE_DATA: {
                         CONF_ACTION: f"{DOMAIN}.{TEST_SERVICE}",
                         ATTR_BACKOFF: backoff,
                     },
