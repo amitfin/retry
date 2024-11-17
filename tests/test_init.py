@@ -1296,8 +1296,12 @@ async def test_action_and_service_key_actions(
 
 @pytest.mark.parametrize(
     ("backoff", "valid"),
-    [("[[ attempt ]]", True), ("{{ attempt }}", False)],
-    ids=["special syntax", "regular syntax - invalid"],
+    [
+        ("[[ attempt ]]", True),
+        ("{{ attempt }}", False),
+        ("{% raw %}{{ attempt }}{% endraw %}", True),
+    ],
+    ids=["special syntax", "regular syntax - invalid", "regular syntax - wrapped"],
 )
 async def test_script_run_templates(
     hass: HomeAssistant,

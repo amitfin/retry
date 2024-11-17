@@ -81,11 +81,7 @@ _running_retries_write_lock = threading.Lock()
 
 def _template_parameter(value: Any) -> str:
     """Render template parameter."""
-    output = cv.template(value).async_render(parse_result=False)
-    if not isinstance(output, str):
-        message = "template rendered value should be a string"
-        raise vol.Invalid(message)
-    return output
+    return cv.template(value).async_render(parse_result=False)
 
 
 def _fix_template_tokens(value: str) -> str:
@@ -119,9 +115,7 @@ def _validation_parameter(value: Any | None) -> str | None:
 
 
 def _rename_legacy_service_key(value: Any | None) -> Any:
-    if not isinstance(value, dict):
-        return value
-    if ATTR_SERVICE in value:
+    if isinstance(value, dict) and ATTR_SERVICE in value:
         value[CONF_ACTION] = value.pop(ATTR_SERVICE)
         LOGGER.log(
             logging.WARNING,
@@ -460,13 +454,12 @@ class RetryAction:
         if not self._retry_id:
             return
         with _running_retries_write_lock:
-            if not self._check_id():
-                return
-            count = _running_retries[self._retry_id][1] - 1
-            if not count:
-                del _running_retries[self._retry_id]
-            else:
-                self._set_id(count)
+            if self._check_id():
+                count = _running_retries[self._retry_id][1] - 1
+                if not count:
+                    del _running_retries[self._retry_id]
+                else:
+                    self._set_id(count)
 
     def _set_id(self, count: int) -> None:
         """Set the retry_id entry with a counter."""
