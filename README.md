@@ -23,9 +23,17 @@ https://github.com/user-attachments/assets/69b4db6b-80c6-4527-b088-e10b68e0f18c
 
 Note: `retry.actions` and `retry.action` are not suitable for the following scenarios:
 
-1. When the order of the actions matters: the background retries are running independently to the rest of the actions.
-2. For a relative state change: for example, `homeassistant.toggle` and `fan.increase_speed` are relative actions while `light.turn_on` is an absolute action. The reason is that a relative action might change the state and only then a failure occurs. Performing it again might have an unintentional result.
-3. If any [action response data](https://www.home-assistant.io/docs/scripts/service-calls/#use-templates-to-handle-response-data) is needed: the actions are running in the background and therefore it's not possible to propagate responses.
+1. For a relative state change: for example, `homeassistant.toggle` and `fan.increase_speed` are relative actions while `light.turn_on` is an absolute action. The reason is that a relative action might change the state and only then a failure occurs. Performing it again might have an unintentional result.
+2. If any [action response data](https://www.home-assistant.io/docs/scripts/service-calls/#use-templates-to-handle-response-data) is needed: the actions are running in the background and therefore it's not possible to propagate responses.
+3. The order of performing the actions successfully is not guaranteed since retries are running in the background. It's possible however to use a synchronization statement which can be placed between 2 retry actions. For example:
+```
+wait_for_trigger:
+ - trigger: state
+    entity_id: domain.state_1
+    to: "on"
+timeout: 60
+continue_on_timeout: false
+```
 
 ## `retry.action`
 
