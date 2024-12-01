@@ -50,6 +50,10 @@
                     "name": "Validácia",
                     "description": "Špeciálna šablóna s hranatými zátvorkami namiesto zložených zátvoriek na overenie úspechu."
                 },
+                "state_delay": {
+                    "name": "Perióda oneskorenia stavu",
+                    "description": "Obdobie oneskorenia (v sekundách) pred počiatočným očakávaným stavom a overením (predvolená hodnota je 0)."
+                },
                 "state_grace": {
                     "name": "Statusová ochranná lehota",
                     "description": "Ochranná lehota (v sekundách) pre očakávaný stav a overenie (predvolená hodnota je 0,2)."
