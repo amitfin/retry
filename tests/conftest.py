@@ -30,7 +30,7 @@ def _auto_enable_custom_integrations(enable_custom_integrations: bool) -> None: 
 
 
 @pytest.fixture(autouse=True)
-def sleep() -> Generator[AsyncMock, None, None]:
+def sleep() -> Generator[AsyncMock]:
     """Disable sleep for all tests."""
     with patch("custom_components.retry.asyncio.sleep") as mock:
         yield mock
