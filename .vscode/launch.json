@@ -30,8 +30,8 @@
             "host": "localhost",
             "pathMappings": [
                 {
-                    "localRoot": "/home/vscode/.local/lib/python3.12/site-packages/homeassistant",
-                    "remoteRoot": "/home/vscode/.local/lib/python3.12/site-packages/homeassistant"
+                    "localRoot": "/home/vscode/.local/lib/python3.13/site-packages/homeassistant",
+                    "remoteRoot": "/home/vscode/.local/lib/python3.13/site-packages/homeassistant"
                 }
             ],
             "justMyCode": false
