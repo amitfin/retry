@@ -1,7 +1,7 @@
 {
     "name": "retry",
     "image": "mcr.microsoft.com/devcontainers/python:dev-3.13",
-    "postCreateCommand": "scripts/setup",
+    "postCreateCommand": "scripts/setup && git config --global --add safe.directory ${containerWorkspaceFolder}",
     "forwardPorts": [
         8123
     ],
