@@ -205,7 +205,7 @@ Note that each entity is running individually when the inner action has a list o
 
 #### `repair` parameter (optional)
 
-A boolean controlling whether to issue repair tickets on failure. The system default is used when the parameter is not provided. The system default can be configured via the [integration's configuration dialog](https://my.home-assistant.io/redirect/integration/?domain=retry).
+A boolean parameter controlling whether to issue repair tickets on failure. The system default is used when the parameter is not provided. The system default can be configured via the [integration's configuration dialog](https://my.home-assistant.io/redirect/integration/?domain=retry).
 
 #### `retry_id` parameter (optional)
 
