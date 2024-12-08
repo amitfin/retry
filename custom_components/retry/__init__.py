@@ -57,6 +57,7 @@ from .const import (
     ATTR_BACKOFF,
     ATTR_EXPECTED_STATE,
     ATTR_ON_ERROR,
+    ATTR_REPAIR,
     ATTR_RETRIES,
     ATTR_RETRY_ID,
     ATTR_STATE_DELAY,
@@ -139,6 +140,7 @@ SERVICE_SCHEMA_BASE_FIELDS = {
     vol.Required(ATTR_STATE_GRACE, default=DEFAULT_STATE_GRACE): cv.positive_float,  # type: ignore[reportArgumentType]
     vol.Optional(ATTR_RETRY_ID): vol.Any(cv.string, None),
     vol.Optional(ATTR_ON_ERROR): cv.SCRIPT_SCHEMA,
+    vol.Optional(ATTR_REPAIR): cv.boolean,
 }
 ACTION_SERVICE_PARAMS = vol.Schema(
     {
@@ -501,9 +503,12 @@ class RetryAction:
                 stack_info=True,
             )
             if self._attempt >= self._params.retry_data[ATTR_RETRIES]:
-                if not getattr(self._params.config_entry, "options", {}).get(
-                    CONF_DISABLE_REPAIR
-                ):
+                issue_repair = self._params.retry_data.get(ATTR_REPAIR)
+                if issue_repair is None:
+                    issue_repair = not getattr(
+                        self._params.config_entry, "options", {}
+                    ).get(CONF_DISABLE_REPAIR)
+                if issue_repair:
                     self._repair()
                 self._end_id()
                 if (on_error := self._params.retry_data.get(ATTR_ON_ERROR)) is not None:

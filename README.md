@@ -203,6 +203,10 @@ action:
 
 Note that each entity is running individually when the inner action has a list of entities. In such a case `on_error` can get performed multiple times, once per each failed entity. Similarly, `retry.actions` has a sequence of actions which might include multiple actions. This can also cause `on_error` to get performed multiple times, once per each failed inner action.
 
+#### `repair` parameter (optional)
+
+A boolean controlling whether to issue repair tickets on failure. The system default is used when the parameter is not provided. The system default can be configured via the [integration's configuration dialog](https://my.home-assistant.io/redirect/integration/?domain=retry).
+
 #### `retry_id` parameter (optional)
 
 An action cancels a previous running action with the same retry ID. This parameter can be used to set the retry ID explicitly but it should be rarely used, if at all. The default value of `retry_id` is the `entity_id` of the inner action. For an inner action with no `entity_id`, the default value of `retry_id` is the action name (e.g. `homeassistant.reload_all`).
@@ -215,7 +219,7 @@ It's possible to disable the cancellation logic by setting `retry_id` to an empt
 
 ### Notes
 
-1. The action does not propagate inner action failures (exceptions) since the attempts are done in the background. However, the action logs a warning when the inner function fails (on every attempt). It also logs an error and issue a repair ticket when the maximum amount of attempts is reached. Repair tickets can be disabled via the [integration's configuration dialog](https://my.home-assistant.io/redirect/integration/?domain=retry).
+1. The action does not propagate inner action failures (exceptions) since the attempts are done in the background. However, the action logs a warning when the inner function fails (on every attempt). It also logs an error and issue a repair ticket when the maximum amount of attempts is reached.
 2. Action supports a list of entities either by providing an explicit list or by [targeting areas and devices](https://www.home-assistant.io/docs/scripts/service-calls/#targeting-areas-and-devices). It's also possible to specify a [group](https://www.home-assistant.io/integrations/group) entity. The inner action is performed individually per entity to isolate failures. Group entities are expanded (recursively.)
 
 ## Install

@@ -62,6 +62,10 @@ call:
       advanced: true
       selector:
         action:
+    repair:
+      advanced: true
+      selector:
+        boolean:
     retry_id:
       advanced: true
       selector:
@@ -130,6 +134,10 @@ action:
       advanced: true
       selector:
         action:
+    repair:
+      advanced: true
+      selector:
+        boolean:
     retry_id:
       advanced: true
       selector:
@@ -197,6 +205,10 @@ actions:
       advanced: true
       selector:
         action:
+    repair:
+      advanced: true
+      selector:
+        boolean:
     retry_id:
       advanced: true
       selector:

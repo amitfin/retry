@@ -62,6 +62,10 @@
                     "name": "On Error",
                     "description": "Sequence of actions to perform if all retries fail."
                 },
+                "repair": {
+                    "name": "Issue Repair Ticket",
+                    "description": "Control issuing repair tickets on failure."
+                },
                 "retry_id": {
                     "name": "Retry ID",
                     "description": "A new call cancels a previous call with the same ID (the default is the entity ID)."
@@ -104,6 +108,10 @@
                     "name": "On Error",
                     "description": "Sequence of actions to perform if all retries fail."
                 },
+                "repair": {
+                    "name": "Issue Repair Ticket",
+                    "description": "Control issuing repair tickets on failure."
+                },
                 "retry_id": {
                     "name": "Retry ID",
                     "description": "A new action cancels a previous action with the same ID (the default is the entity ID)."
@@ -145,6 +153,10 @@
                 "on_error": {
                     "name": "On Error",
                     "description": "Sequence of actions to perform if all retries fail."
+                },
+                "repair": {
+                    "name": "Issue Repair Ticket",
+                    "description": "Control issuing repair tickets on failure."
                 },
                 "retry_id": {
                     "name": "Retry ID",

@@ -57,6 +57,7 @@ from custom_components.retry.const import (
     ATTR_BACKOFF,
     ATTR_EXPECTED_STATE,
     ATTR_ON_ERROR,
+    ATTR_REPAIR,
     ATTR_RETRIES,
     ATTR_RETRY_ID,
     ATTR_STATE_DELAY,
@@ -708,6 +709,30 @@ async def test_disable_repair(
     await async_call(hass)
     await async_shutdown(hass, freezer)
     assert not len(repairs)
+
+
+async def test_disable_specific_repair(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Test disabling specific repair ticket."""
+    repairs = async_capture_events(hass, str(ir.EVENT_REPAIRS_ISSUE_REGISTRY_UPDATED))
+    await async_setup(hass)
+    await async_call(hass, data={ATTR_REPAIR: False})
+    await async_shutdown(hass, freezer)
+    assert not len(repairs)
+
+
+async def test_enable_specific_repair(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Test enabling specific repair ticket."""
+    repairs = async_capture_events(hass, str(ir.EVENT_REPAIRS_ISSUE_REGISTRY_UPDATED))
+    await async_setup(hass, options={CONF_DISABLE_REPAIR: True})
+    await async_call(hass, data={ATTR_REPAIR: True})
+    await async_shutdown(hass, freezer)
+    assert len(repairs)
 
 
 async def test_identical_repair(
