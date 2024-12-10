@@ -6,7 +6,6 @@ call:
       selector:
         text:
     retries:
-      advanced: true
       example: 5
       selector:
         number:
@@ -15,12 +14,10 @@ call:
           unit_of_measurement: retries
           mode: box
     backoff:
-      advanced: true
       example: "[[ 10 * 2 ** attempt ]]"
       selector:
         text:
     expected_state:
-      advanced: true
       example: "on"
       selector:
         select:
@@ -36,12 +33,10 @@ call:
             - cool
             - heat
     validation:
-      advanced: true
       example: "[[ state_attr(entity_id, 'brightness') == 70 ]]"
       selector:
         text:
     state_delay:
-      advanced: true
       example: "2"
       selector:
         number:
@@ -50,7 +45,6 @@ call:
           unit_of_measurement: seconds
           mode: box
     state_grace:
-      advanced: true
       example: "3"
       selector:
         number:
@@ -59,15 +53,12 @@ call:
           unit_of_measurement: seconds
           mode: box
     on_error:
-      advanced: true
       selector:
         action:
     repair:
-      advanced: true
       selector:
         boolean:
     retry_id:
-      advanced: true
       selector:
         text:
 action:
@@ -78,7 +69,6 @@ action:
       selector:
         text:
     retries:
-      advanced: true
       example: 5
       selector:
         number:
@@ -87,12 +77,10 @@ action:
           unit_of_measurement: retries
           mode: box
     backoff:
-      advanced: true
       example: "[[ 10 * 2 ** attempt ]]"
       selector:
         text:
     expected_state:
-      advanced: true
       example: "on"
       selector:
         select:
@@ -108,12 +96,10 @@ action:
             - cool
             - heat
     validation:
-      advanced: true
       example: "[[ state_attr(entity_id, 'brightness') == 70 ]]"
       selector:
         text:
     state_delay:
-      advanced: true
       example: "2"
       selector:
         number:
@@ -122,7 +108,6 @@ action:
           unit_of_measurement: seconds
           mode: box
     state_grace:
-      advanced: true
       example: "3"
       selector:
         number:
@@ -131,15 +116,12 @@ action:
           unit_of_measurement: seconds
           mode: box
     on_error:
-      advanced: true
       selector:
         action:
     repair:
-      advanced: true
       selector:
         boolean:
     retry_id:
-      advanced: true
       selector:
         text:
 actions:
@@ -149,7 +131,6 @@ actions:
       selector:
         action:
     retries:
-      advanced: true
       example: 5
       selector:
         number:
@@ -158,12 +139,10 @@ actions:
           unit_of_measurement: retries
           mode: box
     backoff:
-      advanced: true
       example: "[[ 10 * 2 ** attempt ]]"
       selector:
         text:
     expected_state:
-      advanced: true
       example: "on"
       selector:
         select:
@@ -179,12 +158,10 @@ actions:
             - cool
             - heat
     validation:
-      advanced: true
       example: "[[ state_attr(entity_id, 'brightness') == 70 ]]"
       selector:
         text:
     state_delay:
-      advanced: true
       example: "2"
       selector:
         number:
@@ -193,7 +170,6 @@ actions:
           unit_of_measurement: seconds
           mode: box
     state_grace:
-      advanced: true
       example: "3"
       selector:
         number:
@@ -202,14 +178,11 @@ actions:
           unit_of_measurement: seconds
           mode: box
     on_error:
-      advanced: true
       selector:
         action:
     repair:
-      advanced: true
       selector:
         boolean:
     retry_id:
-      advanced: true
       selector:
         text:
