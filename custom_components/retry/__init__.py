@@ -251,13 +251,16 @@ class RetryParams:
                 for entity in (entity_comp.entities if entity_comp else [])
             ]
         entity_ids = []
+        params = {
+            "domain": self.retry_data[ATTR_DOMAIN],
+            "service": self.retry_data[ATTR_SERVICE],
+            "data": self.inner_data,
+        }
+        if "hass" in ServiceCall.__slots__:
+            params["hass"] = hass
         entities = async_extract_referenced_entity_ids(
             hass,
-            ServiceCall(
-                self.retry_data[ATTR_DOMAIN],
-                self.retry_data[ATTR_SERVICE],
-                self.inner_data,
-            ),
+            ServiceCall(**params),
         )
         for entity_id in entities.referenced | entities.indirectly_referenced:
             entity_ids.extend(self._expand_group(hass, entity_id))
