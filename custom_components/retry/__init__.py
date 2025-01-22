@@ -366,9 +366,9 @@ class RetryAction:
         service_call = (
             f"{self._params.retry_data[ATTR_DOMAIN]}."
             f"{self._params.retry_data[ATTR_SERVICE]}"
-            f"({', '.join(
-                [f'{key}={value}' for key, value in self._inner_data.items()]
-            )})"
+            f"({
+                ', '.join([f'{key}={value}' for key, value in self._inner_data.items()])
+            })"
         )
         retry_params = []
         if (
@@ -378,9 +378,9 @@ class RetryAction:
                 retry_params.append(f"expected_state={expected_state[0]}")
             else:
                 retry_params.append(
-                    f"expected_state in ({', '.join(
-                        state for state in expected_state
-                    )})"
+                    f"expected_state in ({
+                        ', '.join(state for state in expected_state)
+                    })"
                 )
         for name, value, default in (
             (
