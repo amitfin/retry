@@ -943,7 +943,8 @@ async def test_actions_propagating_args(
     await async_shutdown(hass, freezer)
     assert len(calls) == 4
     assert (
-        f"[Failed]: attempt 3/3: {DOMAIN}.{TEST_SERVICE}()" '[validation="{{ False }}"]'
+        f"[Failed]: attempt 3/3: {DOMAIN}.{TEST_SERVICE}()"
+        '[validation="{{ False }}"]'
     ) in caplog.text
 
 
