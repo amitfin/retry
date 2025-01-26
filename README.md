@@ -39,7 +39,7 @@ continue_on_timeout: false
 
 (`retry.call` is the previous and obsolete name but can still be used.)
 
-This action warps an inner action with background retries on failures. It can be useful to mitigate temporary issues of connectivity or invalid device states.
+This action wraps an inner action with background retries on failures. It can be useful to mitigate temporary issues of connectivity or invalid device states.
 
 For example, instead of:
 
