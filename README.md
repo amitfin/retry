@@ -123,14 +123,14 @@ If the new state is different than expected, the attempt is considered a failure
 
 #### `validation` parameter (optional)
 
-A boolean expression of a special template format with square brackets `"[[ ... ]]"` instead of curly brackets `"{{ ... }}"`. This is needed to prevent from rendering the expression in advance. `entity_id` is provided as a variable. For example:
+A boolean expression of a special template format with square brackets `"[[ ... ]]"` instead of curly brackets `"{{ ... }}"`. This is needed to prevent from rendering the expression in advance. The template can use the following variables: `entity_id`, `action`, and any other parameter provided to the inner action. For example:
 
 ```
 action: retry.action
 data:
   action: light.turn_on
   brightness: 70
-  validation: "[[ state_attr(entity_id, 'brightness') == 70 ]]"
+  validation: "[[ state_attr(entity_id, 'brightness') == brightness ]]"
 target:
   entity_id: light.kitchen
 ```
