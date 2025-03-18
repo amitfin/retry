@@ -115,6 +115,7 @@ async def async_setup(
         vol.Schema(
             {
                 **cv.TARGET_SERVICE_FIELDS,
+                vol.Optional("test"): vol.Any(str, [str]),
             },
         ),
     )
@@ -330,8 +331,11 @@ async def test_validation_success(
         hass,
         {
             ATTR_ENTITY_ID: "binary_sensor.test",
+            "test": ["test"],
             ATTR_VALIDATION: (
-                "[# Test #][% set x = entity_id %][[ states(x) in ['on'] ]]"
+                "[# Test #][% set x = entity_id %]"
+                "[[ states(x) in ['on'] and action == 'retry.test_service'"
+                " and test == ['test'] ]]"
             ),
         },
     )

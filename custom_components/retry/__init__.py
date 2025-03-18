@@ -281,6 +281,9 @@ class RetryAction:
         """Initialize the object."""
         self._hass = hass
         self._params = params
+        self._action = (
+            f"{params.retry_data[ATTR_DOMAIN]}.{params.retry_data[ATTR_SERVICE]}"
+        )
         self._inner_data = params.inner_data.copy()
         if entity_id:
             for key in ENTITY_SERVICE_FIELDS:
@@ -291,6 +294,7 @@ class RetryAction:
                 **self._inner_data,
             }
         self._entity_id = entity_id
+        self._validation_variables = {CONF_ACTION: self._action, **self._inner_data}
         self._context = context
         self._attempt = 1
         self._retry_id = params.retry_data.get(ATTR_RETRY_ID)
@@ -298,10 +302,7 @@ class RetryAction:
             if self._entity_id:
                 self._retry_id = self._entity_id
             else:
-                self._retry_id = (
-                    f"{params.retry_data[ATTR_DOMAIN]}."
-                    + params.retry_data[ATTR_SERVICE]
-                )
+                self._retry_id = self._action
         self._action_str_value = None
         self._start_id()
 
@@ -352,7 +353,7 @@ class RetryAction:
             return True
         return result_as_boolean(
             self._params.retry_data[ATTR_VALIDATION].async_render(
-                variables={"entity_id": self._entity_id} if self._entity_id else None
+                variables=self._validation_variables,
             )
         )
 
@@ -365,9 +366,8 @@ class RetryAction:
     def _compose_action_str(self) -> str:
         """Return a string with the action parameters."""
         service_call = (
-            f"{self._params.retry_data[ATTR_DOMAIN]}."
-            f"{self._params.retry_data[ATTR_SERVICE]}"
-            f"({
+            self._action
+            + f"({
                 ', '.join([f'{key}={value}' for key, value in self._inner_data.items()])
             })"
         )
