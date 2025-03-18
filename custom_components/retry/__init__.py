@@ -75,6 +75,7 @@ DEFAULT_BACKOFF = "{{ 2 ** attempt }}"
 DEFAULT_RETRIES = 7
 DEFAULT_STATE_GRACE = 0.2
 GROUP_DOMAIN = "group"
+ENTITY_SERVICE_FIELDS = [str(key) for key in cv.ENTITY_SERVICE_FIELDS]
 
 _running_retries: dict[str, tuple[str, int]] = {}
 _running_retries_write_lock = threading.Lock()
@@ -282,7 +283,7 @@ class RetryAction:
         self._params = params
         self._inner_data = params.inner_data.copy()
         if entity_id:
-            for key in cv.ENTITY_SERVICE_FIELDS:
+            for key in ENTITY_SERVICE_FIELDS:
                 if key in self._inner_data:
                     del self._inner_data[key]
             self._inner_data = {
