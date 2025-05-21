@@ -21,7 +21,7 @@
     },
     "issues": {
         "failure": {
-            "title": "Zlyhanie servisného volania",
+            "title": "Zlyhanie akcie",
             "description": "`{action}` zlyhané po {retries} pokusoch. Ďalšie informácie nájdete v denníku."
         }
     },
@@ -62,17 +62,21 @@
                     "name": "Pri chybe",
                     "description": "Postupnosť akcií, ktoré sa majú vykonať, ak všetky pokusy zlyhajú."
                 },
+                "repair": {
+                    "name": "Tiket na opravu problému",
+                    "description": "Kontrola vydávania opravných lístkov v prípade poruchy."
+                },
                 "retry_id": {
                     "name": "Zopakovať ID",
                     "description": "Nový hovor zruší predchádzajúci hovor s rovnakým ID (predvolené je ID entity)."
                 }
             }
         },
-        "actions": {
+        "action": {
             "name": "Akcie",
             "description": "V prípade zlyhania zopakujte akciu.",
             "fields": {
-                "sequence": {
+                "action": {
                     "name": "Akcie",
                     "description": "Postupnosť akcií."
                 },
@@ -103,6 +107,10 @@
                 "on_error": {
                     "name": "Pri chybe",
                     "description": "Postupnosť akcií, ktoré sa majú vykonať, ak všetky pokusy zlyhajú."
+                },
+                "repair": {
+                    "name": "Tiket na opravu problému",
+                    "description": "Kontrola vydávania opravných lístkov v prípade poruchy."
                 },
                 "retry_id": {
                     "name": "Zopakovať ID",
@@ -145,6 +153,10 @@
                 "on_error": {
                     "name": "Pri chybe",
                     "description": "Postupnosť akcií, ktoré sa majú vykonať, ak všetky pokusy zlyhajú."
+                },
+                "repair": {
+                    "name": "Tiket na opravu problému",
+                    "description": "Kontrola vydávania opravných lístkov v prípade poruchy."
                 },
                 "retry_id": {
                     "name": "ID opakovania",
