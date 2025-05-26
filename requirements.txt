@@ -1,2 +1,2 @@
 pytest-homeassistant-custom-component
-ruff==0.11.10
+ruff==0.11.11
