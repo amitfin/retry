@@ -368,8 +368,10 @@ class RetryAction:
 
         if ATTR_EXPECTED_STATE in self._params.retry_data and self._entity_id:
             if (
-                ent_obj := _get_entity(self._hass, self._entity_id)
-            ) is None or not ent_obj.available or not self._check_state(ent_obj):
+                (ent_obj := _get_entity(self._hass, self._entity_id)) is None
+                or not ent_obj.available
+                or not self._check_state(ent_obj)
+            ):
                 return False
             result = True
 
