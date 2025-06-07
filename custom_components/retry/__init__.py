@@ -64,6 +64,7 @@ from .const import (
     ATTR_STATE_GRACE,
     ATTR_VALIDATION,
     CALL_SERVICE,
+    CONF_DISABLE_INITIAL_CHECK,
     CONF_DISABLE_REPAIR,
     DOMAIN,
     LOGGER,
@@ -189,6 +190,7 @@ class RetryParams:
     ) -> None:
         """Initialize the object."""
         self.config_entry = config_entry
+        self.config_options = getattr(config_entry, "options", {})
         self.retry_data = self._retry_data(hass, data)
         self.inner_data = self._inner_data(hass, data)
         self.entities = self._entity_ids(hass)
@@ -357,6 +359,27 @@ class RetryAction:
             )
         )
 
+    def _initial_check(self) -> bool:
+        """Check if the state is already as expected and/or the validation passes."""
+        if self._params.config_options.get(CONF_DISABLE_INITIAL_CHECK):
+            return False
+
+        result = False
+
+        if ATTR_EXPECTED_STATE in self._params.retry_data and self._entity_id:
+            if (
+                ent_obj := _get_entity(self._hass, self._entity_id)
+            ) is None or not ent_obj.available or not self._check_state(ent_obj):
+                return False
+            result = True
+
+        if ATTR_VALIDATION in self._params.retry_data:
+            if not self._check_validation():
+                return False
+            result = True
+
+        return result
+
     def __str__(self) -> str:
         """Return a string representation of the object."""
         if self._str_cache is None:
@@ -486,14 +509,15 @@ class RetryAction:
             self._log(logging.INFO, "Cancelled")
             return
         try:
-            await self._hass.services.async_call(
-                self._params.retry_data[ATTR_DOMAIN],
-                self._params.retry_data[ATTR_SERVICE],
-                self._inner_data.copy(),
-                blocking=True,
-                context=Context(self._context.user_id, self._context.id),
-            )
-            await self._async_validate()
+            if not self._initial_check():
+                await self._hass.services.async_call(
+                    self._params.retry_data[ATTR_DOMAIN],
+                    self._params.retry_data[ATTR_SERVICE],
+                    self._inner_data.copy(),
+                    blocking=True,
+                    context=Context(self._context.user_id, self._context.id),
+                )
+                await self._async_validate()
             self._log(
                 logging.DEBUG if self._attempt == 1 else logging.INFO, "Succeeded"
             )
@@ -509,9 +533,9 @@ class RetryAction:
             if self._attempt >= self._params.retry_data[ATTR_RETRIES]:
                 issue_repair = self._params.retry_data.get(ATTR_REPAIR)
                 if issue_repair is None:
-                    issue_repair = not getattr(
-                        self._params.config_entry, "options", {}
-                    ).get(CONF_DISABLE_REPAIR)
+                    issue_repair = not self._params.config_options.get(
+                        CONF_DISABLE_REPAIR
+                    )
                 if issue_repair:
                     self._repair()
                 self._end_id()

@@ -64,6 +64,7 @@ from custom_components.retry.const import (
     ATTR_STATE_GRACE,
     ATTR_VALIDATION,
     CALL_SERVICE,
+    CONF_DISABLE_INITIAL_CHECK,
     CONF_DISABLE_REPAIR,
     DOMAIN,
 )
@@ -304,12 +305,22 @@ async def test_state_delay(
     ) in caplog.text
 
 
+@pytest.mark.parametrize(
+    ("options", "call_count"),
+    [
+        ({}, 0),
+        ({CONF_DISABLE_INITIAL_CHECK: True}, 1),
+    ],
+    ids=["initial check", "without initial check"],
+)
 async def test_entity_expected_state_list(
     hass: HomeAssistant,
     freezer: FrozenDateTimeFactory,
+    options: dict[str, Any],
+    call_count: int,
 ) -> None:
     """Test list of expected states."""
-    calls = await async_setup(hass, raises=False)
+    calls = await async_setup(hass, raises=False, options=options)
     await async_call(
         hass,
         {
@@ -318,7 +329,7 @@ async def test_entity_expected_state_list(
         },
     )
     await async_shutdown(hass, freezer)
-    assert len(calls) == 1
+    assert len(calls) == call_count
 
 
 async def test_validation_success(
@@ -340,7 +351,7 @@ async def test_validation_success(
         },
     )
     await async_shutdown(hass, freezer)
-    assert len(calls) == 1
+    assert len(calls) == 0
 
 
 async def test_float_point_zero(
@@ -366,7 +377,7 @@ async def test_float_point_zero(
         },
     )
     await async_shutdown(hass, freezer)
-    assert len(calls) == 1
+    assert len(calls) == 0
 
 
 async def test_retry_id_cancellation(
@@ -544,7 +555,7 @@ async def test_validation_in_automation(
                                 CONF_ACTION: f"{DOMAIN}.tick",
                                 ATTR_VALIDATION: (
                                     "[[ now().timestamp() == "
-                                    f"{dt_util.now().timestamp()} ]]"
+                                    f"{dt_util.now().timestamp() - 1} ]]"
                                 ),
                             },
                         }
@@ -1043,7 +1054,7 @@ async def test_actions_propagating_successful_validation(
         blocking=True,
     )
     await async_shutdown(hass, freezer)
-    assert len(calls) == 1
+    assert len(calls) == 0
 
 
 @pytest.mark.parametrize(

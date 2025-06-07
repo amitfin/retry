@@ -14,6 +14,7 @@
     "step": {
       "init": {
         "data": {
+          "disable_initial_check": "Disable initial check",
           "disable_repair": "Disable repair tickets"
         }
       }

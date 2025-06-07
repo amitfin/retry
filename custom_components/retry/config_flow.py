@@ -16,7 +16,7 @@ from homeassistant.helpers import selector
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigFlowResult
 
-from .const import CONF_DISABLE_REPAIR, DOMAIN
+from .const import CONF_DISABLE_INITIAL_CHECK, CONF_DISABLE_REPAIR, DOMAIN
 
 
 class RetryConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -70,11 +70,17 @@ class OptionsFlowHandler(OptionsFlow):
             data_schema=vol.Schema(
                 {
                     vol.Required(
+                        CONF_DISABLE_INITIAL_CHECK,
+                        default=self._config_entry.options.get(
+                            CONF_DISABLE_INITIAL_CHECK, False
+                        ),
+                    ): selector.BooleanSelector(),
+                    vol.Required(
                         CONF_DISABLE_REPAIR,
                         default=self._config_entry.options.get(
                             CONF_DISABLE_REPAIR, False
                         ),
                     ): selector.BooleanSelector(),
-                }
+                },
             ),
         )
