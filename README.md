@@ -121,6 +121,8 @@ target:
 
 If the new state is different than expected, the attempt is considered a failure and the loop of retries continues. The `expected_state` parameter can be a list and it supports templates.
 
+The state is also checked before the first attempt. If it's valid, the action is not performed even once. It's possible to disable the initial check in the [integration's configuration dialog](https://my.home-assistant.io/redirect/integration/?domain=retry) which ensures the action gets performed at least once.
+
 #### `validation` parameter (optional)
 
 A boolean expression of a special template format with square brackets `"[[ ... ]]"` instead of curly brackets `"{{ ... }}"`. This is needed to prevent from rendering the expression in advance. The template can use the following variables: `entity_id`, `action`, and any other parameter provided to the inner action. For example:
@@ -136,6 +138,8 @@ target:
 ```
 
 The boolean expression is rendered after each inner action attempt. If the value is False, the attempt is considered a failure and the loop of retries continues.
+
+The `validation` is also checked before the first attempt. If it passes, the action is not performed even once. It's possible to disable the initial check in the [integration's configuration dialog](https://my.home-assistant.io/redirect/integration/?domain=retry) which ensures the action gets performed at least once.
 
 Note: `validation: "[[ states(entity_id) == 'on' ]]"` has an identical logic and impact as setting `expected_state: "on"`. Therefore, `expected_state` is preferable from simplicity reasons.
 
