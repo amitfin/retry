@@ -19,7 +19,7 @@ Here is a short demo of using `retry.actions` in the automation rule editor:
 
 https://github.com/user-attachments/assets/69b4db6b-80c6-4527-b088-e10b68e0f18c
 
-`retry.actions` wraps any action inside the sequence of actions with `retry.action`. `retry.action` performs the original action with a background retry logic on failures. A complex sequence of actions with a nested structure and conditions is supported. `retry.actions` traverses through the actions and wraps any action step. There is no impact or changes to the rest of the steps. The detailed behavior and the list of optional parameters of `retry.action` is explained in the section below. All features and parameters of `retry.action` are also supported by `retry.actions`, so there is no reason to use a YAML configuration. A straightforward UI usage as demonstrated above should be the way to go.
+`retry.actions` wraps any action inside the sequence of actions with `retry.action`. `retry.action` performs the original action with a background retry logic on failures. A complex sequence of actions with a nested structure and conditions is supported. `retry.actions` traverses through the steps and wraps any action step. There is no impact or changes to the rest of the steps. The detailed behavior and the list of optional parameters of `retry.action` is explained in the section below. All features and parameters of `retry.action` are also supported by `retry.actions`, so there is no reason to use a YAML configuration. A straightforward UI usage as demonstrated above should be the way to go.
 
 Note: `retry.actions` and `retry.action` are not suitable for the following scenarios:
 
@@ -28,7 +28,7 @@ Note: `retry.actions` and `retry.action` are not suitable for the following scen
 3. The order of performing the actions successfully is not guaranteed since retries are running in the background. It's possible however to use a synchronization statement which can be placed between 2 retry actions. For example:
 ```
 wait_for_trigger:
- - trigger: state
+  - trigger: state
     entity_id: domain.state_1
     to: "on"
 timeout: 60
@@ -141,7 +141,7 @@ The boolean expression is rendered after each inner action attempt. If the value
 
 The `validation` is also checked before the first attempt. If it passes, the action is not performed even once. It's possible to disable the initial check in the [integration's configuration dialog](https://my.home-assistant.io/redirect/integration/?domain=retry) which ensures the action gets performed at least once.
 
-Note: `validation: "[[ states(entity_id) == 'on' ]]"` has an identical logic and impact as setting `expected_state: "on"`. Therefore, `expected_state` is preferable from simplicity reasons.
+Note: `validation: "[[ states(entity_id) == 'on' ]]"` has an identical logic and impact as setting `expected_state: "on"`. Therefore, `expected_state` is simpler and preferable.
 
 #### `state_delay` parameter (optional)
 
