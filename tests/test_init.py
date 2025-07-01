@@ -1226,14 +1226,22 @@ async def test_event_context(
     for call in calls:
         assert call.context.user_id == hass_admin_user.id
         assert call.data["domain"] == DOMAIN
-    assert calls[0].data["service"] == ACTIONS_SERVICE
-    assert calls[0].context.parent_id is None
-    assert calls[1].data["service"] == ACTION_SERVICE
-    assert calls[1].context.parent_id == calls[0].context.id
-    assert calls[2].data["service"] == TEST_SERVICE
-    assert calls[2].context.parent_id == calls[1].context.id
-    assert calls[3].data["service"] == TEST_ON_ERROR_SERVICE
-    assert calls[3].context.parent_id == calls[1].context.id
+    contexts = []
+    for action, parent in (
+        (ACTIONS_SERVICE, None),
+        (ACTION_SERVICE, 0),
+        (TEST_SERVICE, 1),
+        (TEST_ON_ERROR_SERVICE, 1),
+    ):
+        for call in calls:
+            if call.data["service"] == action:
+                assert call.context.parent_id == (
+                    contexts[parent] if parent is not None else None
+                )
+                contexts.append(call.context.id)
+                break
+        else:
+            pytest.fail(f"'{action}' call was not found")
 
 
 async def test_legacy_service_key_call(
