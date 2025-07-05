@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, Mock
 import homeassistant.util.dt as dt_util
 import pytest
 import voluptuous as vol
+import yaml
 from homeassistant.const import (
     ATTR_DEVICE_ID,
     ATTR_ENTITY_ID,
@@ -1382,3 +1383,36 @@ async def test_script_run_templates(
             await async_call
         assert exception.value.msg == "expected float"
     await hass.async_block_till_done()
+
+
+async def test_device_id(hass: HomeAssistant) -> None:
+    """Test action with device_id - issue #186."""
+    action_was_called = False
+
+    @callback
+    def async_service(service_call: ServiceCall) -> None:
+        """Mock service call."""
+        nonlocal action_was_called
+        action_was_called = True
+        assert service_call.data["device_id"] == "xxxxxxxx"
+
+    await async_setup(hass)
+
+    hass.services.async_register("easee", "action_command", async_service)
+
+    action_data = yaml.safe_load("""
+sequence:
+  - action: easee.action_command
+    data:
+      device_id: xxxxxxxx
+      action_command: override_schedule
+""")
+
+    await hass.services.async_call(
+        DOMAIN,
+        ACTIONS_SERVICE,
+        action_data,
+        blocking=True,
+    )
+
+    assert action_was_called
