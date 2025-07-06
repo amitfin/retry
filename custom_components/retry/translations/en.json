@@ -63,6 +63,10 @@
                     "name": "On Error",
                     "description": "Sequence of actions to perform if all retries fail."
                 },
+                "ignore_target": {
+                    "name": "Ignore Target",
+                    "description": "When set to true, the action does not try to resolve, expand and isolate the entities. The original target parameters are passed to the inner action as provided."
+                },
                 "repair": {
                     "name": "Issue Repair Ticket",
                     "description": "Control issuing repair tickets on failure."
@@ -109,6 +113,10 @@
                     "name": "On Error",
                     "description": "Sequence of actions to perform if all retries fail."
                 },
+                "ignore_target": {
+                    "name": "Ignore Target",
+                    "description": "When set to true, the action does not try to resolve, expand and isolate the entities. The original target parameters are passed to the inner action as provided."
+                },
                 "repair": {
                     "name": "Issue Repair Ticket",
                     "description": "Control issuing repair tickets on failure."
@@ -154,6 +162,10 @@
                 "on_error": {
                     "name": "On Error",
                     "description": "Sequence of actions to perform if all retries fail."
+                },
+                "ignore_target": {
+                    "name": "Ignore Target",
+                    "description": "When set to true, the action does not try to resolve, expand and isolate the entities. The original target parameters are passed to the inner action as provided."
                 },
                 "repair": {
                     "name": "Issue Repair Ticket",

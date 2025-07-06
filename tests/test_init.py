@@ -56,6 +56,7 @@ from custom_components.retry.const import (
     ACTIONS_SERVICE,
     ATTR_BACKOFF,
     ATTR_EXPECTED_STATE,
+    ATTR_IGNORE_TARGET,
     ATTR_ON_ERROR,
     ATTR_REPAIR,
     ATTR_RETRIES,
@@ -235,6 +236,33 @@ async def test_selective_retry(
     assert called_entities.count(["binary_sensor.test"]) == 1
     assert called_entities.count(["binary_sensor.invalid"]) == 7
     assert ATTR_DEVICE_ID not in calls[0].data
+
+
+async def test_ignore_target(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test ignore_target parameter."""
+    entities = ["binary_sensor.test", "binary_sensor.invalid"]
+    calls = await async_setup(hass)
+    await async_call(
+        hass,
+        {
+            ATTR_ENTITY_ID: entities,
+            ATTR_DEVICE_ID: ENTITY_MATCH_NONE,
+            ATTR_IGNORE_TARGET: True,
+        },
+    )
+    await async_shutdown(hass, freezer)
+    assert len(calls) == 7
+    assert calls[0].data[ATTR_ENTITY_ID] == entities
+    assert calls[0].data[ATTR_DEVICE_ID] == ENTITY_MATCH_NONE
+    assert (
+        "[Failed]: attempt 7/7: retry.test_service("
+        "entity_id=['binary_sensor.test', 'binary_sensor.invalid'], device_id=none)"
+        "[ignore_target=True]"
+    ) in caplog.text
 
 
 @pytest.mark.parametrize(
@@ -646,6 +674,50 @@ async def test_invalid_validation(hass: HomeAssistant) -> None:
     await async_setup(hass)
     with pytest.raises(vol.Invalid):
         await async_call(hass, {ATTR_VALIDATION: "static"})
+
+
+async def test_state_with_ignore_target(hass: HomeAssistant) -> None:
+    """Test providing expected state with ignore_target option."""
+    await async_setup(hass)
+
+    with pytest.raises(vol.Invalid) as error:
+        await async_call(hass, {ATTR_EXPECTED_STATE: "test", ATTR_IGNORE_TARGET: True})
+    assert (
+        str(error.value) == "must contain at most one of expected_state, ignore_target."
+    )
+
+    with pytest.raises(vol.Invalid) as error:
+        await hass.services.async_call(
+            DOMAIN,
+            ACTIONS_SERVICE,
+            {
+                CONF_SEQUENCE: BASIC_SEQUENCE_DATA,
+                ATTR_EXPECTED_STATE: "test",
+                ATTR_IGNORE_TARGET: True,
+            },
+            blocking=True,
+        )
+    assert (
+        str(error.value) == "must contain at most one of expected_state, ignore_target."
+    )
+
+
+async def test_state_no_entity(hass: HomeAssistant) -> None:
+    """Test providing expected state without an entity."""
+    await async_setup(hass)
+
+    with pytest.raises(IntegrationError) as error:
+        await async_call(hass, {ATTR_EXPECTED_STATE: "test"})
+    assert str(error.value) == "expected_state parameter requires an entity"
+
+    with pytest.raises(IntegrationError) as error:
+        await hass.services.async_call(
+            DOMAIN,
+            ACTIONS_SERVICE,
+            {CONF_SEQUENCE: BASIC_SEQUENCE_DATA, ATTR_EXPECTED_STATE: "test"},
+            blocking=True,
+        )
+    assert str(error.value) == "expected_state parameter requires an entity"
 
 
 @pytest.mark.parametrize(

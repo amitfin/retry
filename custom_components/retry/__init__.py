@@ -56,6 +56,7 @@ from .const import (
     ACTIONS_SERVICE,
     ATTR_BACKOFF,
     ATTR_EXPECTED_STATE,
+    ATTR_IGNORE_TARGET,
     ATTR_ON_ERROR,
     ATTR_REPAIR,
     ATTR_RETRIES,
@@ -140,9 +141,10 @@ SERVICE_SCHEMA_BASE_FIELDS = {
     vol.Optional(ATTR_VALIDATION): _validation_parameter,
     vol.Required(ATTR_STATE_DELAY, default=0): cv.positive_float,  # type: ignore[reportArgumentType]
     vol.Required(ATTR_STATE_GRACE, default=DEFAULT_STATE_GRACE): cv.positive_float,  # type: ignore[reportArgumentType]
-    vol.Optional(ATTR_RETRY_ID): vol.Any(cv.string, None),
     vol.Optional(ATTR_ON_ERROR): cv.SCRIPT_SCHEMA,
+    vol.Optional(ATTR_IGNORE_TARGET): cv.boolean,
     vol.Optional(ATTR_REPAIR): cv.boolean,
+    vol.Optional(ATTR_RETRY_ID): vol.Any(cv.string, None),
 }
 ACTION_SERVICE_PARAMS = vol.Schema(
     {
@@ -156,15 +158,19 @@ ACTION_SERVICE_SCHEMA = vol.All(
     cv.has_at_least_one_key(ATTR_SERVICE, CONF_ACTION),
     cv.has_at_most_one_key(ATTR_SERVICE, CONF_ACTION),
     _rename_legacy_service_key,
+    cv.has_at_most_one_key(ATTR_EXPECTED_STATE, ATTR_IGNORE_TARGET),
     ACTION_SERVICE_PARAMS,
 )
 
-ACTIONS_SERVICE_SCHEMA = vol.Schema(
-    {
-        **SERVICE_SCHEMA_BASE_FIELDS,
-        vol.Required(CONF_SEQUENCE): cv.SCRIPT_SCHEMA,
-    },
-    extra=vol.ALLOW_EXTRA,
+ACTIONS_SERVICE_SCHEMA = vol.All(
+    cv.has_at_most_one_key(ATTR_EXPECTED_STATE, ATTR_IGNORE_TARGET),
+    vol.Schema(
+        {
+            **SERVICE_SCHEMA_BASE_FIELDS,
+            vol.Required(CONF_SEQUENCE): cv.SCRIPT_SCHEMA,
+        },
+        extra=vol.ALLOW_EXTRA,
+    ),
 )
 
 
@@ -194,6 +200,9 @@ class RetryParams:
         self.retry_data = self._retry_data(hass, data)
         self.inner_data = self._inner_data(hass, data)
         self.entities = self._entity_ids(hass)
+        if not self.entities and ATTR_EXPECTED_STATE in self.retry_data:
+            message = f"{ATTR_EXPECTED_STATE} parameter requires an entity"
+            raise IntegrationError(message)
 
     @staticmethod
     def _retry_data(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
@@ -245,6 +254,8 @@ class RetryParams:
 
     def _entity_ids(self, hass: HomeAssistant) -> list[str]:
         """Extract and expand entity ids."""
+        if self.retry_data.get(ATTR_IGNORE_TARGET):
+            return []
         if self.inner_data.get(ATTR_ENTITY_ID) == ENTITY_MATCH_ALL:
             # Assuming it's a component (domain) service and not platform specific.
             # AFAIK, it's not possible to get the platform by the service name.
@@ -288,12 +299,13 @@ class RetryAction:
         )
         self._inner_data = params.inner_data.copy()
         if entity_id:
-            for key in ENTITY_SERVICE_FIELDS:
-                if key in self._inner_data:
-                    del self._inner_data[key]
             self._inner_data = {
                 ATTR_ENTITY_ID: entity_id,
-                **self._inner_data,
+                **{
+                    key: value
+                    for key, value in self._inner_data.items()
+                    if key not in ENTITY_SERVICE_FIELDS
+                },
             }
         self._entity_id = entity_id
         self._validation_variables = {CONF_ACTION: self._action, **self._inner_data}
@@ -426,6 +438,11 @@ class RetryAction:
                 ATTR_STATE_GRACE,
                 self._params.retry_data[ATTR_STATE_GRACE],
                 DEFAULT_STATE_GRACE,
+            ),
+            (
+                ATTR_IGNORE_TARGET,
+                self._params.retry_data.get(ATTR_IGNORE_TARGET, False),
+                False,
             ),
             (
                 ATTR_RETRY_ID,

@@ -52,6 +52,9 @@ call:
           max: 180.0
           unit_of_measurement: seconds
           mode: box
+    ignore_target:
+      selector:
+        boolean:
     on_error:
       selector:
         action:
@@ -118,6 +121,9 @@ action:
     on_error:
       selector:
         action:
+    ignore_target:
+      selector:
+        boolean:
     repair:
       selector:
         boolean:
@@ -177,6 +183,9 @@ actions:
           max: 180.0
           unit_of_measurement: seconds
           mode: box
+    ignore_target:
+      selector:
+        boolean:
     on_error:
       selector:
         action:

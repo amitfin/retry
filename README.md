@@ -207,6 +207,18 @@ action:
 
 Note that each entity is running individually when the inner action has a list of entities. In such a case `on_error` can get performed multiple times, once per each failed entity. Similarly, `retry.actions` has a sequence of actions which might include multiple actions. This can also cause `on_error` to get performed multiple times, once per each failed inner action.
 
+#### `ignore_target` parameter (optional)
+
+Many actions support a list of entities either by providing an explicit list in the `entity_id` parameter or by [targeting areas and devices](https://www.home-assistant.io/docs/scripts/service-calls/#targeting-areas-and-devices). It's also possible to specify a [group](https://www.home-assistant.io/integrations/group) entity. By default, there is a separate retry loop per entity to isolate failures. Group entities are expanded, recursively. However, there are cases where the inner action should get the target parameters without modifications. When this parameter is set to true, there is no try to resolve, expand and isolate the entities. The original target parameters are passed to the inner action as provided.
+
+There are multiple implications for using this option:
+1. There is no validation of entities' availability.
+2. The parameter `expected_state` can't be used.
+3. `entity_id` is not provided to template expressions.
+4. There is a single retry loop, i.e. no failure isolation between different entities.
+
+It's recommended to use the `validation` parameter when using this option.
+
 #### `repair` parameter (optional)
 
 A boolean parameter controlling whether to issue repair tickets on failure. The system default is used when the parameter is not provided. The system default can be configured via the [integration's configuration dialog](https://my.home-assistant.io/redirect/integration/?domain=retry).
@@ -221,10 +233,9 @@ Note that each entity is running individually when the inner action has a list o
 
 It's possible to disable the cancellation logic by setting `retry_id` to an empty string (`retry_id: ""`) or null (`retry_id: null`). In such a case, the action doesn't cancel any other running action and will not be canceled by any other future action. Note that it's not possible to set `retry_id` to an empty string or null via the "UI Mode" but instead the "YAML Mode" in the UI should be used.
 
-### Notes
+### Logging
 
-1. The action does not propagate inner action failures (exceptions) since the attempts are done in the background. However, the action logs a warning when the inner function fails (on every attempt). It also logs an error and issue a repair ticket when the maximum amount of attempts is reached.
-2. Action supports a list of entities either by providing an explicit list or by [targeting areas and devices](https://www.home-assistant.io/docs/scripts/service-calls/#targeting-areas-and-devices). It's also possible to specify a [group](https://www.home-assistant.io/integrations/group) entity. The inner action is performed individually per entity to isolate failures. Group entities are expanded (recursively.)
+The action does not propagate inner action failures (exceptions) since the attempts are done in the background. However, the action logs a warning when the inner function fails (on every attempt). It also logs an error and issue a repair ticket when the maximum amount of attempts is reached.
 
 ## Install
 
