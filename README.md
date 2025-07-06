@@ -216,6 +216,7 @@ There are multiple implications for using this option:
 2. The parameter `expected_state` can't be used.
 3. `entity_id` is not provided to template expressions.
 4. There is a single retry loop, i.e. no failure isolation between different entities.
+5. The `retry_id` is the action name, similar to actions without `entity_id`.
 
 It's recommended to use the `validation` parameter when using this option.
 
