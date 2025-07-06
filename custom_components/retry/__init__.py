@@ -313,10 +313,7 @@ class RetryAction:
         self._attempt = 1
         self._retry_id = params.retry_data.get(ATTR_RETRY_ID)
         if ATTR_RETRY_ID not in params.retry_data:
-            if self._entity_id:
-                self._retry_id = self._entity_id
-            else:
-                self._retry_id = self._action
+            self._retry_id = self._entity_id or self._action
         self._str_cache = None
         self._start_id()
 
