@@ -699,6 +699,7 @@ async def async_setup_entry(_hass: HomeAssistant, _config_entry: ConfigEntry) ->
     """Set up config entry."""
     return True
 
+
 async def async_unload_entry(_hass: HomeAssistant, _config_entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     return True
