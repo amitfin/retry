@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any
 
 import homeassistant.util.dt as dt_util
 import voluptuous as vol
-from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
+from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry, ConfigEntryState
 from homeassistant.const import (
     ATTR_DOMAIN,
     ATTR_ENTITY_ID,
@@ -32,6 +32,7 @@ from homeassistant.exceptions import (
     IntegrationError,
     InvalidStateError,
     ServiceNotFound,
+    ServiceValidationError,
 )
 from homeassistant.helpers import (
     config_validation as cv,
@@ -626,12 +627,29 @@ def _wrap_actions(  # noqa: PLR0912
                 _wrap_actions(hass, action[CONF_SEQUENCE], retry_params)
 
 
-async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
-    """Set up domain."""
+async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
+    """Set up integration."""
+    if not hass.config_entries.async_entries(DOMAIN):
+        hass.async_create_task(
+            hass.config_entries.flow.async_init(
+                DOMAIN, context={"source": SOURCE_IMPORT}
+            )
+        )
+
+    def get_config_entry() -> ConfigEntry | None:
+        """Get the config entry for the retry integration."""
+        config_entries = hass.config_entries.async_entries(DOMAIN)
+        if not config_entries:
+            message = "Config entry not found"
+            raise ServiceValidationError(message)
+        if config_entries[0].state is not ConfigEntryState.LOADED:
+            message = "Config entry not loaded"
+            raise ServiceValidationError(message)
+        return config_entries[0]
 
     async def async_action(service_call: ServiceCall) -> None:
         """Perform action with background retries."""
-        params = RetryParams(hass, config_entry, service_call.data)
+        params = RetryParams(hass, get_config_entry(), service_call.data)
         for entity_id in params.entities or [None]:
             hass.async_create_task(
                 RetryAction(hass, params, service_call.context, entity_id).async_retry()
@@ -677,20 +695,10 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     return True
 
 
-async def async_setup(hass: HomeAssistant, _: ConfigType) -> bool:
-    """Create config entry from configuration.yaml."""
-    if not hass.config_entries.async_entries(DOMAIN):
-        hass.async_create_task(
-            hass.config_entries.flow.async_init(
-                DOMAIN, context={"source": SOURCE_IMPORT}
-            )
-        )
+async def async_setup_entry(_hass: HomeAssistant, _config_entry: ConfigEntry) -> bool:
+    """Set up config entry."""
     return True
 
-
-async def async_unload_entry(hass: HomeAssistant, _: ConfigEntry) -> bool:
+async def async_unload_entry(_hass: HomeAssistant, _config_entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    hass.services.async_remove(DOMAIN, ACTION_SERVICE)
-    hass.services.async_remove(DOMAIN, CALL_SERVICE)
-    hass.services.async_remove(DOMAIN, ACTIONS_SERVICE)
     return True

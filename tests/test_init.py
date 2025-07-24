@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, Mock
 import homeassistant.util.dt as dt_util
 import pytest
 import voluptuous as vol
+from homeassistant.config_entries import ConfigEntryDisabler
 from homeassistant.const import (
     ATTR_DEVICE_ID,
     ATTR_ENTITY_ID,
@@ -39,6 +40,7 @@ from homeassistant.core import Context, HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import (
     IntegrationError,
     ServiceNotFound,
+    ServiceValidationError,
 )
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import issue_registry as ir
@@ -840,23 +842,58 @@ async def test_identical_repair(
     assert len(ir.async_get(hass).issues) == 1
 
 
-async def test_unload(hass: HomeAssistant) -> None:
-    """Test we abort if already setup."""
-    config_entry = MockConfigEntry(domain=DOMAIN)
-    config_entry.add_to_hass(hass)
-    assert await hass.config_entries.async_setup(config_entry.entry_id)
-    await hass.async_block_till_done()
-
-    assert hass.services.has_service(DOMAIN, ACTION_SERVICE)
-    assert hass.services.has_service(DOMAIN, ACTIONS_SERVICE)
-    assert hass.services.has_service(DOMAIN, CALL_SERVICE)
-
-    assert await hass.config_entries.async_remove(config_entry.entry_id)
-    await hass.async_block_till_done()
-
+async def test_action_without_config_entry(hass: HomeAssistant) -> None:
+    """Test action service without config entry."""
     assert not hass.services.has_service(DOMAIN, ACTION_SERVICE)
     assert not hass.services.has_service(DOMAIN, ACTIONS_SERVICE)
     assert not hass.services.has_service(DOMAIN, CALL_SERVICE)
+    with pytest.raises(ServiceNotFound):
+        await hass.services.async_call(
+            DOMAIN,
+            ACTION_SERVICE,
+            {CONF_ACTION: f"{DOMAIN}.{TEST_SERVICE}"},
+            blocking=True,
+        )
+
+    config_entry = MockConfigEntry(domain=DOMAIN)
+    config_entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(config_entry.entry_id)
+
+    async def async_test(service_call: ServiceCall) -> None:
+        pass
+
+    hass.services.async_register(DOMAIN, TEST_SERVICE, async_test)
+
+    await hass.services.async_call(
+        DOMAIN,
+        ACTION_SERVICE,
+        {CONF_ACTION: f"{DOMAIN}.{TEST_SERVICE}"},
+        blocking=True,
+    )
+
+    assert await hass.config_entries.async_set_disabled_by(
+        config_entry.entry_id, ConfigEntryDisabler.USER
+    )
+
+    with pytest.raises(ServiceValidationError) as exc:
+        await hass.services.async_call(
+            DOMAIN,
+            ACTION_SERVICE,
+            {CONF_ACTION: f"{DOMAIN}.{TEST_SERVICE}"},
+            blocking=True,
+        )
+    assert str(exc.value) == "Config entry not loaded"
+
+    assert await hass.config_entries.async_remove(config_entry.entry_id)
+
+    with pytest.raises(ServiceValidationError) as exc:
+        await hass.services.async_call(
+            DOMAIN,
+            ACTION_SERVICE,
+            {CONF_ACTION: f"{DOMAIN}.{TEST_SERVICE}"},
+            blocking=True,
+        )
+    assert str(exc.value) == "Config entry not found"
 
 
 async def test_configuration_yaml(hass: HomeAssistant) -> None:
