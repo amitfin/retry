@@ -636,8 +636,8 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
             )
         )
 
-    def get_config_entry() -> ConfigEntry | None:
-        """Get the config entry for the retry integration."""
+    def get_config_entry() -> ConfigEntry:
+        """Get integration's config first (and only) entry."""
         config_entries = hass.config_entries.async_entries(DOMAIN)
         if not config_entries:
             message = "Config entry not found"
