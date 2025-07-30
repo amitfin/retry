@@ -254,6 +254,18 @@ The Retry integration should also be added to the configuration in order to use 
 
 It's also possible to add the integration via `configuration.yaml` by adding the single line `retry:`.
 
+## Uninstall
+
+1. **Delete the configuration:**
+   - Open the integration page ([my-link](https://my.home-assistant.io/redirect/integration/?domain=retry)), click the 3‑dot menu (⋮), and select **Delete**.
+   - Delete the line `retry:` if the integration was added to the `configuration.yaml`.
+
+2. **Remove the integration files:**
+   - If the integration was installed via **HACS**, follow the [official HACS removal instructions](https://www.hacs.xyz/docs/use/repositories/dashboard/#removing-a-repository).
+   - Otherwise, manually delete the integration’s folder `custom_components/retry`.
+
+📌 A **Home Assistant core restart** is required to fully apply the removal.
+
 ## Contributions are welcome!
 
 If you want to contribute to this please read the [Contribution guidelines](CONTRIBUTING.md)
