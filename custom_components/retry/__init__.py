@@ -532,7 +532,7 @@ class RetryAction:
                     self._params.retry_data[ATTR_SERVICE],
                     self._inner_data.copy(),
                     blocking=True,
-                    context=Context(self._context.user_id, self._context.id),
+                    context=self._context,
                 )
                 await self._async_validate()
             self._log(
@@ -563,7 +563,7 @@ class RetryAction:
                         run_variables={ATTR_ENTITY_ID: self._entity_id}
                         if self._entity_id
                         else None,
-                        context=Context(self._context.user_id, self._context.id),
+                        context=self._context,
                     )
                 return
             next_retry = dt_util.now() + datetime.timedelta(
@@ -685,7 +685,7 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
         }
         _wrap_actions(hass, sequence, retry_params)
         await script.Script(hass, sequence, ACTIONS_SERVICE, DOMAIN).async_run(
-            context=Context(service_call.context.user_id, service_call.context.id)
+            context=service_call.context
         )
 
     hass.services.async_register(

@@ -1316,6 +1316,7 @@ async def test_event_context(
     hass.bus.async_listen(EVENT_CALL_SERVICE, listener)
 
     await async_setup(hass)
+    context = Context(hass_admin_user.id)
     await hass.services.async_call(
         DOMAIN,
         ACTIONS_SERVICE,
@@ -1325,7 +1326,7 @@ async def test_event_context(
             ATTR_ON_ERROR: [{CONF_ACTION: f"{DOMAIN}.{TEST_ON_ERROR_SERVICE}"}],
         },
         blocking=True,
-        context=Context(hass_admin_user.id),
+        context=context,
     )
     await hass.async_block_till_done()
     await async_shutdown(hass, freezer)
@@ -1333,24 +1334,14 @@ async def test_event_context(
     calls = [call_args.args[0] for call_args in listener.call_args_list]
     assert len(calls) == 4
     for call in calls:
-        assert call.context.user_id == hass_admin_user.id
+        assert call.context == context
         assert call.data["domain"] == DOMAIN
-    contexts = []
-    for action, parent in (
-        (ACTIONS_SERVICE, None),
-        (ACTION_SERVICE, 0),
-        (TEST_SERVICE, 1),
-        (TEST_ON_ERROR_SERVICE, 1),
-    ):
-        for call in calls:
-            if call.data["service"] == action:
-                assert call.context.parent_id == (
-                    contexts[parent] if parent is not None else None
-                )
-                contexts.append(call.context.id)
-                break
-        else:
-            pytest.fail(f"'{action}' call was not found")
+    assert {call.data["service"] for call in calls} == {
+        ACTIONS_SERVICE,
+        ACTION_SERVICE,
+        TEST_SERVICE,
+        TEST_ON_ERROR_SERVICE,
+    }
 
 
 async def test_legacy_service_key_call(
