@@ -73,11 +73,26 @@ from custom_components.retry.const import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from freezegun.api import FrozenDateTimeFactory
 
 TEST_SERVICE = "test_service"
 TEST_ON_ERROR_SERVICE = "test_on_error_service"
 BASIC_SEQUENCE_DATA = [{CONF_ACTION: f"{DOMAIN}.{TEST_SERVICE}"}]
+
+
+@pytest.fixture(autouse=True)
+def nothing_deprecated(caplog: pytest.LogCaptureFixture) -> Generator[None]:
+    """Ensure no deprecation warnings are logged."""
+    yield
+    for record in caplog.get_records(when="call"):
+        message = record.getMessage()
+        assert (
+            "deprecated" not in message
+            or "deprecated 'retry.call'" in message
+            or "deprecated 'service' field" in message
+        )
 
 
 async def async_setup(

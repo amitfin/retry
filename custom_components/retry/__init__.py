@@ -27,7 +27,7 @@ from homeassistant.const import (
     CONF_THEN,
     ENTITY_MATCH_ALL,
 )
-from homeassistant.core import Context, HomeAssistant, ServiceCall, callback
+from homeassistant.core import callback
 from homeassistant.exceptions import (
     IntegrationError,
     InvalidStateError,
@@ -45,10 +45,14 @@ from homeassistant.helpers import (
     issue_registry as ir,
 )
 from homeassistant.helpers.entity_component import DATA_INSTANCES, EntityComponent
-from homeassistant.helpers.service import async_extract_referenced_entity_ids
+from homeassistant.helpers.target import (
+    TargetSelectorData,
+    async_extract_referenced_entity_ids,
+)
 from homeassistant.helpers.template import Template, result_as_boolean
 
 if TYPE_CHECKING:
+    from homeassistant.core import Context, HomeAssistant, ServiceCall
     from homeassistant.helpers.entity import Entity
     from homeassistant.helpers.typing import ConfigType
 
@@ -266,16 +270,9 @@ class RetryParams:
                 for entity in (entity_comp.entities if entity_comp else [])
             ]
         entity_ids = []
-        params = {
-            "domain": self.retry_data[ATTR_DOMAIN],
-            "service": self.retry_data[ATTR_SERVICE],
-            "data": self.inner_data,
-        }
-        if "hass" in ServiceCall.__slots__:
-            params["hass"] = hass
         entities = async_extract_referenced_entity_ids(
             hass,
-            ServiceCall(**params),
+            TargetSelectorData(self.inner_data),
         )
         for entity_id in entities.referenced | entities.indirectly_referenced:
             entity_ids.extend(self._expand_group(hass, entity_id))
