@@ -27,56 +27,6 @@
     }
   },
   "services": {
-    "call": {
-      "name": "Call Service",
-      "description": "Retry a service call on failure.",
-      "fields": {
-        "service": {
-          "name": "Service",
-          "description": "The service to retry on failure."
-        },
-        "retries": {
-          "name": "Retries",
-          "description": "Maximum amount of call attempts (default is 7)."
-        },
-        "backoff": {
-          "name": "Backoff",
-          "description": "Special template with square brackets instead of curly brackets for the amount of seconds to wait between attempts. Default is '[[ 2 ** attempt ]]'."
-        },
-        "expected_state": {
-          "name": "Expected State",
-          "description": "The expected state of the entities after the service call."
-        },
-        "validation": {
-          "name": "Validation",
-          "description": "Special template with square brackets instead of curly brackets for validating success."
-        },
-        "state_delay": {
-          "name": "State Delay Period",
-          "description": "Delay period (seconds) before initial expected state and validation (default is 0)."
-        },
-        "state_grace": {
-          "name": "State Grace Period",
-          "description": "Grace period (seconds) before final expected state and validation (default is 0.2)."
-        },
-        "on_error": {
-          "name": "On Error",
-          "description": "Sequence of actions to perform if all retries fail."
-        },
-        "ignore_target": {
-          "name": "Ignore Target",
-          "description": "When set to true, the action does not try to resolve, expand and isolate the entities. The original target parameters are passed to the inner action as provided."
-        },
-        "repair": {
-          "name": "Issue Repair Ticket",
-          "description": "Control issuing repair tickets on failure."
-        },
-        "retry_id": {
-          "name": "Retry ID",
-          "description": "A new call cancels a previous call with the same ID (the default is the entity ID)."
-        }
-      }
-    },
     "action": {
       "name": "Action",
       "description": "Retry an action on failure.",

@@ -26,52 +26,6 @@
         }
     },
     "services": {
-        "call": {
-            "name": "Zavolať službu",
-            "description": "Pri zlyhaní skúsiť znova zavolať službu.",
-            "fields": {
-                "service": {
-                    "name": "Služba",
-                    "description": "Služba na opakovanie pri zlyhaní."
-                },
-                "retries": {
-                    "name": "Opakovania",
-                    "description": "Maximálny počet volaní (predvolená hodnota je 7)."
-                },
-                "backoff": {
-                    "name": "Backoff",
-                    "description": "Špeciálna šablóna s hranatými zátvorkami namiesto zložených zátvoriek pre počet sekúnd čakania medzi pokusmi. Predvolená hodnota je '[[ 2 ** pokus ]]'."
-                },
-                "expected_state": {
-                    "name": "Očakávaný stav",
-                    "description": "Očakávaný stav entít po privolaní služby."
-                },
-                "validation": {
-                    "name": "Validácia",
-                    "description": "Špeciálna šablóna s hranatými zátvorkami namiesto zložených zátvoriek na overenie úspechu."
-                },
-                "state_delay": {
-                    "name": "Perióda oneskorenia stavu",
-                    "description": "Obdobie oneskorenia (v sekundách) pred počiatočným očakávaným stavom a overením (predvolená hodnota je 0)."
-                },
-                "state_grace": {
-                    "name": "Statusová ochranná lehota",
-                    "description": "Ochranná lehota (v sekundách) pre očakávaný stav a overenie (predvolená hodnota je 0,2)."
-                },
-                "on_error": {
-                    "name": "Pri chybe",
-                    "description": "Postupnosť akcií, ktoré sa majú vykonať, ak všetky pokusy zlyhajú."
-                },
-                "repair": {
-                    "name": "Tiket na opravu problému",
-                    "description": "Kontrola vydávania opravných lístkov v prípade poruchy."
-                },
-                "retry_id": {
-                    "name": "Zopakovať ID",
-                    "description": "Nový hovor zruší predchádzajúci hovor s rovnakým ID (predvolené je ID entity)."
-                }
-            }
-        },
         "action": {
             "name": "Akcie",
             "description": "V prípade zlyhania zopakujte akciu.",

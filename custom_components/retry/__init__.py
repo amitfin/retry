@@ -69,7 +69,6 @@ from .const import (
     ATTR_STATE_DELAY,
     ATTR_STATE_GRACE,
     ATTR_VALIDATION,
-    CALL_SERVICE,
     CONF_DISABLE_INITIAL_CHECK,
     CONF_DISABLE_REPAIR,
     DOMAIN,
@@ -123,22 +122,6 @@ def _validation_parameter(value: Any | None) -> str | None:
     return value
 
 
-def _rename_legacy_service_key(value: Any | None) -> Any:
-    if isinstance(value, dict) and ATTR_SERVICE in value:
-        value[CONF_ACTION] = value.pop(ATTR_SERVICE)
-        LOGGER.log(
-            logging.WARNING,
-            (
-                "'service: %s' should be renamed to 'action: %s'. "
-                "Support for the deprecated 'service' field will be removed "
-                "in a future release."
-            ),
-            value[CONF_ACTION],
-            value[CONF_ACTION],
-        )
-    return value
-
-
 SERVICE_SCHEMA_BASE_FIELDS = {
     vol.Required(ATTR_RETRIES, default=DEFAULT_RETRIES): cv.positive_int,  # type: ignore[reportArgumentType]
     vol.Required(ATTR_BACKOFF, default=DEFAULT_BACKOFF): _backoff_parameter,  # type: ignore[reportArgumentType]
@@ -154,15 +137,11 @@ SERVICE_SCHEMA_BASE_FIELDS = {
 ACTION_SERVICE_PARAMS = vol.Schema(
     {
         **SERVICE_SCHEMA_BASE_FIELDS,
-        vol.Optional(ATTR_SERVICE): _template_parameter,
-        vol.Optional(CONF_ACTION): _template_parameter,
+        vol.Required(CONF_ACTION): _template_parameter,
     },
     extra=vol.ALLOW_EXTRA,
 )
 ACTION_SERVICE_SCHEMA = vol.All(
-    cv.has_at_least_one_key(ATTR_SERVICE, CONF_ACTION),
-    cv.has_at_most_one_key(ATTR_SERVICE, CONF_ACTION),
-    _rename_legacy_service_key,
     cv.has_at_most_one_key(ATTR_EXPECTED_STATE, ATTR_IGNORE_TARGET),
     ACTION_SERVICE_PARAMS,
 )
@@ -582,19 +561,12 @@ def _wrap_actions(  # noqa: PLR0912
         action_type = cv.determine_script_action(action)
         match action_type:
             case cv.SCRIPT_ACTION_CALL_SERVICE:
-                domain_service = (
-                    action[CONF_ACTION]
-                    if CONF_ACTION in action
-                    else action[ATTR_SERVICE]
-                )
+                domain_service = action[CONF_ACTION]
                 if domain_service == f"{DOMAIN}.{ACTIONS_SERVICE}":
                     message = "Nested retry.actions are disallowed"
                     raise IntegrationError(message)
-                if domain_service in [
-                    f"{DOMAIN}.{ACTION_SERVICE}",
-                    f"{DOMAIN}.{CALL_SERVICE}",
-                ]:
-                    message = f"{domain_service} inside retry.actions is disallowed"
+                if domain_service == f"{DOMAIN}.{ACTION_SERVICE}":
+                    message = "retry.action inside retry.actions is disallowed"
                     raise IntegrationError(message)
                 action[CONF_SERVICE_DATA] = action.get(CONF_SERVICE_DATA, {})
                 action[CONF_SERVICE_DATA][CONF_ACTION] = domain_service
@@ -654,22 +626,6 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
 
     hass.services.async_register(
         DOMAIN, ACTION_SERVICE, async_action, ACTION_SERVICE_SCHEMA
-    )
-
-    async def async_call(service_call: ServiceCall) -> None:
-        """Legacy 'retry.call' action."""
-        LOGGER.log(
-            logging.WARNING,
-            (
-                "'retry.call' should be renamed to 'retry.action'. "
-                "Support for the deprecated 'retry.call' action will be removed "
-                "in a future release."
-            ),
-        )
-        return await async_action(service_call)
-
-    hass.services.async_register(
-        DOMAIN, CALL_SERVICE, async_call, ACTION_SERVICE_SCHEMA
     )
 
     async def async_actions(service_call: ServiceCall) -> None:

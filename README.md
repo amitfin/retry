@@ -37,8 +37,6 @@ continue_on_timeout: false
 
 ## `retry.action`
 
-(`retry.call` is the previous and obsolete name but can still be used.)
-
 This action wraps an inner action with background retries on failures. It can be useful to mitigate temporary issues of connectivity or invalid device states.
 
 For example, instead of:
@@ -71,8 +69,6 @@ Here is the list of parameters to control the behavior of `retry.action ` (direc
 #### `action` parameter (mandatory)
 
 The `action` parameter is the only mandatory parameter. It contains the name of the inner action. It supports templates.
-
-(`service` is the previous and obsolete parameter name but can still be used. `action` and `service` are mutually exclusive. One of them must be provided.)
 
 #### `retries` parameter (optional)
 

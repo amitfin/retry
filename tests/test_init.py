@@ -13,7 +13,6 @@ from homeassistant.config_entries import ConfigEntryDisabler
 from homeassistant.const import (
     ATTR_DEVICE_ID,
     ATTR_ENTITY_ID,
-    ATTR_SERVICE,
     CONF_ACTION,
     CONF_CHOOSE,
     CONF_CONDITION,
@@ -66,7 +65,6 @@ from custom_components.retry.const import (
     ATTR_STATE_DELAY,
     ATTR_STATE_GRACE,
     ATTR_VALIDATION,
-    CALL_SERVICE,
     CONF_DISABLE_INITIAL_CHECK,
     CONF_DISABLE_REPAIR,
     DOMAIN,
@@ -88,11 +86,7 @@ def nothing_deprecated(caplog: pytest.LogCaptureFixture) -> Generator[None]:
     yield
     for record in caplog.get_records(when="call"):
         message = record.getMessage()
-        assert (
-            "deprecated" not in message
-            or "deprecated 'retry.call'" in message
-            or "deprecated 'service' field" in message
-        )
+        assert "deprecated" not in message
 
 
 async def async_setup(
@@ -197,7 +191,7 @@ async def test_failure(
     caplog: pytest.LogCaptureFixture,
     retries: int,
 ) -> None:
-    """Test failed service calls."""
+    """Test failed actions."""
     repairs = async_capture_events(hass, str(ir.EVENT_REPAIRS_ISSUE_REGISTRY_UPDATED))
     calls = await async_setup(hass)
     data = {}
@@ -861,7 +855,6 @@ async def test_action_without_config_entry(hass: HomeAssistant) -> None:
     """Test action service without config entry."""
     assert not hass.services.has_service(DOMAIN, ACTION_SERVICE)
     assert not hass.services.has_service(DOMAIN, ACTIONS_SERVICE)
-    assert not hass.services.has_service(DOMAIN, CALL_SERVICE)
     with pytest.raises(ServiceNotFound):
         await hass.services.async_call(
             DOMAIN,
@@ -915,12 +908,10 @@ async def test_configuration_yaml(hass: HomeAssistant) -> None:
     """Test initialization via configuration.yaml."""
     assert not hass.services.has_service(DOMAIN, ACTION_SERVICE)
     assert not hass.services.has_service(DOMAIN, ACTIONS_SERVICE)
-    assert not hass.services.has_service(DOMAIN, CALL_SERVICE)
     assert await async_setup_component(hass, DOMAIN, {})
     await hass.async_block_till_done()
     assert hass.services.has_service(DOMAIN, ACTION_SERVICE)
     assert hass.services.has_service(DOMAIN, ACTIONS_SERVICE)
-    assert hass.services.has_service(DOMAIN, CALL_SERVICE)
 
 
 @pytest.mark.parametrize(
@@ -1310,7 +1301,7 @@ async def test_nested_actions(
 async def test_call_in_actions(
     hass: HomeAssistant,
 ) -> None:
-    """Test retry.call inside retry.actions."""
+    """Test retry.action inside retry.actions."""
     await async_setup(hass)
     with pytest.raises(IntegrationError):
         await hass.services.async_call(
@@ -1357,105 +1348,6 @@ async def test_event_context(
         TEST_SERVICE,
         TEST_ON_ERROR_SERVICE,
     }
-
-
-async def test_legacy_service_key_call(
-    hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """Test legacy service key in 'call' service."""
-    calls = await async_setup(hass)
-    await hass.services.async_call(
-        DOMAIN,
-        CALL_SERVICE,
-        {ATTR_SERVICE: f"{DOMAIN}.{TEST_SERVICE}"},
-        blocking=True,
-    )
-    await async_shutdown(hass, freezer)
-    assert len(calls) == 7
-    assert (
-        "Support for the deprecated 'retry.call' action will be removed "
-        "in a future release."
-    ) in caplog.text
-    assert (
-        "Support for the deprecated 'service' field will be removed "
-        "in a future release."
-    ) in caplog.text
-
-
-async def test_action_and_service_key_call(
-    hass: HomeAssistant,
-) -> None:
-    """Test 'action' and 'service' key in 'call' service."""
-    await async_setup(hass)
-    with pytest.raises(vol.MultipleInvalid) as exception:
-        await hass.services.async_call(
-            DOMAIN,
-            CALL_SERVICE,
-            {
-                CONF_ACTION: f"{DOMAIN}.{TEST_SERVICE}",
-                ATTR_SERVICE: f"{DOMAIN}.{TEST_SERVICE}",
-            },
-            blocking=True,
-        )
-    assert exception.value.msg == "must contain at most one of service, action."
-
-
-async def test_no_action_and_no_service_key_call(
-    hass: HomeAssistant,
-) -> None:
-    """Test 'action' and 'service' key in 'call' service."""
-    await async_setup(hass)
-    with pytest.raises(vol.MultipleInvalid) as exception:
-        await hass.services.async_call(
-            DOMAIN,
-            CALL_SERVICE,
-            {},
-            blocking=True,
-        )
-    assert exception.value.msg == "must contain at least one of service, action."
-
-
-async def test_legacy_service_key_actions(
-    hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
-) -> None:
-    """Test legacy service key in 'actions' service."""
-    calls = await async_setup(hass)
-    await hass.services.async_call(
-        DOMAIN,
-        ACTIONS_SERVICE,
-        {CONF_SEQUENCE: [{ATTR_SERVICE: f"{DOMAIN}.{TEST_SERVICE}"}]},
-        blocking=True,
-    )
-    await async_shutdown(hass, freezer)
-    assert len(calls) == 7
-
-
-async def test_action_and_service_key_actions(
-    hass: HomeAssistant,
-) -> None:
-    """Test 'action' and 'service' key in 'actions' service."""
-    await async_setup(hass)
-    with pytest.raises(vol.MultipleInvalid) as exception:
-        await hass.services.async_call(
-            DOMAIN,
-            ACTIONS_SERVICE,
-            {
-                CONF_SEQUENCE: [
-                    {
-                        CONF_ACTION: f"{DOMAIN}.{TEST_SERVICE}",
-                        ATTR_SERVICE: f"{DOMAIN}.{TEST_SERVICE}",
-                    }
-                ]
-            },
-            blocking=True,
-        )
-    assert (
-        exception.value.msg
-        == "Cannot specify both 'service' and 'action'. Please use 'action' only."
-    )
 
 
 @pytest.mark.parametrize(

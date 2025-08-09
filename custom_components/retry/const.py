@@ -8,7 +8,6 @@ LOGGER = logging.getLogger(__package__)
 
 ACTION_SERVICE: Final = "action"
 ACTIONS_SERVICE: Final = "actions"
-CALL_SERVICE: Final = "call"
 CONF_DISABLE_REPAIR = "disable_repair"
 CONF_DISABLE_INITIAL_CHECK = "disable_initial_check"
 ATTR_BACKOFF: Final = "backoff"
