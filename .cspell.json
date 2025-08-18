@@ -17,6 +17,7 @@
     "hass",
     "hassio",
     "homeassistant",
+    "mypy",
     "pylance",
     "pytest",
     "PYTHONPATH",
