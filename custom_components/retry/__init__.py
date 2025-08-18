@@ -89,7 +89,7 @@ _running_retries_write_lock = threading.Lock()
 
 def _template_parameter(value: Any) -> str:
     """Render template parameter."""
-    return cv.template(value).async_render(parse_result=False)
+    return str(cv.template(value).async_render(parse_result=False))
 
 
 def _fix_template_tokens(value: str) -> str:
@@ -123,12 +123,12 @@ def _validation_parameter(value: Any | None) -> str | None:
 
 
 SERVICE_SCHEMA_BASE_FIELDS = {
-    vol.Required(ATTR_RETRIES, default=DEFAULT_RETRIES): cv.positive_int,  # type: ignore[reportArgumentType]
-    vol.Required(ATTR_BACKOFF, default=DEFAULT_BACKOFF): _backoff_parameter,  # type: ignore[reportArgumentType]
+    vol.Required(ATTR_RETRIES, default=DEFAULT_RETRIES): cv.positive_int,
+    vol.Required(ATTR_BACKOFF, default=DEFAULT_BACKOFF): _backoff_parameter,
     vol.Optional(ATTR_EXPECTED_STATE): vol.All(cv.ensure_list, [_template_parameter]),
     vol.Optional(ATTR_VALIDATION): _validation_parameter,
-    vol.Required(ATTR_STATE_DELAY, default=0): cv.positive_float,  # type: ignore[reportArgumentType]
-    vol.Required(ATTR_STATE_GRACE, default=DEFAULT_STATE_GRACE): cv.positive_float,  # type: ignore[reportArgumentType]
+    vol.Required(ATTR_STATE_DELAY, default=0): cv.positive_float,
+    vol.Required(ATTR_STATE_GRACE, default=DEFAULT_STATE_GRACE): cv.positive_float,
     vol.Optional(ATTR_ON_ERROR): cv.SCRIPT_SCHEMA,
     vol.Optional(ATTR_IGNORE_TARGET): cv.boolean,
     vol.Optional(ATTR_REPAIR): cv.boolean,
@@ -291,7 +291,7 @@ class RetryAction:
         self._retry_id = params.retry_data.get(
             ATTR_RETRY_ID, self._entity_id or self._action
         )
-        self._str_cache = None
+        self._str_cache: str | None = None
         self._start_id()
 
     async def _async_validate(self) -> None:
@@ -329,7 +329,7 @@ class RetryAction:
             if entity.state == expected:
                 return True
             try:
-                if float(entity.state) == float(expected):  # type: ignore[reportArgumentType]
+                if entity.state is not None and float(entity.state) == float(expected):
                     return True
             except ValueError:
                 pass
@@ -554,7 +554,7 @@ class RetryAction:
 
 
 def _wrap_actions(  # noqa: PLR0912
-    hass: HomeAssistant, sequence: list[dict], retry_params: dict[str, Any]
+    hass: HomeAssistant, sequence: list[dict[str, Any]], retry_params: dict[str, Any]
 ) -> None:
     """Warp any action with retry."""
     for action in sequence:
@@ -619,7 +619,7 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
     async def async_action(service_call: ServiceCall) -> None:
         """Perform action with background retries."""
         params = RetryParams(hass, get_config_entry(), service_call.data)
-        for entity_id in params.entities or [None]:
+        for entity_id in params.entities or [None]:  # type: ignore[list-item]
             hass.async_create_task(
                 RetryAction(hass, params, service_call.context, entity_id).async_retry()
             )
