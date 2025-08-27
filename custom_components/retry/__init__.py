@@ -341,7 +341,7 @@ class RetryAction:
             return True
         return result_as_boolean(
             self._params.retry_data[ATTR_VALIDATION].async_render(
-                variables=self._validation_variables,
+                variables={'attempt': self._attempt - 1, **self._validation_variables},
             )
         )
 
