@@ -419,6 +419,28 @@ async def test_float_point_zero(
     assert len(calls) == 0
 
 
+@pytest.mark.parametrize(
+    "count",
+    [0, 1, 3, 5],
+    ids=["0", "1", "3", "5"],
+)
+async def test_validation_with_attempt(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    count: int,
+) -> None:
+    """Test validation as a condition of attempt variable."""
+    calls = await async_setup(hass, raises=False)
+    await async_call(
+        hass,
+        {
+            ATTR_VALIDATION: f"[[ attempt >= {count} ]]",
+        },
+    )
+    await async_shutdown(hass, freezer)
+    assert len(calls) == count
+
+
 async def test_retry_id_cancellation(
     hass: HomeAssistant,
     freezer: FrozenDateTimeFactory,
