@@ -85,13 +85,23 @@ target:
 
 #### `backoff` parameter (optional)
 
-The amount of seconds to wait between attempts. It's expressed in a special template format with square brackets `"[[ ... ]]"` instead of curly brackets `"{{ ... }}"`. This is needed to prevent from rendering the expression in advance (relevant core's code is [1](https://github.com/home-assistant/core/blob/c5453835c258a7625c93de826103b355ecdaa445/homeassistant/helpers/config_validation.py#L1463), [2](https://github.com/home-assistant/core/blob/c5453835c258a7625c93de826103b355ecdaa445/homeassistant/helpers/config_validation.py#L782), [3](https://github.com/home-assistant/core/blob/c5453835c258a7625c93de826103b355ecdaa445/homeassistant/helpers/script.py#L734), [4](https://github.com/home-assistant/core/blob/c5453835c258a7625c93de826103b355ecdaa445/homeassistant/helpers/service.py#L414)). `attempt` is provided as a variable, holding a zero-based counter - it's zero for 1st time the expression is evaluated, and increasing by one for subsequence evaluations. Note that there is no delay for the initial attempt, so the list of delays always starts with a zero.
+The amount of seconds to wait between attempts. It's expressed in a special template format with square brackets `"[[ ... ]]"` instead of curly brackets `"{{ ... }}"`. This is needed to prevent from rendering the expression in advance (relevant core's code is [1](https://github.com/home-assistant/core/blob/c5453835c258a7625c93de826103b355ecdaa445/homeassistant/helpers/config_validation.py#L1463), [2](https://github.com/home-assistant/core/blob/c5453835c258a7625c93de826103b355ecdaa445/homeassistant/helpers/config_validation.py#L782), [3](https://github.com/home-assistant/core/blob/c5453835c258a7625c93de826103b355ecdaa445/homeassistant/helpers/script.py#L734), [4](https://github.com/home-assistant/core/blob/c5453835c258a7625c93de826103b355ecdaa445/homeassistant/helpers/service.py#L414)). The template can use the following variables: `entity_id`, `action`, `attempt`, and any other parameter provided to the inner action. `attempt` is a zero-based counter - it's zero after the 1st inner action failure, and increasing by one for subsequence failures.
 
-The default value is `"[[ 2 ** attempt ]]"` which is an exponential backoff. These are the delay times of the first 7 attempts: [0, 1, 2, 4, 8, 16, 32] (each delay is twice than the previous one). The following are the attempt offsets from the beginning: [0, 1, 3, 7, 15, 31, 63].
+Note that there is no delay before the initial attempt, so the `backoff` parameter is used only after the 1st failure.
 
-Linear backoff is a different strategy which can be expressed as a simple non-template string (without brackets). For example, these are the delay times of the first 7 attempts when using `"10"`: [0, 10, 10, 10, 10, 10, 10]. The following are the attempt offsets from the beginning: [0, 10, 20, 30, 40, 50, 60].
+The default value is `"[[ 2 ** attempt ]]"`, which implements an exponential backoff policy:
+- Delay intervals between failures: `[1, 2, 4, 8, 16, 32]`. Each interval is twice the duration of the preceding one.
+- Cumulative execution offsets: `[0, 1, 3, 7, 15, 31, 63]`. These values represent the absolute time offsets at which each successive inner action is performed.
 
-Another example is `"[[ 10 * 2 ** attempt ]]"` which is a slower exponential backoff. These are the delay times of the first 7 attempts: [0, 10, 20, 40, 80, 160, 320]. The following are the attempt offsets from the beginning: [0, 10, 30, 70, 150, 310, 630].
+Linear backoff is an alternative strategy that can be expressed as a plain (non-template) string, without brackets:
+- Example: `"10"`
+- Delay intervals between failures: `[10, 10, 10, 10, 10, 10]`
+- Cumulative execution offsets: `[0, 10, 20, 30, 40, 50, 60]`
+
+A slower exponential backoff can be specified by scaling the exponential factor:
+- Example: `"[[ 10 * 2 ** attempt ]]"`
+- Delay intervals between failures: `[10, 20, 40, 80, 160, 320]`
+- Cumulative execution offsets: `[0, 10, 30, 70, 150, 310, 630]`
 
 ```
 action: retry.action
@@ -121,7 +131,7 @@ The state is also checked before the first attempt. If it's valid, the action is
 
 #### `validation` parameter (optional)
 
-A boolean expression of a special template format with square brackets `"[[ ... ]]"` instead of curly brackets `"{{ ... }}"`. This is needed to prevent from rendering the expression in advance. The template can use the following variables: `entity_id`, `action`, and any other parameter provided to the inner action. For example:
+A boolean expression of a special template format with square brackets `"[[ ... ]]"` instead of curly brackets `"{{ ... }}"`. This is needed to prevent from rendering the expression in advance. The template can use the following variables: `entity_id`, `action`, `attempt` (zero-based counter), and any other parameter provided to the inner action. For example:
 
 ```
 action: retry.action

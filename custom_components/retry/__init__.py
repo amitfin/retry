@@ -59,6 +59,7 @@ if TYPE_CHECKING:
 from .const import (
     ACTION_SERVICE,
     ACTIONS_SERVICE,
+    ATTEMPT_VARIABLE,
     ATTR_BACKOFF,
     ATTR_EXPECTED_STATE,
     ATTR_IGNORE_TARGET,
@@ -77,7 +78,7 @@ from .const import (
 
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
-DEFAULT_BACKOFF = "{{ 2 ** attempt }}"
+DEFAULT_BACKOFF = f"{{{{ 2 ** {ATTEMPT_VARIABLE} }}}}"
 DEFAULT_RETRIES = 7
 DEFAULT_STATE_GRACE = 0.2
 GROUP_DOMAIN = "group"
@@ -108,11 +109,7 @@ def _fix_template_tokens(value: str) -> str:
 
 def _backoff_parameter(value: Any | None) -> str | None:
     """Check backoff parameter."""
-    cv.positive_float(
-        cv.template(_fix_template_tokens(cv.string(value))).async_render(
-            variables={"attempt": 0}
-        )
-    )
+    vol.Length(min=1)(cv.template(_fix_template_tokens(cv.string(value))).template)
     return value
 
 
@@ -285,14 +282,28 @@ class RetryAction:
                 },
             }
         self._entity_id = entity_id
-        self._validation_variables = {CONF_ACTION: self._action, **self._inner_data}
         self._context = context
         self._attempt = 1
+        self._template_variables = {
+            CONF_ACTION: self._action,
+            ATTEMPT_VARIABLE: 0,
+            **self._inner_data,
+        }
+        cv.positive_float(
+            self._params.retry_data[ATTR_BACKOFF].async_render(
+                variables=self._template_variables
+            )
+        )
         self._retry_id = params.retry_data.get(
             ATTR_RETRY_ID, self._entity_id or self._action
         )
         self._str_cache: str | None = None
         self._start_id()
+
+    def _get_template_variables(self) -> dict[str, Any]:
+        """Return template variables."""
+        self._template_variables[ATTEMPT_VARIABLE] = self._attempt - 1
+        return self._template_variables
 
     async def _async_validate(self) -> None:
         """Check the entity is available has expected state and pass validation."""
@@ -341,7 +352,7 @@ class RetryAction:
             return True
         return result_as_boolean(
             self._params.retry_data[ATTR_VALIDATION].async_render(
-                variables=self._validation_variables,
+                variables=self._get_template_variables(),
             )
         )
 
@@ -545,7 +556,7 @@ class RetryAction:
             next_retry = dt_util.now() + datetime.timedelta(
                 seconds=float(
                     self._params.retry_data[ATTR_BACKOFF].async_render(
-                        variables={"attempt": self._attempt - 1}
+                        variables=self._get_template_variables()
                     )
                 )
             )

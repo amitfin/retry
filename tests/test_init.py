@@ -1125,14 +1125,18 @@ async def test_actions_backoff(  # noqa: PLR0913
 
 
 @pytest.mark.parametrize(
-    ("backoff", "valid"),
-    [("[[ 1 ]]", True), ("[[ 'A' ]]", False)],
-    ids=["valid", "non number"],
+    ("backoff", "error"),
+    [
+        ("[[ 1 ]]", None),
+        ("[[ 'A' ]]", "expected float"),
+        ([1], "value should be a string"),
+    ],
+    ids=["valid", "non number", "non string"],
 )
 async def test_backoff_rendered_value(
     hass: HomeAssistant,
     backoff: str,
-    valid: bool,  # noqa: FBT001
+    error: str | None,
 ) -> None:
     """Test backoff rendered value validation."""
     await async_setup(hass, raises=False)
@@ -1145,12 +1149,12 @@ async def test_backoff_rendered_value(
         },
         blocking=True,
     )
-    if valid:
+    if not error:
         await async_call
     else:
         with pytest.raises(vol.MultipleInvalid) as exception:
             await async_call
-        assert exception.value.msg == "expected float"
+        assert exception.value.msg == error
 
 
 async def test_actions_propagating_successful_validation(
@@ -1387,5 +1391,5 @@ async def test_script_run_templates(
     else:
         with pytest.raises(vol.MultipleInvalid) as exception:
             await async_call
-        assert exception.value.msg == "expected float"
+        assert exception.value.msg == "length of value must be at least 1"
     await hass.async_block_till_done()
