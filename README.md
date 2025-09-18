@@ -209,7 +209,7 @@ action:
 
 (This example can be configured in UI mode by using `retry.actions`. YAML is not needed.)
 
-`entity_id` is provided as a variable and can be used by `on_error` templates.
+`entity_id`, `action`, and any other parameter provided to the inner action are provided as variables and can be used by `on_error` templates.
 
 Note that each entity is running individually when the inner action has a list of entities. In such a case `on_error` can get performed multiple times, once per each failed entity. Similarly, `retry.actions` has a sequence of actions which might include multiple actions. This can also cause `on_error` to get performed multiple times, once per each failed inner action.
 

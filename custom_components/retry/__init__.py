@@ -547,9 +547,11 @@ class RetryAction:
                     await script.Script(
                         self._hass, on_error, ACTION_SERVICE, DOMAIN
                     ).async_run(
-                        run_variables={ATTR_ENTITY_ID: self._entity_id}
-                        if self._entity_id
-                        else None,
+                        run_variables={
+                            key: value
+                            for key, value in self._template_variables.items()
+                            if key != ATTEMPT_VARIABLE
+                        },
                         context=self._context,
                     )
                 return

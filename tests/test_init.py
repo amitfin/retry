@@ -570,7 +570,10 @@ async def test_on_error(
             ATTR_ON_ERROR: [
                 {
                     CONF_ACTION: f"{DOMAIN}.{TEST_ON_ERROR_SERVICE}",
-                    CONF_SERVICE_DATA: {ATTR_ENTITY_ID: "{{ entity_id }}"},
+                    CONF_SERVICE_DATA: {
+                        ATTR_ENTITY_ID: "{{ entity_id }}",
+                        "test": "{{ action }}",
+                    },
                 }
             ],
         },
@@ -579,6 +582,7 @@ async def test_on_error(
     assert len(calls) == 8
     assert calls[-1].service == TEST_ON_ERROR_SERVICE
     assert calls[-1].data[ATTR_ENTITY_ID] == "binary_sensor.test"
+    assert calls[-1].data["test"] == f"{DOMAIN}.{TEST_SERVICE}"
 
 
 async def test_validation_in_automation(
