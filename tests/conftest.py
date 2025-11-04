@@ -15,7 +15,9 @@
 #
 # See here for more info: https://docs.pytest.org/en/latest/fixture.html (note that
 # pytest includes fixtures OOB which you can use as defined on this page)
+import logging
 from collections.abc import Generator
+from itertools import chain
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -34,3 +36,35 @@ def sleep() -> Generator[AsyncMock]:
     """Disable sleep for all tests."""
     with patch("custom_components.retry.asyncio.sleep") as mock:
         yield mock
+
+
+@pytest.fixture
+def allowed_logs(request: pytest.FixtureRequest) -> list[str]:
+    """Return additional allowed log entries."""
+    return getattr(request, "param", [])
+
+
+@pytest.fixture(autouse=True)
+def _no_log_warnings_or_higher(
+    request: pytest.FixtureRequest,
+    caplog: pytest.LogCaptureFixture,
+    allowed_logs: list[str],
+) -> None:
+    """Ensure there are no warnings or higher severity log entries."""
+
+    def _check_logs() -> None:
+        for record in caplog.get_records(when="call"):
+            if record.levelno < logging.WARNING:
+                continue
+            message = record.getMessage()
+            if any(
+                message.startswith(allowed_log)
+                for allowed_log in chain(
+                    allowed_logs,
+                    ["We found a custom integration retry", "[Failed]: attempt"],
+                )
+            ):
+                continue
+            pytest.fail(f"{record.levelname} disallowed log: {message}")
+
+    request.addfinalizer(_check_logs)  # noqa: PT021

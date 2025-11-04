@@ -2,6 +2,7 @@
 
 from http import HTTPStatus
 
+import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -10,6 +11,11 @@ from pytest_homeassistant_custom_component.typing import ClientSessionGenerator
 from custom_components.retry.const import DOMAIN
 
 
+@pytest.mark.parametrize(
+    "allowed_logs",
+    [["zlib_ng and isal are not available"]],
+    indirect=True,
+)
 async def test_diagnostics(
     hass: HomeAssistant,
     hass_client: ClientSessionGenerator,

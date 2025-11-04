@@ -2,6 +2,7 @@
   "version": "0.2",
   "language": "en",
   "words": [
+    "addfinalizer",
     "amitfin",
     "autouse",
     "caplog",
@@ -17,6 +18,8 @@
     "hass",
     "hassio",
     "homeassistant",
+    "levelname",
+    "levelno",
     "mypy",
     "pylance",
     "pytest",

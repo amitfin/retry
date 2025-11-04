@@ -71,22 +71,11 @@ from custom_components.retry.const import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
-
     from freezegun.api import FrozenDateTimeFactory
 
 TEST_SERVICE = "test_service"
 TEST_ON_ERROR_SERVICE = "test_on_error_service"
 BASIC_SEQUENCE_DATA = [{CONF_ACTION: f"{DOMAIN}.{TEST_SERVICE}"}]
-
-
-@pytest.fixture(autouse=True)
-def nothing_deprecated(caplog: pytest.LogCaptureFixture) -> Generator[None]:
-    """Ensure no deprecation warnings are logged."""
-    yield
-    for record in caplog.get_records(when="call"):
-        message = record.getMessage()
-        assert "deprecated" not in message
 
 
 async def async_setup(
@@ -806,7 +795,7 @@ async def test_all_entities(  # noqa: PLR0913
     assert await async_setup_component(
         hass,
         "script",
-        {"script": {"test1": {"sequence": {}}, "test2": {"sequence": {}}}},
+        {"script": {"test1": {"sequence": []}, "test2": {"sequence": []}}},
     )
     await hass.services.async_call(
         DOMAIN,
@@ -1389,6 +1378,16 @@ async def test_event_context(
     ],
     ids=["special syntax", "regular syntax - invalid", "regular syntax - wrapped"],
 )
+@pytest.mark.parametrize(
+    "allowed_logs",
+    [
+        [
+            "Template variable warning: 'attempt' is undefined",
+            "action: Error executing script. Invalid data for call_service at pos 1",
+        ]
+    ],
+    indirect=True,
+)
 async def test_script_run_templates(
     hass: HomeAssistant,
     backoff: str,
@@ -1411,7 +1410,7 @@ async def test_script_run_templates(
         ),
         ACTION_SERVICE,
         DOMAIN,
-    ).async_run()
+    ).async_run(context=Context())
     if valid:
         await async_call
     else:
