@@ -1378,15 +1378,11 @@ async def test_event_context(
     ],
     ids=["special syntax", "regular syntax - invalid", "regular syntax - wrapped"],
 )
-@pytest.mark.parametrize(
-    "allowed_logs",
+@pytest.mark.allowed_logs(
     [
-        [
-            "Template variable warning: 'attempt' is undefined",
-            "action: Error executing script. Invalid data for call_service at pos 1",
-        ]
-    ],
-    indirect=True,
+        "Template variable warning: 'attempt' is undefined",
+        "action: Error executing script. Invalid data for call_service at pos 1",
+    ]
 )
 async def test_script_run_templates(
     hass: HomeAssistant,

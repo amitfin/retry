@@ -11,11 +11,7 @@ from pytest_homeassistant_custom_component.typing import ClientSessionGenerator
 from custom_components.retry.const import DOMAIN
 
 
-@pytest.mark.parametrize(
-    "allowed_logs",
-    [["zlib_ng and isal are not available"]],
-    indirect=True,
-)
+@pytest.mark.allowed_logs(["zlib_ng and isal are not available"])
 async def test_diagnostics(
     hass: HomeAssistant,
     hass_client: ClientSessionGenerator,
