@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import datetime
+from asyncio import Event, Semaphore
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, Mock
 
@@ -35,9 +38,16 @@ from homeassistant.const import (
     ENTITY_MATCH_NONE,
     EVENT_CALL_SERVICE,
 )
-from homeassistant.core import Context, HomeAssistant, ServiceCall, callback
+from homeassistant.core import (
+    Context,
+    HomeAssistant,
+    ServiceCall,
+    SupportsResponse,
+    callback,
+)
 from homeassistant.exceptions import (
     IntegrationError,
+    InvalidStateError,
     ServiceNotFound,
     ServiceValidationError,
 )
@@ -49,7 +59,6 @@ from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     MockUser,
     async_capture_events,
-    async_fire_time_changed,
 )
 
 from custom_components.retry.const import (
@@ -78,10 +87,17 @@ TEST_ON_ERROR_SERVICE = "test_on_error_service"
 BASIC_SEQUENCE_DATA = [{CONF_ACTION: f"{DOMAIN}.{TEST_SERVICE}"}]
 
 
-async def async_setup(
+class RetryTestMockError(Exception):
+    """Test Exception."""
+
+
+async def async_setup(  # noqa: PLR0913
     hass: HomeAssistant,
     raises: bool = True,  # noqa: FBT001, FBT002
     options: dict | None = None,
+    action_response: dict | None = None,
+    action_block: Event | None = None,
+    action_signal: Semaphore | None = None,
 ) -> list[ServiceCall]:
     """Load retry custom integration and basic environment."""
     config_entry = MockConfigEntry(domain=DOMAIN, options=options)
@@ -104,11 +120,18 @@ async def async_setup(
     calls = []
 
     @callback
-    def async_service(service_call: ServiceCall) -> None:
+    async def async_service(service_call: ServiceCall) -> Any:
         """Mock service call."""
         calls.append(service_call)
+        if action_signal:
+            action_signal.release()
+        if action_block:
+            await action_block.wait()
+        if action_response:
+            return action_response
         if service_call.service == TEST_SERVICE and raises:
-            raise Exception  # noqa: TRY002
+            raise RetryTestMockError
+        return None
 
     hass.services.async_register(
         DOMAIN,
@@ -120,53 +143,88 @@ async def async_setup(
                 vol.Optional("test"): vol.Any(str, [str]),
             },
         ),
+        supports_response=SupportsResponse.ONLY
+        if action_response
+        else SupportsResponse.NONE,
     )
 
     hass.services.async_register(
         DOMAIN,
         TEST_ON_ERROR_SERVICE,
         async_service,
+        supports_response=SupportsResponse.ONLY
+        if action_response
+        else SupportsResponse.NONE,
     )
 
     return calls
-
-
-async def async_next_seconds(
-    hass: HomeAssistant, freezer: FrozenDateTimeFactory, seconds: float
-) -> None:
-    """Jump to the next "seconds" and execute all pending timers."""
-    freezer.move_to(dt_util.now() + datetime.timedelta(seconds=seconds))
-    async_fire_time_changed(hass)
-    await hass.async_block_till_done()
-
-
-async def async_shutdown(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
-    """Make sure all pending retries were performed."""
-    for _ in range(10):
-        await async_next_seconds(hass, freezer, 3600)
 
 
 async def async_call(
     hass: HomeAssistant,
     data: dict[str, Any] | None = None,
     target: dict[str, Any] | None = None,
+    plural: bool = False,  # noqa: FBT001, FBT002
 ) -> None:
     """Call a service via the retry service."""
     data = data or {}
     data[CONF_ACTION] = f"{DOMAIN}.{TEST_SERVICE}"
-    await hass.services.async_call(
-        DOMAIN, ACTION_SERVICE, data, blocking=True, target=target
-    )
+    with suppress(RetryTestMockError, InvalidStateError):
+        await hass.services.async_call(
+            DOMAIN,
+            ACTION_SERVICE if not plural else ACTIONS_SERVICE,
+            data,
+            blocking=True,
+            target=target,
+        )
 
 
-async def test_success(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
+async def test_success(hass: HomeAssistant) -> None:
     """Test success case."""
     calls = await async_setup(hass, raises=False)
     await async_call(
         hass, {ATTR_ENTITY_ID: ["binary_sensor.test", "binary_sensor.test"]}
     )
-    await async_shutdown(hass, freezer)
     assert len(calls) == 1
+
+
+async def test_action_exception(hass: HomeAssistant) -> None:
+    """Test getting inner action exception on failure."""
+    await async_setup(hass)
+    with pytest.raises(RetryTestMockError):
+        await hass.services.async_call(
+            DOMAIN,
+            ACTION_SERVICE,
+            {CONF_ACTION: f"{DOMAIN}.{TEST_SERVICE}"},
+            blocking=True,
+        )
+
+
+async def test_action_response(hass: HomeAssistant) -> None:
+    """Test getting inner action response on success."""
+    response = {"test": "test"}
+    await async_setup(hass, action_response=response)
+    assert (
+        await hass.services.async_call(
+            DOMAIN,
+            ACTION_SERVICE,
+            {CONF_ACTION: f"{DOMAIN}.{TEST_SERVICE}"},
+            blocking=True,
+            return_response=True,
+        )
+    ) is response
+
+
+async def test_actions_exception(hass: HomeAssistant) -> None:
+    """Test getting inner action response on success."""
+    await async_setup(hass)
+    with pytest.raises(RetryTestMockError):
+        await hass.services.async_call(
+            DOMAIN,
+            ACTIONS_SERVICE,
+            {CONF_SEQUENCE: BASIC_SEQUENCE_DATA},
+            blocking=True,
+        )
 
 
 @pytest.mark.parametrize(
@@ -176,7 +234,6 @@ async def test_success(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> N
 )
 async def test_failure(
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
     caplog: pytest.LogCaptureFixture,
     retries: int,
 ) -> None:
@@ -187,11 +244,6 @@ async def test_failure(
     if retries != 7:
         data[ATTR_RETRIES] = retries
     await async_call(hass, data)
-    await hass.async_block_till_done()
-    for i in range(20):
-        if i < retries:
-            assert len(calls) == (i + 1)
-        await async_next_seconds(hass, freezer, 3600)
     assert len(calls) == retries
     assert (
         f"[Failed]: attempt {retries}/{retries}: {DOMAIN}.{TEST_SERVICE}()"
@@ -205,14 +257,12 @@ async def test_failure(
 
 async def test_entity_unavailable(
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test entities are not available."""
     entities = ["binary_sensor.invalid1", "binary_sensor.invalid2"]
     await async_setup(hass, raises=False)
     await async_call(hass, {ATTR_ENTITY_ID: entities, ATTR_EXPECTED_STATE: "on"})
-    await async_shutdown(hass, freezer)
     for entity in entities:
         assert f"{entity} is not available" in caplog.text
         assert (
@@ -223,7 +273,6 @@ async def test_entity_unavailable(
 
 async def test_selective_retry(
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
 ) -> None:
     """Test retry on part of entities."""
     entities = ["binary_sensor.test", "binary_sensor.invalid"]
@@ -231,7 +280,6 @@ async def test_selective_retry(
     await async_call(
         hass, {ATTR_ENTITY_ID: entities, ATTR_DEVICE_ID: ENTITY_MATCH_NONE}
     )
-    await async_shutdown(hass, freezer)
     called_entities = [x.data[ATTR_ENTITY_ID] for x in calls]
     assert called_entities.count(["binary_sensor.test"]) == 1
     assert called_entities.count(["binary_sensor.invalid"]) == 7
@@ -240,7 +288,6 @@ async def test_selective_retry(
 
 async def test_ignore_target(
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test ignore_target parameter."""
@@ -254,7 +301,6 @@ async def test_ignore_target(
             ATTR_IGNORE_TARGET: True,
         },
     )
-    await async_shutdown(hass, freezer)
     assert len(calls) == 7
     assert calls[0].data[ATTR_ENTITY_ID] == entities
     assert calls[0].data[ATTR_DEVICE_ID] == ENTITY_MATCH_NONE
@@ -276,7 +322,6 @@ async def test_ignore_target(
 )
 async def test_entity_wrong_state(  # noqa: PLR0913
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
     caplog: pytest.LogCaptureFixture,
     sleep: AsyncMock,
     expected_state: str | None,
@@ -294,7 +339,6 @@ async def test_entity_wrong_state(  # noqa: PLR0913
             **({ATTR_STATE_GRACE: grace} if grace else {}),
         },
     )
-    await async_shutdown(hass, freezer)
     if expected_state:
         assert (
             'binary_sensor.test state is "on" but expecting one of "[\'off\']"'
@@ -309,7 +353,6 @@ async def test_entity_wrong_state(  # noqa: PLR0913
 
 async def test_state_delay(
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
     caplog: pytest.LogCaptureFixture,
     sleep: AsyncMock,
 ) -> None:
@@ -323,7 +366,6 @@ async def test_state_delay(
             ATTR_STATE_DELAY: 1.2,
         },
     )
-    await async_shutdown(hass, freezer)
     wait_times = [x.args[0] for x in sleep.await_args_list]
     assert wait_times.count(1.2) == 7  # state_delay
     assert wait_times.count(0.2) == 7  # state_grace
@@ -343,7 +385,6 @@ async def test_state_delay(
 )
 async def test_entity_expected_state_list(
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
     options: dict[str, Any],
     call_count: int,
 ) -> None:
@@ -356,13 +397,11 @@ async def test_entity_expected_state_list(
             ATTR_EXPECTED_STATE: ["dummy", "{{ 'on' }}"],
         },
     )
-    await async_shutdown(hass, freezer)
     assert len(calls) == call_count
 
 
 async def test_validation_success(
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
 ) -> None:
     """Test successful validation."""
     calls = await async_setup(hass, raises=False)
@@ -378,13 +417,11 @@ async def test_validation_success(
             ),
         },
     )
-    await async_shutdown(hass, freezer)
     assert len(calls) == 0
 
 
 async def test_float_point_zero(
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
 ) -> None:
     """Test validation of a float with point zero."""
     calls = await async_setup(hass, raises=False)
@@ -404,7 +441,6 @@ async def test_float_point_zero(
             ATTR_EXPECTED_STATE: "50",
         },
     )
-    await async_shutdown(hass, freezer)
     assert len(calls) == 0
 
 
@@ -415,7 +451,6 @@ async def test_float_point_zero(
 )
 async def test_validation_with_attempt(
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
     count: int,
 ) -> None:
     """Test validation as a condition of attempt variable."""
@@ -426,58 +461,61 @@ async def test_validation_with_attempt(
             ATTR_VALIDATION: f"[[ attempt >= {count} ]]",
         },
     )
-    await async_shutdown(hass, freezer)
     assert len(calls) == count
 
 
 async def test_retry_id_cancellation(
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test parallel reties cancellation logic."""
-    calls = await async_setup(hass)
+    event = Event()
+    called = Semaphore(0)
+    calls = await async_setup(hass, action_block=event, action_signal=called)
+    tasks = []
     for _ in range(2):
-        await async_call(hass)
-    await async_shutdown(hass, freezer)
+        tasks.append(hass.async_create_task(async_call(hass)))
+        await called.acquire()
+    event.set()
+    await asyncio.gather(*tasks)
     assert len(calls) == 8  # = 1 + 7
     assert "[Cancelled]: attempt 2/7: retry.test_service()" in caplog.text
 
 
 async def test_retry_id_sequence(
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
 ) -> None:
     """Test reties with the same ID running one after the other."""
     calls = await async_setup(hass)
     for _ in range(2):
         await async_call(hass)
-        await async_shutdown(hass, freezer)
     assert len(calls) == 14  # = 7 + 7
 
 
 async def test_retry_id_success_sequence(
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
 ) -> None:
     """Test successful reties with the same ID running one after the other."""
     calls = await async_setup(hass, raises=False)
     for _ in range(2):
         await async_call(hass)
-        await async_shutdown(hass, freezer)
     assert len(calls) == 2  # = 1 + 1
 
 
 async def test_different_retry_ids(
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test parallel reties with different IDs."""
-    calls = await async_setup(hass)
+    event = Event()
+    called = Semaphore(0)
+    calls = await async_setup(hass, action_block=event, action_signal=called)
+    tasks = []
     for i in range(2):
-        await async_call(hass, {ATTR_RETRY_ID: str(i)})
-    await async_shutdown(hass, freezer)
+        tasks.append(hass.async_create_task(async_call(hass, {ATTR_RETRY_ID: str(i)})))
+        await called.acquire()
+    event.set()
+    await asyncio.gather(*tasks)
     assert len(calls) == 14  # = 7 + 7
     for i in range(2):
         assert f'{DOMAIN}.{TEST_SERVICE}()[{ATTR_RETRY_ID}="{i}"]' in caplog.text
@@ -485,25 +523,43 @@ async def test_different_retry_ids(
 
 async def test_default_retry_id_is_entity_id(
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
 ) -> None:
-    """Test parallel reties with different IDs."""
-    calls = await async_setup(hass)
-    await async_call(hass, {ATTR_ENTITY_ID: "binary_sensor.test"})
-    await async_call(hass, {ATTR_RETRY_ID: "binary_sensor.test"})
-    await async_shutdown(hass, freezer)
+    """Test that the default ID is the entity ID."""
+    event = Event()
+    called = Semaphore(0)
+    calls = await async_setup(hass, action_block=event, action_signal=called)
+    tasks = []
+    tasks.append(
+        hass.async_create_task(async_call(hass, {ATTR_ENTITY_ID: "binary_sensor.test"}))
+    )
+    await called.acquire()
+    tasks.append(
+        hass.async_create_task(async_call(hass, {ATTR_RETRY_ID: "binary_sensor.test"}))
+    )
+    await called.acquire()
+    event.set()
+    await asyncio.gather(*tasks)
     assert len(calls) == 8  # = 1 + 7
 
 
 async def test_default_retry_id_is_domain_service(
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
 ) -> None:
-    """Test parallel reties with different IDs."""
-    calls = await async_setup(hass)
-    await async_call(hass)
-    await async_call(hass, {ATTR_RETRY_ID: f"{DOMAIN}.{TEST_SERVICE}"})
-    await async_shutdown(hass, freezer)
+    """Test that the default ID is the action name."""
+    event = Event()
+    called = Semaphore(0)
+    calls = await async_setup(hass, action_block=event, action_signal=called)
+    tasks = []
+    tasks.append(hass.async_create_task(async_call(hass)))
+    await called.acquire()
+    tasks.append(
+        hass.async_create_task(
+            async_call(hass, {ATTR_RETRY_ID: f"{DOMAIN}.{TEST_SERVICE}"})
+        )
+    )
+    await called.acquire()
+    event.set()
+    await asyncio.gather(*tasks)
     assert len(calls) == 8  # = 1 + 7
 
 
@@ -514,15 +570,19 @@ async def test_default_retry_id_is_domain_service(
 )
 async def test_disable_retry_id(
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
     caplog: pytest.LogCaptureFixture,
     value: str | None,
 ) -> None:
     """Test disabling retry_id."""
-    calls = await async_setup(hass)
+    event = Event()
+    called = Semaphore(0)
+    calls = await async_setup(hass, action_block=event, action_signal=called)
+    tasks = []
     for _ in range(2):
-        await async_call(hass, {ATTR_RETRY_ID: value})
-    await async_shutdown(hass, freezer)
+        tasks.append(hass.async_create_task(async_call(hass, {ATTR_RETRY_ID: value})))
+        await called.acquire()
+    event.set()
+    await asyncio.gather(*tasks)
     assert len(calls) == 14  # = 7 + 7
     if value is not None:
         value = f'"{value}"'
@@ -531,7 +591,6 @@ async def test_disable_retry_id(
 
 async def test_multi_entities_retry_id(
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
 ) -> None:
     """Test retry_id with multiple entities."""
     calls = await async_setup(hass)
@@ -542,13 +601,11 @@ async def test_multi_entities_retry_id(
             ATTR_RETRY_ID: "id",
         },
     )
-    await async_shutdown(hass, freezer)
     assert len(calls) == 14  # = 7 + 7
 
 
 async def test_on_error(
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
 ) -> None:
     """Test on_error parameter."""
     calls = await async_setup(hass)
@@ -567,13 +624,18 @@ async def test_on_error(
             ],
         },
     )
-    await async_shutdown(hass, freezer)
     assert len(calls) == 8
     assert calls[-1].service == TEST_ON_ERROR_SERVICE
     assert calls[-1].data[ATTR_ENTITY_ID] == "binary_sensor.test"
     assert calls[-1].data["test"] == f"{DOMAIN}.{TEST_SERVICE}"
 
 
+@pytest.mark.allowed_logs(
+    [
+        "test: Error executing script.",
+        "Error while executing automation automation.test:",
+    ]
+)
 async def test_validation_in_automation(
     hass: HomeAssistant,
     freezer: FrozenDateTimeFactory,
@@ -619,16 +681,15 @@ async def test_validation_in_automation(
         },
     )
     await hass.async_block_till_done()
-    await hass.services.async_call(
-        "automation", "trigger", {ATTR_ENTITY_ID: "automation.test"}, blocking=True
-    )
-    await async_shutdown(hass, freezer)
+    with suppress(RetryTestMockError):
+        await hass.services.async_call(
+            "automation", "trigger", {ATTR_ENTITY_ID: "automation.test"}, blocking=True
+        )
     assert len(calls) == 7
 
 
 async def test_group_entity_unavailable(
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test entity is not available."""
@@ -639,13 +700,11 @@ async def test_group_entity_unavailable(
     )
     await hass.async_block_till_done()
     await async_call(hass, {ATTR_ENTITY_ID: "group.test"})
-    await async_shutdown(hass, freezer)
     assert f"{entity} is not available" in caplog.text
 
 
 async def test_group_platform_entity_unavailable(
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test entity is not available."""
@@ -662,7 +721,6 @@ async def test_group_platform_entity_unavailable(
     )
     await hass.async_block_till_done()
     await async_call(hass, {ATTR_ENTITY_ID: "light.test"})
-    await async_shutdown(hass, freezer)
     assert f"{entity} is not available" in caplog.text
 
 
@@ -675,7 +733,6 @@ async def test_template(hass: HomeAssistant) -> None:
         {CONF_ACTION: '{{ "retry.test_service" }}'},
         blocking=True,
     )
-    await hass.async_block_till_done()
     assert len(calls) == 1
 
 
@@ -713,15 +770,14 @@ async def test_state_with_ignore_target(hass: HomeAssistant) -> None:
     )
 
     with pytest.raises(vol.Invalid) as error:
-        await hass.services.async_call(
-            DOMAIN,
-            ACTIONS_SERVICE,
+        await async_call(
+            hass,
             {
                 CONF_SEQUENCE: BASIC_SEQUENCE_DATA,
                 ATTR_EXPECTED_STATE: "test",
                 ATTR_IGNORE_TARGET: True,
             },
-            blocking=True,
+            plural=True,
         )
     assert (
         str(error.value) == "must contain at most one of expected_state, ignore_target."
@@ -782,9 +838,8 @@ async def test_state_no_entity(hass: HomeAssistant) -> None:
     ],
     ids=["action-param", "action-target", "actions"],
 )
-async def test_all_entities(  # noqa: PLR0913
+async def test_all_entities(
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
     caplog: pytest.LogCaptureFixture,
     service: str,
     param: dict,
@@ -797,14 +852,14 @@ async def test_all_entities(  # noqa: PLR0913
         "script",
         {"script": {"test1": {"sequence": []}, "test2": {"sequence": []}}},
     )
-    await hass.services.async_call(
-        DOMAIN,
-        service,
-        param,
-        blocking=True,
-        target=target,
-    )
-    await async_shutdown(hass, freezer)
+    with suppress(InvalidStateError):
+        await hass.services.async_call(
+            DOMAIN,
+            service,
+            param,
+            blocking=True,
+            target=target,
+        )
     for i in [1, 2]:
         assert (
             f"[Failed]: attempt 7/7: script.turn_off(entity_id=script.test{i})"
@@ -814,50 +869,42 @@ async def test_all_entities(  # noqa: PLR0913
 
 async def test_disable_repair(
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
 ) -> None:
     """Test disabling repair tickets."""
     repairs = async_capture_events(hass, str(ir.EVENT_REPAIRS_ISSUE_REGISTRY_UPDATED))
     await async_setup(hass, options={CONF_DISABLE_REPAIR: True})
     await async_call(hass)
-    await async_shutdown(hass, freezer)
     assert not len(repairs)
 
 
 async def test_disable_specific_repair(
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
 ) -> None:
     """Test disabling specific repair ticket."""
     repairs = async_capture_events(hass, str(ir.EVENT_REPAIRS_ISSUE_REGISTRY_UPDATED))
     await async_setup(hass)
     await async_call(hass, data={ATTR_REPAIR: False})
-    await async_shutdown(hass, freezer)
     assert not len(repairs)
 
 
 async def test_enable_specific_repair(
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
 ) -> None:
     """Test enabling specific repair ticket."""
     repairs = async_capture_events(hass, str(ir.EVENT_REPAIRS_ISSUE_REGISTRY_UPDATED))
     await async_setup(hass, options={CONF_DISABLE_REPAIR: True})
     await async_call(hass, data={ATTR_REPAIR: True})
-    await async_shutdown(hass, freezer)
     assert len(repairs)
 
 
 async def test_identical_repair(
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
 ) -> None:
     """Test de-dup of identical repair tickets."""
     repairs = async_capture_events(hass, str(ir.EVENT_REPAIRS_ISSUE_REGISTRY_UPDATED))
     await async_setup(hass)
     for _ in range(2):
         await async_call(hass)
-        await async_shutdown(hass, freezer)
     assert [repair.data["action"] for repair in repairs] == [
         "create",
         "remove",
@@ -1030,18 +1077,15 @@ async def test_configuration_yaml(hass: HomeAssistant) -> None:
 )
 async def test_actions_service(
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
     service_data: dict[str, Any],
 ) -> None:
     """Test action service."""
     calls = await async_setup(hass)
-    await hass.services.async_call(
-        DOMAIN,
-        ACTIONS_SERVICE,
+    await async_call(
+        hass,
         service_data,
-        blocking=True,
+        plural=True,
     )
-    await async_shutdown(hass, freezer)
     assert len(calls) == 7
 
 
@@ -1069,23 +1113,20 @@ async def test_action_types() -> None:
 
 async def test_actions_propagating_args(
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test action service propagate correctly the arguments."""
     calls = await async_setup(hass, raises=False)
-    await hass.services.async_call(
-        DOMAIN,
-        ACTIONS_SERVICE,
+    await async_call(
+        hass,
         {
             CONF_SEQUENCE: BASIC_SEQUENCE_DATA,
             ATTR_RETRIES: 3,
             ATTR_VALIDATION: "[[ False ]]",
             ATTR_ON_ERROR: [{CONF_ACTION: f"{DOMAIN}.{TEST_ON_ERROR_SERVICE}"}],
         },
-        blocking=True,
+        plural=True,
     )
-    await async_shutdown(hass, freezer)
     assert len(calls) == 4
     assert (
         f"[Failed]: attempt 3/3: {DOMAIN}.{TEST_SERVICE}()"
@@ -1108,30 +1149,25 @@ async def test_actions_propagating_args(
 )
 async def test_actions_backoff(  # noqa: PLR0913
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
+    sleep: AsyncMock,
     caplog: pytest.LogCaptureFixture,
     backoff: str | None,
     backoff_fixed: str | None,
     delays: list[float],
 ) -> None:
     """Test action service backoff parameter."""
-    calls = await async_setup(hass)
-    await hass.services.async_call(
-        DOMAIN,
-        ACTIONS_SERVICE,
+    await async_setup(hass)
+    sleep.reset_mock()
+    await async_call(
+        hass,
         {
             CONF_SEQUENCE: BASIC_SEQUENCE_DATA,
             **({ATTR_BACKOFF: backoff} if backoff else {}),
         },
-        blocking=True,
+        plural=True,
     )
-    calls.pop()
-    for i, delay in enumerate(delays):
-        await async_next_seconds(hass, freezer, delay - 1)
-        assert len(calls) == i
-        await async_next_seconds(hass, freezer, 1)
-        assert len(calls) == i + 1
-    await async_shutdown(hass, freezer)
+    wait_times = [int(x.args[0]) for x in sleep.await_args_list]
+    assert wait_times == delays
     if backoff:
         assert (
             f"[Failed]: attempt 7/7: {DOMAIN}.{TEST_SERVICE}()"
@@ -1174,7 +1210,6 @@ async def test_backoff_rendered_value(
 
 async def test_actions_propagating_successful_validation(
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
 ) -> None:
     """Test action service with successful validation."""
     calls = await async_setup(hass, raises=False)
@@ -1187,7 +1222,6 @@ async def test_actions_propagating_successful_validation(
         },
         blocking=True,
     )
-    await async_shutdown(hass, freezer)
     assert len(calls) == 0
 
 
@@ -1197,30 +1231,26 @@ async def test_actions_propagating_successful_validation(
     ids=["different", "disabled", "set & disabled"],
 )
 async def test_actions_propagating_retry_id(
-    hass: HomeAssistant, freezer: FrozenDateTimeFactory, retry_ids: list[str | None]
+    hass: HomeAssistant, retry_ids: list[str | None]
 ) -> None:
     """Test action service propagating correctly the retry ID."""
     calls = await async_setup(hass)
     for i in range(2):
-        await hass.services.async_call(
-            DOMAIN,
-            ACTIONS_SERVICE,
+        await async_call(
+            hass,
             {CONF_SEQUENCE: BASIC_SEQUENCE_DATA, ATTR_RETRY_ID: retry_ids[i]},
-            blocking=True,
+            plural=True,
         )
-    await async_shutdown(hass, freezer)
     assert len(calls) == 14  # = 7 + 7
 
 
 async def test_actions_multi_calls_single_retry_id(
     hass: HomeAssistant,
-    freezer: FrozenDateTimeFactory,
 ) -> None:
     """Test retry_id with multiple service calls."""
-    calls = await async_setup(hass)
-    await hass.services.async_call(
-        DOMAIN,
-        ACTIONS_SERVICE,
+    calls = await async_setup(hass, raises=False)
+    await async_call(
+        hass,
         {
             ATTR_RETRY_ID: "id",
             CONF_SEQUENCE: [
@@ -1276,10 +1306,9 @@ async def test_actions_multi_calls_single_retry_id(
                 {**(BASIC_SEQUENCE_DATA[0])},
             ],
         },
-        blocking=True,
+        plural=True,
     )
-    await async_shutdown(hass, freezer)
-    assert len(calls) == 70  # = 10 * 7
+    assert len(calls) == 10  # = 10 * 1
 
 
 async def test_actions_inner_service_validation(
@@ -1334,7 +1363,6 @@ async def test_call_in_actions(
 async def test_event_context(
     hass: HomeAssistant,
     hass_admin_user: MockUser,
-    freezer: FrozenDateTimeFactory,
 ) -> None:
     """Test the context of the events which are generated."""
     listener = Mock()
@@ -1342,19 +1370,18 @@ async def test_event_context(
 
     await async_setup(hass)
     context = Context(hass_admin_user.id)
-    await hass.services.async_call(
-        DOMAIN,
-        ACTIONS_SERVICE,
-        {
-            CONF_SEQUENCE: BASIC_SEQUENCE_DATA,
-            ATTR_RETRIES: 1,
-            ATTR_ON_ERROR: [{CONF_ACTION: f"{DOMAIN}.{TEST_ON_ERROR_SERVICE}"}],
-        },
-        blocking=True,
-        context=context,
-    )
-    await hass.async_block_till_done()
-    await async_shutdown(hass, freezer)
+    with suppress(RetryTestMockError):
+        await hass.services.async_call(
+            DOMAIN,
+            ACTIONS_SERVICE,
+            {
+                CONF_SEQUENCE: BASIC_SEQUENCE_DATA,
+                ATTR_RETRIES: 1,
+                ATTR_ON_ERROR: [{CONF_ACTION: f"{DOMAIN}.{TEST_ON_ERROR_SERVICE}"}],
+            },
+            blocking=True,
+            context=context,
+        )
 
     calls = [call_args.args[0] for call_args in listener.call_args_list]
     assert len(calls) == 4
@@ -1413,4 +1440,3 @@ async def test_script_run_templates(
         with pytest.raises(vol.MultipleInvalid) as exception:
             await async_call
         assert exception.value.msg == "length of value must be at least 1"
-    await hass.async_block_till_done()

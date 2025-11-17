@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import asyncio
-import datetime
 import logging
 import threading
 from typing import TYPE_CHECKING, Any
 
-import homeassistant.util.dt as dt_util
 import voluptuous as vol
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry, ConfigEntryState
 from homeassistant.const import (
@@ -27,7 +25,7 @@ from homeassistant.const import (
     CONF_THEN,
     ENTITY_MATCH_ALL,
 )
-from homeassistant.core import callback
+from homeassistant.core import SupportsResponse
 from homeassistant.exceptions import (
     IntegrationError,
     InvalidStateError,
@@ -38,12 +36,9 @@ from homeassistant.helpers import (
     config_validation as cv,
 )
 from homeassistant.helpers import (
-    event,
-    script,
-)
-from homeassistant.helpers import (
     issue_registry as ir,
 )
+from homeassistant.helpers import script
 from homeassistant.helpers.entity_component import DATA_INSTANCES, EntityComponent
 from homeassistant.helpers.target import (
     TargetSelectorData,
@@ -82,6 +77,7 @@ DEFAULT_BACKOFF = f"{{{{ 2 ** {ATTEMPT_VARIABLE} }}}}"
 DEFAULT_RETRIES = 7
 DEFAULT_STATE_GRACE = 0.2
 GROUP_DOMAIN = "group"
+RETURN_RESPONSE = "return_response"
 ENTITY_SERVICE_FIELDS = [str(key) for key in cv.ENTITY_SERVICE_FIELDS]
 
 _running_retries: dict[str, tuple[str, int]] = {}
@@ -197,6 +193,9 @@ class RetryParams:
             raise ServiceNotFound(domain, service)
         retry_data[ATTR_DOMAIN] = domain
         retry_data[ATTR_SERVICE] = service
+        retry_data[RETURN_RESPONSE] = (
+            hass.services.supports_response(domain, service) != SupportsResponse.NONE
+        )
         for key in [ATTR_BACKOFF, ATTR_VALIDATION]:
             if key in retry_data:
                 retry_data[key] = Template(_fix_template_tokens(retry_data[key]), hass)
@@ -506,64 +505,69 @@ class RetryAction:
             or _running_retries.get(self._retry_id, [None])[0] == self._context.id
         )
 
-    @callback
-    async def async_retry(self, _: datetime.datetime | None = None) -> None:
-        """One attempt."""
-        if not self._check_id():
-            self._log(logging.INFO, "Cancelled")
-            return
-        try:
-            if not self._initial_check():
-                await self._hass.services.async_call(
-                    self._params.retry_data[ATTR_DOMAIN],
-                    self._params.retry_data[ATTR_SERVICE],
-                    self._inner_data.copy(),
-                    blocking=True,
-                    context=self._context,
-                )
-                await self._async_validate()
-            self._log(
-                logging.DEBUG if self._attempt == 1 else logging.INFO, "Succeeded"
-            )
-            self._end_id()
-        except Exception:  # noqa: BLE001
-            self._log(
-                logging.WARNING
-                if self._attempt < self._params.retry_data[ATTR_RETRIES]
-                else logging.ERROR,
-                "Failed",
-                stack_info=True,
-            )
-            if self._attempt >= self._params.retry_data[ATTR_RETRIES]:
-                issue_repair = self._params.retry_data.get(ATTR_REPAIR)
-                if issue_repair is None:
-                    issue_repair = not self._params.config_options.get(
-                        CONF_DISABLE_REPAIR
-                    )
-                if issue_repair:
-                    self._repair()
-                self._end_id()
-                if (on_error := self._params.retry_data.get(ATTR_ON_ERROR)) is not None:
-                    await script.Script(
-                        self._hass, on_error, ACTION_SERVICE, DOMAIN
-                    ).async_run(
-                        run_variables={
-                            key: value
-                            for key, value in self._template_variables.items()
-                            if key != ATTEMPT_VARIABLE
-                        },
+    async def async_retry(self) -> Any:
+        """Loop of attempts."""
+        result = None
+        while True:
+            if not self._check_id():
+                self._log(logging.INFO, "Cancelled")
+                return None
+            try:
+                if not self._initial_check():
+                    result = await self._hass.services.async_call(
+                        self._params.retry_data[ATTR_DOMAIN],
+                        self._params.retry_data[ATTR_SERVICE],
+                        self._inner_data.copy(),
+                        blocking=True,
                         context=self._context,
+                        return_response=self._params.retry_data[RETURN_RESPONSE],
                     )
-                return
-            next_retry = dt_util.now() + datetime.timedelta(
-                seconds=float(
-                    self._params.retry_data[ATTR_BACKOFF].async_render(
-                        variables=self._get_template_variables()
+                    await self._async_validate()
+            except Exception:
+                self._log(
+                    logging.WARNING
+                    if self._attempt < self._params.retry_data[ATTR_RETRIES]
+                    else logging.ERROR,
+                    "Failed",
+                    stack_info=True,
+                )
+                if self._attempt >= self._params.retry_data[ATTR_RETRIES]:
+                    issue_repair = self._params.retry_data.get(ATTR_REPAIR)
+                    if issue_repair is None:
+                        issue_repair = not self._params.config_options.get(
+                            CONF_DISABLE_REPAIR
+                        )
+                    if issue_repair:
+                        self._repair()
+                    self._end_id()
+                    if (
+                        on_error := self._params.retry_data.get(ATTR_ON_ERROR)
+                    ) is not None:
+                        await script.Script(
+                            self._hass, on_error, ACTION_SERVICE, DOMAIN
+                        ).async_run(
+                            run_variables={
+                                key: value
+                                for key, value in self._template_variables.items()
+                                if key != ATTEMPT_VARIABLE
+                            },
+                            context=self._context,
+                        )
+                    raise
+                await asyncio.sleep(
+                    float(
+                        self._params.retry_data[ATTR_BACKOFF].async_render(
+                            variables=self._get_template_variables()
+                        )
                     )
                 )
-            )
-            self._attempt += 1
-            event.async_track_point_in_time(self._hass, self.async_retry, next_retry)
+                self._attempt += 1
+            else:
+                self._log(
+                    logging.DEBUG if self._attempt == 1 else logging.INFO, "Succeeded"
+                )
+                self._end_id()
+                return result
 
 
 def _wrap_actions(  # noqa: PLR0912
@@ -629,16 +633,31 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
             raise ServiceValidationError(message)
         return config_entries[0]
 
-    async def async_action(service_call: ServiceCall) -> None:
+    async def async_action(service_call: ServiceCall) -> Any:
         """Perform action with background retries."""
         params = RetryParams(hass, get_config_entry(), service_call.data)
-        for entity_id in params.entities or [None]:  # type: ignore[list-item]
-            hass.async_create_task(
+
+        results = await asyncio.gather(
+            *[
                 RetryAction(hass, params, service_call.context, entity_id).async_retry()
-            )
+                for entity_id in params.entities or [None]  # type: ignore[list-item]
+            ],
+            return_exceptions=True,
+        )
+
+        if error := next(
+            (result for result in results if isinstance(result, Exception)), None
+        ):
+            raise error
+
+        return next((result for result in results if result is not None), None)
 
     hass.services.async_register(
-        DOMAIN, ACTION_SERVICE, async_action, ACTION_SERVICE_SCHEMA
+        DOMAIN,
+        ACTION_SERVICE,
+        async_action,
+        ACTION_SERVICE_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
     )
 
     async def async_actions(service_call: ServiceCall) -> None:
@@ -655,7 +674,11 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
         )
 
     hass.services.async_register(
-        DOMAIN, ACTIONS_SERVICE, async_actions, ACTIONS_SERVICE_SCHEMA
+        DOMAIN,
+        ACTIONS_SERVICE,
+        async_actions,
+        ACTIONS_SERVICE_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
     )
 
     return True

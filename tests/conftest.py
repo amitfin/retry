@@ -67,7 +67,11 @@ def pytest_runtest_call(item: pytest.Item) -> Any:
             message.startswith(allowed_log)
             for allowed_log in chain(
                 allowed_logs,
-                ["We found a custom integration retry", "[Failed]: attempt"],
+                [
+                    "We found a custom integration retry",
+                    "[Failed]: attempt",
+                    "actions:",
+                ],
             )
         ):
             continue

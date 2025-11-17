@@ -8,7 +8,7 @@
 
 ![Project Maintenance](https://img.shields.io/badge/maintainer-Amit%20Finkelstein-blue.svg?style=for-the-badge)
 
-Smart homes include a network of devices. A case of a failed command can happen due to temporary connectivity issues or invalid device states. The cost of such a failure can be high, especially for background automation. For example, failing to shutdown an irrigation system which should run for 20 minutes can have severe consequences.
+Smart homes include a network of devices. A case of a failed command can happen due to temporary connectivity issues or invalid device states. The cost of such a failure can be high, especially for non-interactive automation. For example, failing to shutdown an irrigation system which should run for 20 minutes can have severe consequences.
 
 The integration increases the automation reliability by implementing 2 custom actions - `retry.actions` and `retry.action`.
 `retry.actions` is the recommended and UI friendly action which should be used. `retry.action` is the engine behind the scenes. It's being used by `retry.actions` but can also be used directly by advanced users.
@@ -19,25 +19,13 @@ Here is a short demo of using `retry.actions` in the automation rule editor:
 
 https://github.com/user-attachments/assets/69b4db6b-80c6-4527-b088-e10b68e0f18c
 
-`retry.actions` wraps any action inside the sequence of actions with `retry.action`. `retry.action` performs the original action with a background retry logic on failures. A complex sequence of actions with a nested structure and conditions is supported. `retry.actions` traverses through the steps and wraps any action step. There is no impact or changes to the rest of the steps. The detailed behavior and the list of optional parameters of `retry.action` is explained in the section below. All features and parameters of `retry.action` are also supported by `retry.actions`, so there is no reason to use a YAML configuration. A straightforward UI usage as demonstrated above should be the way to go.
+`retry.actions` wraps any action inside the sequence of actions with `retry.action`. `retry.action` performs the original action with a retry logic on failures. A complex sequence of actions with a nested structure and conditions is supported. `retry.actions` traverses through the steps and wraps any action step. There is no impact or changes to the rest of the steps. The detailed behavior and the list of optional parameters of `retry.action` is explained in the section below. All features and parameters of `retry.action` are also supported by `retry.actions`, so there is no reason to use a YAML configuration. A straightforward UI usage as demonstrated above should be the way to go.
 
-Note: `retry.actions` and `retry.action` are not suitable for the following scenarios:
-
-1. For a relative state change: for example, `homeassistant.toggle` and `fan.increase_speed` are relative actions while `light.turn_on` is an absolute action. The reason is that a relative action might change the state and only then a failure occurs. Performing it again might have an unintentional result.
-2. If any [action response data](https://www.home-assistant.io/docs/scripts/service-calls/#use-templates-to-handle-response-data) is needed: the actions are running in the background and therefore it's not possible to propagate responses.
-3. The order of performing the actions successfully is not guaranteed since retries are running in the background. It's possible however to use a synchronization statement which can be placed between 2 retry actions. For example:
-```
-wait_for_trigger:
-  - trigger: state
-    entity_id: domain.state_1
-    to: "on"
-timeout: 60
-continue_on_timeout: false
-```
+Note: `retry.actions` and `retry.action` are not suitable for relative state changes. For example, `homeassistant.toggle` and `fan.increase_speed` are relative actions while `light.turn_on` is an absolute action. The reason is that a relative action might change the state and only then a failure occurs. Performing it again might have an unintentional result.
 
 ## `retry.action`
 
-This action wraps an inner action with background retries on failures. It can be useful to mitigate temporary issues of connectivity or invalid device states.
+This action wraps an inner action with retries on failures. It can be useful to mitigate temporary issues of connectivity or invalid device states.
 
 For example, instead of:
 
@@ -236,13 +224,21 @@ An action cancels a previous running action with the same retry ID. This paramet
 
 An example of the cancellation scenario might be when turning off a light while the turn on retry loop of the same light is still running due to failures or light's transition time. The turn on retry loop will be getting canceled by the turn off action since both share the same `retry_id` by default (the entity ID).
 
-Note that each entity is running individually when the inner action has a list of entities. Therefore, they have a different default `retry_id`. However, an explicit `retry_id` is shared for all entities of the same action. Nevertheless, retry loops created by the same action (`retry.action ` or `retry.actions`) are not canceling each other even when they share the same `retry_id`.
+Note that each entity is running individually when the inner action has a list of entities. Therefore, they have a different default `retry_id`. However, an explicit `retry_id` is shared for all entities of the same action. Nevertheless, retry loops created by the same action (`retry.action` or `retry.actions`) are not canceling each other even when they share the same `retry_id`.
 
 It's possible to disable the cancellation logic by setting `retry_id` to an empty string (`retry_id: ""`) or null (`retry_id: null`). In such a case, the action doesn't cancel any other running action and will not be canceled by any other future action. Note that it's not possible to set `retry_id` to an empty string or null via the "UI Mode" but instead the "YAML Mode" in the UI should be used.
 
-### Logging
+### Error Handling: Logging, Exception, and Repair
 
-The action does not propagate inner action failures (exceptions) since the attempts are done in the background. However, the action logs a warning when the inner function fails (on every attempt). It also logs an error and issue a repair ticket when the maximum amount of attempts is reached.
+The action logs every inner action failure. One the last inner action failure (when the maximum amount of attempts is reached), it issues a repair ticket and propagates the exception to the caller.
+
+Note: each entity is running individually when the inner action has a list of entities. `retry.action` guarantees that all retry loops have been completed before it propagates (raises) and exception. However, if multiple retry loops fail, there is no guarantee which exception is getting propagated.
+
+### Response Data
+
+On success, `retry.action` (only, not `retry.actions`) responses with the inner action's [response data](https://www.home-assistant.io/docs/scripts/perform-actions/#use-templates-to-handle-response-data).
+
+Note: each entity is running individually when the inner action has a list of entities. There is no guarantee which response is used in such a case. Therefore, it's recommended to use the `ignore_target` option when having a list of entities. It enforces a single retry loop which will be used as the response.
 
 ## Install
 
