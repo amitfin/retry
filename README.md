@@ -228,17 +228,20 @@ Note that each entity is running individually when the inner action has a list o
 
 It's possible to disable the cancellation logic by setting `retry_id` to an empty string (`retry_id: ""`) or null (`retry_id: null`). In such a case, the action doesn't cancel any other running action and will not be canceled by any other future action. Note that it's not possible to set `retry_id` to an empty string or null via the "UI Mode" but instead the "YAML Mode" in the UI should be used.
 
-### Error Handling: Logging, Exception, and Repair
+### Error Handling: Logging, Exceptions, and Repair
 
-The action logs every inner action failure. One the last inner action failure (when the maximum amount of attempts is reached), it issues a repair ticket and propagates the exception to the caller.
+Each inner action failure is logged. On the **final** failure (when the maximum number of attempts is reached), the action issues a repair ticket and propagates the exception to the caller.  
+An exception is also raised when a retry loop is canceled due to a duplicate `retry_id`.  
+When used inside automations or scripts, any propagated exception will halt execution of subsequent steps unless [continuing-on-error](https://www.home-assistant.io/docs/scripts/#continuing-on-error) is enabled.
 
-Note: each entity is running individually when the inner action has a list of entities. `retry.action` guarantees that all retry loops have been completed before it propagates (raises) and exception. However, if multiple retry loops fail, there is no guarantee which exception is getting propagated.
+**Note:** When the inner action targets multiple entities, each entity runs in its own retry loop. `retry.action` ensures that *all* retry loops complete before propagating any exception. However, if multiple retry loops fail, there is **no guarantee** which exception will be raised.
 
 ### Response Data
 
-On success, `retry.action` (only, not `retry.actions`) responses with the inner action's [response data](https://www.home-assistant.io/docs/scripts/perform-actions/#use-templates-to-handle-response-data).
+On success, `retry.action` (but not `retry.actions`) returns the inner action’s [response data](https://www.home-assistant.io/docs/scripts/perform-actions/#use-templates-to-handle-response-data).
 
-Note: each entity is running individually when the inner action has a list of entities. There is no guarantee which response is used in such a case. Therefore, it's recommended to use the `ignore_target` option when having a list of entities. It enforces a single retry loop which will be used as the response.
+**Note:** When targeting multiple entities, each entity runs independently, and there is **no guarantee** which loop’s response is returned.  
+To avoid this ambiguity, it is recommended to use the `ignore_target` option when providing a list of entities. This forces a single retry loop whose response will be used.
 
 ## Install
 
