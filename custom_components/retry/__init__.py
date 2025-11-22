@@ -511,7 +511,11 @@ class RetryAction:
         while True:
             if not self._check_id():
                 self._log(logging.INFO, "Cancelled")
-                return None
+                msg = (
+                    f"Retry cancelled due to duplicate retry_id '{self._retry_id}': "
+                    f"{self!s}"
+                )
+                raise IntegrationError(msg)
             try:
                 if not self._initial_check():
                     result = await self._hass.services.async_call(

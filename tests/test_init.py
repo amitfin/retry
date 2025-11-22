@@ -477,9 +477,15 @@ async def test_retry_id_cancellation(
         tasks.append(hass.async_create_task(async_call(hass)))
         await called.acquire()
     event.set()
-    await asyncio.gather(*tasks)
+    result = await asyncio.gather(*tasks, return_exceptions=True)
     assert len(calls) == 8  # = 1 + 7
     assert "[Cancelled]: attempt 2/7: retry.test_service()" in caplog.text
+    assert result[1] is None
+    assert isinstance(result[0], IntegrationError)
+    assert str(result[0]) == (
+        "Retry cancelled due to duplicate retry_id 'retry.test_service': "
+        "retry.test_service()"
+    )
 
 
 async def test_retry_id_sequence(
@@ -538,7 +544,7 @@ async def test_default_retry_id_is_entity_id(
     )
     await called.acquire()
     event.set()
-    await asyncio.gather(*tasks)
+    await asyncio.gather(*tasks, return_exceptions=True)
     assert len(calls) == 8  # = 1 + 7
 
 
@@ -559,7 +565,7 @@ async def test_default_retry_id_is_domain_service(
     )
     await called.acquire()
     event.set()
-    await asyncio.gather(*tasks)
+    await asyncio.gather(*tasks, return_exceptions=True)
     assert len(calls) == 8  # = 1 + 7
 
 
