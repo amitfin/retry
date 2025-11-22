@@ -788,11 +788,11 @@ async def test_state_no_entity(hass: HomeAssistant) -> None:
     """Test providing expected state without an entity."""
     await async_setup(hass)
 
-    with pytest.raises(IntegrationError) as error:
+    with pytest.raises(ServiceValidationError) as error:
         await async_call(hass, {ATTR_EXPECTED_STATE: "test"})
     assert str(error.value) == "expected_state parameter requires an entity"
 
-    with pytest.raises(IntegrationError) as error:
+    with pytest.raises(ServiceValidationError) as error:
         await hass.services.async_call(
             DOMAIN,
             ACTIONS_SERVICE,

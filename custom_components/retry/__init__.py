@@ -179,7 +179,7 @@ class RetryParams:
         self.entities = self._entity_ids(hass)
         if not self.entities and ATTR_EXPECTED_STATE in self.retry_data:
             message = f"{ATTR_EXPECTED_STATE} parameter requires an entity"
-            raise IntegrationError(message)
+            raise ServiceValidationError(message)
 
     @staticmethod
     def _retry_data(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
