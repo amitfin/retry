@@ -165,26 +165,28 @@ async def async_call(
     data: dict[str, Any] | None = None,
     target: dict[str, Any] | None = None,
     plural: bool = False,  # noqa: FBT001, FBT002
-) -> None:
+) -> Any:
     """Call a service via the retry service."""
     data = data or {}
     data[CONF_ACTION] = f"{DOMAIN}.{TEST_SERVICE}"
     with suppress(RetryTestMockError, InvalidStateError):
-        await hass.services.async_call(
+        return await hass.services.async_call(
             DOMAIN,
             ACTION_SERVICE if not plural else ACTIONS_SERVICE,
             data,
             blocking=True,
             target=target,
+            return_response=not plural,
         )
 
 
 async def test_success(hass: HomeAssistant) -> None:
     """Test success case."""
     calls = await async_setup(hass, raises=False)
-    await async_call(
+    result = await async_call(
         hass, {ATTR_ENTITY_ID: ["binary_sensor.test", "binary_sensor.test"]}
     )
+    assert isinstance(result, dict)
     assert len(calls) == 1
 
 

@@ -654,7 +654,7 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
         ):
             raise error
 
-        return next((result for result in results if result is not None), None)
+        return next((result for result in results if result is not None), {})
 
     hass.services.async_register(
         DOMAIN,
@@ -682,7 +682,6 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
         ACTIONS_SERVICE,
         async_actions,
         ACTIONS_SERVICE_SCHEMA,
-        supports_response=SupportsResponse.OPTIONAL,
     )
 
     return True
