@@ -593,7 +593,7 @@ def _wrap_actions(  # noqa: PLR0912
                 action[CONF_SERVICE_DATA][CONF_ACTION] = domain_service
                 action[CONF_SERVICE_DATA].update(retry_params)
                 action[CONF_ACTION] = f"{DOMAIN}.{ACTION_SERVICE}"
-                # Validate parameters so errors are not raised in the background.
+                # Validate parameters so errors are raised as soon as possible.
                 RetryParams(
                     hass,
                     None,
@@ -638,7 +638,7 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
         return config_entries[0]
 
     async def async_action(service_call: ServiceCall) -> Any:
-        """Perform action with background retries."""
+        """Perform action with retries."""
         params = RetryParams(hass, get_config_entry(), service_call.data)
 
         results = await asyncio.gather(
