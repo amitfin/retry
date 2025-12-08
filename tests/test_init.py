@@ -16,6 +16,7 @@ from homeassistant.config_entries import ConfigEntryDisabler
 from homeassistant.const import (
     ATTR_DEVICE_ID,
     ATTR_ENTITY_ID,
+    ATTR_LABEL_ID,
     CONF_ACTION,
     CONF_CHOOSE,
     CONF_CONDITION,
@@ -52,7 +53,9 @@ from homeassistant.exceptions import (
     ServiceValidationError,
 )
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers import label_registry as lr
 from homeassistant.helpers import script
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import (
@@ -109,11 +112,16 @@ async def async_setup(  # noqa: PLR0913
         {
             "template": {
                 "binary_sensor": [
-                    {"name": "test", "state": "{{ True }}"},
+                    {"name": "test", "state": "{{ True }}", "unique_id": "1"},
                     {"name": "test2", "state": "{{ False }}"},
                 ]
             }
         },
+    )
+    await hass.async_block_till_done()
+    assert lr.async_get(hass).async_create("Test Label")
+    assert er.async_get(hass).async_update_entity(
+        "binary_sensor.test", labels={"Test Label"}
     )
     await hass.async_block_till_done()
 
@@ -133,20 +141,21 @@ async def async_setup(  # noqa: PLR0913
             raise RetryTestMockError
         return None
 
-    hass.services.async_register(
-        DOMAIN,
-        TEST_SERVICE,
-        async_service,
-        vol.Schema(
-            {
-                **cv.TARGET_SERVICE_FIELDS,
-                vol.Optional("test"): vol.Any(str, [str]),
-            },
-        ),
-        supports_response=SupportsResponse.ONLY
-        if action_response
-        else SupportsResponse.NONE,
-    )
+    for domain in (DOMAIN, "binary_sensor", "template", "homeassistant"):
+        hass.services.async_register(
+            domain,
+            TEST_SERVICE,
+            async_service,
+            vol.Schema(
+                {
+                    **cv.TARGET_SERVICE_FIELDS,
+                    vol.Optional("test"): vol.Any(str, [str]),
+                },
+            ),
+            supports_response=SupportsResponse.ONLY
+            if action_response
+            else SupportsResponse.NONE,
+        )
 
     hass.services.async_register(
         DOMAIN,
@@ -311,6 +320,29 @@ async def test_ignore_target(
         "entity_id=['binary_sensor.test', 'binary_sensor.invalid'], device_id=none)"
         "[ignore_target=True]"
     ) in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("domain", "match"),
+    [
+        (DOMAIN, False),
+        ("binary_sensor", True),
+        ("template", True),
+        ("homeassistant", True),
+    ],
+    ids=["filtered out", "component", "integration", "homeassistant"],
+)
+async def test_label_target(hass: HomeAssistant, domain: str, match: bool) -> None:  # noqa: FBT001
+    """Test label as target selector."""
+    calls = await async_setup(hass, raises=False)
+    await hass.services.async_call(
+        DOMAIN,
+        ACTION_SERVICE,
+        {CONF_ACTION: f"{domain}.{TEST_SERVICE}"},
+        blocking=True,
+        target={ATTR_LABEL_ID: "Test Label"},
+    )
+    assert len(calls) == (1 if match else 0)
 
 
 @pytest.mark.parametrize(

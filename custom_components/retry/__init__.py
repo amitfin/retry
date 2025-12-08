@@ -25,6 +25,7 @@ from homeassistant.const import (
     CONF_THEN,
     ENTITY_MATCH_ALL,
 )
+from homeassistant.core import DOMAIN as HA_DOMAIN
 from homeassistant.core import SupportsResponse
 from homeassistant.exceptions import (
     IntegrationError,
@@ -40,6 +41,7 @@ from homeassistant.helpers import (
 )
 from homeassistant.helpers import script
 from homeassistant.helpers.entity_component import DATA_INSTANCES, EntityComponent
+from homeassistant.helpers.entity_platform import async_get_platforms
 from homeassistant.helpers.target import (
     TargetSelectorData,
     async_extract_referenced_entity_ids,
@@ -78,7 +80,7 @@ DEFAULT_RETRIES = 7
 DEFAULT_STATE_GRACE = 0.2
 GROUP_DOMAIN = "group"
 RETURN_RESPONSE = "return_response"
-ENTITY_SERVICE_FIELDS = [str(key) for key in cv.ENTITY_SERVICE_FIELDS]
+ENTITY_SERVICE_FIELDS = {str(key) for key in cv.ENTITY_SERVICE_FIELDS}
 
 _running_retries: dict[str, tuple[str, int]] = {}
 _running_retries_write_lock = threading.Lock()
@@ -176,8 +178,9 @@ class RetryParams:
         self.config_options = getattr(config_entry, "options", {})
         self.retry_data = self._retry_data(hass, data)
         self.inner_data = self._inner_data(hass, data)
+        self.has_target = self._has_target()
         self.entities = self._entity_ids(hass)
-        if not self.entities and ATTR_EXPECTED_STATE in self.retry_data:
+        if not self.has_target and ATTR_EXPECTED_STATE in self.retry_data:
             message = f"{ATTR_EXPECTED_STATE} parameter requires an entity"
             raise ServiceValidationError(message)
 
@@ -215,9 +218,15 @@ class RetryParams:
             schema(inner_data)
         return inner_data
 
-    def _expand_group(self, hass: HomeAssistant, entity_id: str) -> list[str]:
+    def _has_target(self) -> bool:
+        """Check if inner action refers to entities."""
+        if self.retry_data.get(ATTR_IGNORE_TARGET):
+            return False
+        return self.inner_data.keys() & ENTITY_SERVICE_FIELDS != set()
+
+    def _expand_group(self, hass: HomeAssistant, entity_id: str) -> set[str]:
         """Return group member ids (when a group)."""
-        entity_ids = []
+        entity_ids = set()
         entity_obj = _get_entity(hass, entity_id)
         if (
             entity_obj is not None
@@ -227,30 +236,59 @@ class RetryParams:
             for member_id in getattr(entity_obj, "extra_state_attributes", {}).get(
                 ATTR_ENTITY_ID, []
             ):
-                entity_ids.extend(self._expand_group(hass, member_id))
+                entity_ids.update(self._expand_group(hass, member_id))
         else:
-            entity_ids.append(entity_id)
+            entity_ids.add(entity_id)
         return entity_ids
 
-    def _entity_ids(self, hass: HomeAssistant) -> list[str]:
+    def _all_entity_ids(self, hass: HomeAssistant) -> set[str]:
+        """Return all entity ids based on action's domain."""
+        # 1) All entities with the same domain as the action.
+        # 2) All entities created by the integration of the action's domain.
+        # Note that it's not possible to know the specific platform based on
+        # the action name, so we can't filter to a specific platform.
+        return {
+            entity.entity_id
+            for entity in getattr(
+                _get_entity_component(hass, self.retry_data[ATTR_DOMAIN]),
+                "entities",
+                [],
+            )
+        } | {
+            entity_id
+            for platform in async_get_platforms(hass, self.retry_data[ATTR_DOMAIN])
+            for entity_id in platform.entities
+        }
+
+    def _entity_ids(self, hass: HomeAssistant) -> set[str]:
         """Extract and expand entity ids."""
-        if self.retry_data.get(ATTR_IGNORE_TARGET):
-            return []
+        if not self.has_target:
+            return set()
+
         if self.inner_data.get(ATTR_ENTITY_ID) == ENTITY_MATCH_ALL:
-            # Assuming it's a component (domain) service and not platform specific.
-            # AFAIK, it's not possible to get the platform by the service name.
-            entity_comp = _get_entity_component(hass, self.retry_data[ATTR_DOMAIN])
-            return [
-                entity.entity_id
-                for entity in (entity_comp.entities if entity_comp else [])
-            ]
-        entity_ids = []
+            return self._all_entity_ids(hass)
+
         entities = async_extract_referenced_entity_ids(
             hass,
             TargetSelectorData(self.inner_data),
         )
-        for entity_id in entities.referenced | entities.indirectly_referenced:
-            entity_ids.extend(self._expand_group(hass, entity_id))
+
+        entity_ids = {
+            entity_id
+            for group_entity_id in entities.referenced
+            for entity_id in self._expand_group(hass, group_entity_id)
+        }
+
+        if entities.indirectly_referenced:
+            all_entity_ids = self._all_entity_ids(hass)
+            entity_ids.update(
+                entity_id
+                for group_entity_id in entities.indirectly_referenced
+                for entity_id in self._expand_group(hass, group_entity_id)
+                if entity_id in all_entity_ids
+                or self.retry_data[ATTR_DOMAIN] == HA_DOMAIN  # homeassistant.turn_on
+            )
+
         return entity_ids
 
 
@@ -644,7 +682,7 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
         results = await asyncio.gather(
             *[
                 RetryAction(hass, params, service_call.context, entity_id).async_retry()
-                for entity_id in params.entities or [None]  # type: ignore[list-item]
+                for entity_id in (params.entities if params.has_target else [None])
             ],
             return_exceptions=True,
         )
