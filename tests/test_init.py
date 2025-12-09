@@ -1423,6 +1423,7 @@ async def test_event_context(
             context=context,
         )
 
+    await hass.async_block_till_done(wait_background_tasks=True)
     calls = [call_args.args[0] for call_args in listener.call_args_list]
     assert len(calls) == 4
     for call in calls:
