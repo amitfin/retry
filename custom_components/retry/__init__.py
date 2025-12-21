@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import logging
 import threading
 from typing import TYPE_CHECKING, Any
@@ -117,6 +118,12 @@ def _validation_parameter(value: Any | None) -> str | None:
     return value
 
 
+def _script_schema_validate_only(value: Any) -> Any:
+    """Validate script schema without changing the value."""
+    cv.SCRIPT_SCHEMA(copy.deepcopy(value))
+    return value
+
+
 SERVICE_SCHEMA_BASE_FIELDS = {
     vol.Required(ATTR_RETRIES, default=DEFAULT_RETRIES): cv.positive_int,
     vol.Required(ATTR_BACKOFF, default=DEFAULT_BACKOFF): _backoff_parameter,
@@ -147,6 +154,8 @@ ACTIONS_SERVICE_SCHEMA = vol.All(
         {
             **SERVICE_SCHEMA_BASE_FIELDS,
             vol.Required(CONF_SEQUENCE): cv.SCRIPT_SCHEMA,
+            # "on_error" should be passed as-is to retry.action
+            vol.Optional(ATTR_ON_ERROR): _script_schema_validate_only,
         },
         extra=vol.ALLOW_EXTRA,
     ),
@@ -629,7 +638,7 @@ def _wrap_actions(  # noqa: PLR0912
                     raise IntegrationError(message)
                 action[CONF_SERVICE_DATA] = action.get(CONF_SERVICE_DATA, {})
                 action[CONF_SERVICE_DATA][CONF_ACTION] = domain_service
-                action[CONF_SERVICE_DATA].update(retry_params)
+                action[CONF_SERVICE_DATA].update(copy.deepcopy(retry_params))
                 action[CONF_ACTION] = f"{DOMAIN}.{ACTION_SERVICE}"
                 # Validate parameters so errors are raised as soon as possible.
                 RetryParams(

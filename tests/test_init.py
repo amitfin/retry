@@ -1481,3 +1481,28 @@ async def test_script_run_templates(
         with pytest.raises(vol.MultipleInvalid) as exception:
             await async_call
         assert exception.value.msg == "length of value must be at least 1"
+
+
+async def test_on_error_script_schema(
+    hass: HomeAssistant,
+) -> None:
+    """Test on_error parameter is not changed by its schema."""
+    await async_setup(hass, raises=False)
+    listener = Mock()
+    hass.bus.async_listen(EVENT_CALL_SERVICE, listener)
+
+    delay_step = {"delay": {"seconds": 1}}
+    await async_call(
+        hass,
+        {CONF_SEQUENCE: BASIC_SEQUENCE_DATA, ATTR_ON_ERROR: [delay_step]},
+        plural=True,
+    )
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    service_data = [
+        call_args.args[0].data["service_data"]
+        for call_args in listener.call_args_list
+        if call_args.args[0].data["service"] == ACTIONS_SERVICE
+    ]
+    assert len(service_data) == 1
+    assert service_data[0][ATTR_ON_ERROR][0] == delay_step
