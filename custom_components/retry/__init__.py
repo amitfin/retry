@@ -43,11 +43,15 @@ from homeassistant.helpers import (
 from homeassistant.helpers import script
 from homeassistant.helpers.entity_component import DATA_INSTANCES, EntityComponent
 from homeassistant.helpers.entity_platform import async_get_platforms
-from homeassistant.helpers.target import (
-    TargetSelectorData,
-    async_extract_referenced_entity_ids,
-)
+from homeassistant.helpers.target import async_extract_referenced_entity_ids
 from homeassistant.helpers.template import Template, result_as_boolean
+
+try:
+    from homeassistant.helpers.target import (  # type: ignore[attr-defined, unused-ignore]
+        TargetSelection,  # pyright: ignore[reportAttributeAccessIssue]
+    )
+except ImportError:
+    from homeassistant.helpers.target import TargetSelectorData as TargetSelection
 
 if TYPE_CHECKING:
     from homeassistant.core import Context, HomeAssistant, ServiceCall
@@ -279,7 +283,7 @@ class RetryParams:
 
         entities = async_extract_referenced_entity_ids(
             hass,
-            TargetSelectorData(self.inner_data),
+            TargetSelection(self.inner_data),
         )
 
         entity_ids = {
