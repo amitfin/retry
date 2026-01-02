@@ -47,9 +47,7 @@ from homeassistant.helpers.target import async_extract_referenced_entity_ids
 from homeassistant.helpers.template import Template, result_as_boolean
 
 try:
-    from homeassistant.helpers.target import (  # type: ignore[attr-defined, unused-ignore]
-        TargetSelection,  # pyright: ignore[reportAttributeAccessIssue]
-    )
+    from homeassistant.helpers.target import TargetSelection
 except ImportError:
     from homeassistant.helpers.target import TargetSelectorData as TargetSelection
 
