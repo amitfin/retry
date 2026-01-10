@@ -81,8 +81,8 @@ The default value is `"[[ 2 ** attempt ]]"`, which implements an exponential bac
 - Delay intervals between failures: `[1, 2, 4, 8, 16, 32]`. Each interval is twice the duration of the preceding one.
 - Cumulative execution offsets: `[0, 1, 3, 7, 15, 31, 63]`. These values represent the absolute time offsets at which each successive inner action is performed.
 
-Linear backoff is an alternative strategy that can be expressed as a plain (non-template) string, without brackets:
-- Example: `"10"`
+Linear backoff is an alternative strategy that can be expressed as an integer or a plain (non-template) string:
+- Example: `10` (or `"10"`)
 - Delay intervals between failures: `[10, 10, 10, 10, 10, 10]`
 - Cumulative execution offsets: `[0, 10, 20, 30, 40, 50, 60]`
 
