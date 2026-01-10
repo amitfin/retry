@@ -110,8 +110,9 @@ def _fix_template_tokens(value: str) -> str:
 
 def _backoff_parameter(value: Any | None) -> str | None:
     """Check backoff parameter."""
-    vol.Length(min=1)(cv.template(_fix_template_tokens(cv.string(value))).template)
-    return value
+    value_str = cv.string(value)
+    vol.Length(min=1)(cv.template(_fix_template_tokens(value_str)).template)
+    return value_str
 
 
 def _validation_parameter(value: Any | None) -> str | None:

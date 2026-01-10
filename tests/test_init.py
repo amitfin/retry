@@ -1218,11 +1218,13 @@ async def test_actions_backoff(  # noqa: PLR0913
 @pytest.mark.parametrize(
     ("backoff", "error"),
     [
+        ("1", None),
+        (1, None),
         ("[[ 1 ]]", None),
         ("[[ 'A' ]]", "expected float"),
         ([1], "value should be a string"),
     ],
-    ids=["valid", "non number", "non string"],
+    ids=["plain str", "int", "const template", "non number", "non string"],
 )
 async def test_backoff_rendered_value(
     hass: HomeAssistant,
