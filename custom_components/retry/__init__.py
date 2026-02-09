@@ -172,7 +172,7 @@ def _get_entity_component(hass: HomeAssistant, domain: str) -> EntityComponent |
 
 def _get_entity(hass: HomeAssistant, entity_id: str) -> Entity | None:
     """Get entity object."""
-    entity_comp = _get_entity_component(hass, entity_id.split(".")[0])
+    entity_comp = _get_entity_component(hass, entity_id.split(".", maxsplit=1)[0])
     return entity_comp.get_entity(entity_id) if entity_comp else None
 
 

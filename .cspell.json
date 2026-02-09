@@ -24,6 +24,7 @@
     "levelname",
     "levelno",
     "mypy",
+    "prek",
     "pylance",
     "pytest",
     "PYTHONPATH",
