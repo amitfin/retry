@@ -674,6 +674,7 @@ async def test_on_error(
     [
         "test: Error executing script.",
         "Error while executing automation automation.test:",
+        "Executing <Task finished",
     ]
 )
 async def test_validation_in_automation(
