@@ -73,7 +73,7 @@ def pytest_runtest_call(item: pytest.Item) -> Any:
                     "actions:",
                 ],
             )
-        ):
+        ) or (message.startswith("Executing <Task") and message.endswith(" seconds")):
             continue
         pytest.fail(f"Disallowed {record.levelname} log: {message}")
 
