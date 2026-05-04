@@ -228,6 +228,32 @@ Note that each entity is running individually when the inner action has a list o
 
 It's possible to disable the cancellation logic by setting `retry_id` to an empty string (`retry_id: ""`) or null (`retry_id: null`). In such a case, the action doesn't cancel any other running action and will not be canceled by any other future action. Note that it's not possible to set `retry_id` to an empty string or null via the "UI Mode" but instead the "YAML Mode" in the UI should be used.
 
+#### `wrap_exceptions` parameter (optional)
+
+A boolean parameter (default: `false`). When enabled, if all retries fail with an exception that does **not** already inherit from `HomeAssistantError`, the original exception is re-raised wrapped in a `HomeAssistantError` (with the original preserved via `__cause__`). This makes the failure behave like a normal Home Assistant integration error at the script layer.
+
+Why this is useful: Home Assistant's [`continue_on_error`](https://www.home-assistant.io/docs/scripts/#continuing-on-error) script flag only suppresses exceptions that are subclasses of `HomeAssistantError` ([core source](https://github.com/home-assistant/core/blob/dev/homeassistant/helpers/script.py)). Some integrations raise plain `Exception` subclasses for operational failures — for example, `switchbot_api` raises `SwitchBotDeviceOfflineError(Exception)`. When such an exception escapes a `retry.action` / `retry.actions` block, `continue_on_error: true` cannot catch it, and the surrounding script halts unexpectedly. Setting `wrap_exceptions: true` makes those errors compatible with `continue_on_error` and similar script-level handling.
+
+Example:
+
+```
+action: retry.actions
+continue_on_error: true
+data:
+  wrap_exceptions: true
+  sequence:
+    - action: switch.turn_on
+      target:
+        entity_id: switch.gate
+  on_error:
+    - action: notify.notified_users
+      data:
+        title: "Warning"
+        message: "Failed to open gate."
+```
+
+This option is opt-in to preserve backwards compatibility — existing automations that catch the underlying exception class explicitly will continue to see the original type when `wrap_exceptions` is left unset.
+
 ### Error Handling: Logging, Exceptions, and Repair
 
 Each inner action failure is logged. On the **final** failure (when the maximum number of attempts is reached), the action issues a repair ticket and propagates the exception to the caller.  

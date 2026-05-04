@@ -64,6 +64,9 @@ action:
     retry_id:
       selector:
         text:
+    wrap_exceptions:
+      selector:
+        boolean:
 actions:
   fields:
     sequence:
@@ -129,3 +132,6 @@ actions:
     retry_id:
       selector:
         text:
+    wrap_exceptions:
+      selector:
+        boolean:
