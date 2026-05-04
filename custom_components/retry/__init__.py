@@ -29,6 +29,7 @@ from homeassistant.const import (
 from homeassistant.core import DOMAIN as HA_DOMAIN
 from homeassistant.core import SupportsResponse
 from homeassistant.exceptions import (
+    HomeAssistantError,
     IntegrationError,
     InvalidStateError,
     ServiceNotFound,
@@ -70,6 +71,7 @@ from .const import (
     ATTR_STATE_DELAY,
     ATTR_STATE_GRACE,
     ATTR_VALIDATION,
+    ATTR_WRAP_EXCEPTIONS,
     CONF_DISABLE_INITIAL_CHECK,
     CONF_DISABLE_REPAIR,
     DOMAIN,
@@ -138,6 +140,7 @@ SERVICE_SCHEMA_BASE_FIELDS = {
     vol.Optional(ATTR_IGNORE_TARGET): cv.boolean,
     vol.Optional(ATTR_REPAIR): cv.boolean,
     vol.Optional(ATTR_RETRY_ID): vol.Any(cv.string, None),
+    vol.Optional(ATTR_WRAP_EXCEPTIONS): cv.boolean,
 }
 ACTION_SERVICE_PARAMS = vol.Schema(
     {
@@ -577,7 +580,7 @@ class RetryAction:
                         return_response=self._params.retry_data[RETURN_RESPONSE],
                     )
                     await self._async_validate()
-            except Exception:
+            except Exception as err:
                 self._log(
                     logging.WARNING
                     if self._attempt < self._params.retry_data[ATTR_RETRIES]
@@ -607,6 +610,18 @@ class RetryAction:
                             },
                             context=self._context,
                         )
+                    if self._params.retry_data.get(
+                        ATTR_WRAP_EXCEPTIONS
+                    ) and not isinstance(err, HomeAssistantError):
+                        # Some integrations raise plain Exception subclasses for
+                        # operational failures (e.g. SwitchBotDeviceOfflineError).
+                        # Home Assistant's `continue_on_error` only suppresses
+                        # HomeAssistantError subclasses, so when wrap_exceptions
+                        # is enabled, translate the original error so callers
+                        # can rely on script-level error handling.
+                        raise HomeAssistantError(
+                            str(err) or err.__class__.__name__
+                        ) from err
                     raise
                 await asyncio.sleep(
                     float(

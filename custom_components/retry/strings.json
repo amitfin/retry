@@ -74,6 +74,10 @@
         "retry_id": {
           "name": "Retry ID",
           "description": "A new action cancels a previous action with the same ID (the default is the entity ID)."
+        },
+        "wrap_exceptions": {
+          "name": "Wrap Exceptions",
+          "description": "When enabled, after retries are exhausted the original exception is re-raised as a `HomeAssistantError` so script-level handling like `continue_on_error` can suppress it. Useful for integrations that raise plain `Exception` subclasses (e.g. `SwitchBotDeviceOfflineError`)."
         }
       }
     },
@@ -124,6 +128,10 @@
         "retry_id": {
           "name": "Retry ID",
           "description": "A new action cancels a previous action with the same ID (the default is the entity ID)."
+        },
+        "wrap_exceptions": {
+          "name": "Wrap Exceptions",
+          "description": "When enabled, after retries are exhausted the original exception is re-raised as a `HomeAssistantError` so script-level handling like `continue_on_error` can suppress it. Useful for integrations that raise plain `Exception` subclasses (e.g. `SwitchBotDeviceOfflineError`)."
         }
       }
     }

@@ -47,6 +47,7 @@ from homeassistant.core import (
     callback,
 )
 from homeassistant.exceptions import (
+    HomeAssistantError,
     IntegrationError,
     InvalidStateError,
     ServiceNotFound,
@@ -77,6 +78,7 @@ from custom_components.retry.const import (
     ATTR_STATE_DELAY,
     ATTR_STATE_GRACE,
     ATTR_VALIDATION,
+    ATTR_WRAP_EXCEPTIONS,
     CONF_DISABLE_INITIAL_CHECK,
     CONF_DISABLE_REPAIR,
     DOMAIN,
@@ -668,6 +670,99 @@ async def test_on_error(
     assert calls[-1].service == TEST_ON_ERROR_SERVICE
     assert calls[-1].data[ATTR_ENTITY_ID] == "binary_sensor.test"
     assert calls[-1].data["test"] == f"{DOMAIN}.{TEST_SERVICE}"
+
+
+async def test_wrap_exceptions_default_off(
+    hass: HomeAssistant,
+) -> None:
+    """Default behavior: original (non-HA) exception class is preserved."""
+    await async_setup(hass)
+    with pytest.raises(RetryTestMockError):
+        await hass.services.async_call(
+            DOMAIN,
+            ACTION_SERVICE,
+            {
+                CONF_ACTION: f"{DOMAIN}.{TEST_SERVICE}",
+                ATTR_RETRIES: 1,
+                ATTR_ENTITY_ID: "binary_sensor.test",
+            },
+            blocking=True,
+        )
+
+
+async def test_wrap_exceptions_translates_to_home_assistant_error(
+    hass: HomeAssistant,
+) -> None:
+    """When opted in, a non-HA exception is re-raised as HomeAssistantError."""
+    await async_setup(hass)
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await hass.services.async_call(
+            DOMAIN,
+            ACTION_SERVICE,
+            {
+                CONF_ACTION: f"{DOMAIN}.{TEST_SERVICE}",
+                ATTR_RETRIES: 1,
+                ATTR_WRAP_EXCEPTIONS: True,
+                ATTR_ENTITY_ID: "binary_sensor.test",
+            },
+            blocking=True,
+        )
+    assert isinstance(exc_info.value.__cause__, RetryTestMockError)
+
+
+async def test_wrap_exceptions_preserves_home_assistant_error(
+    hass: HomeAssistant,
+) -> None:
+    """An exception that is already HomeAssistantError is not double-wrapped."""
+
+    class _SubclassedHaError(HomeAssistantError):
+        """Test subclass of HomeAssistantError."""
+
+    @callback
+    def async_service(_: ServiceCall) -> None:
+        msg = "boom"
+        raise _SubclassedHaError(msg)
+
+    hass.services.async_register(DOMAIN, "raise_ha_error", async_service)
+
+    config_entry = MockConfigEntry(domain=DOMAIN)
+    config_entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(config_entry.entry_id)
+
+    with pytest.raises(_SubclassedHaError):
+        await hass.services.async_call(
+            DOMAIN,
+            ACTION_SERVICE,
+            {
+                CONF_ACTION: f"{DOMAIN}.raise_ha_error",
+                ATTR_RETRIES: 1,
+                ATTR_WRAP_EXCEPTIONS: True,
+            },
+            blocking=True,
+        )
+
+
+async def test_wrap_exceptions_runs_after_on_error(
+    hass: HomeAssistant,
+) -> None:
+    """on_error still runs before the wrapped exception is raised."""
+    calls = await async_setup(hass)
+    with pytest.raises(HomeAssistantError):
+        await hass.services.async_call(
+            DOMAIN,
+            ACTION_SERVICE,
+            {
+                CONF_ACTION: f"{DOMAIN}.{TEST_SERVICE}",
+                ATTR_RETRIES: 1,
+                ATTR_WRAP_EXCEPTIONS: True,
+                ATTR_ENTITY_ID: "binary_sensor.test",
+                ATTR_ON_ERROR: [
+                    {CONF_ACTION: f"{DOMAIN}.{TEST_ON_ERROR_SERVICE}"},
+                ],
+            },
+            blocking=True,
+        )
+    assert calls[-1].service == TEST_ON_ERROR_SERVICE
 
 
 @pytest.mark.allowed_logs(
