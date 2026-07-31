@@ -94,7 +94,7 @@ class RetryTestMockError(Exception):
     """Test Exception."""
 
 
-async def async_setup(  # noqa: PLR0913
+async def async_setup(  # noqa: PLR0913, PLR0917
     hass: HomeAssistant,
     raises: bool = True,  # noqa: FBT001, FBT002
     options: dict | None = None,
@@ -354,7 +354,7 @@ async def test_label_target(hass: HomeAssistant, domain: str, match: bool) -> No
     ],
     ids=["default", "grace", "validation"],
 )
-async def test_entity_wrong_state(  # noqa: PLR0913
+async def test_entity_wrong_state(  # noqa: PLR0913, PLR0917
     hass: HomeAssistant,
     caplog: pytest.LogCaptureFixture,
     sleep: AsyncMock,
@@ -1187,7 +1187,7 @@ async def test_actions_propagating_args(
     ],
     ids=["default - exponential backoff", "linear", "slow exponential backoff"],
 )
-async def test_actions_backoff(  # noqa: PLR0913
+async def test_actions_backoff(  # noqa: PLR0913, PLR0917
     hass: HomeAssistant,
     sleep: AsyncMock,
     caplog: pytest.LogCaptureFixture,
