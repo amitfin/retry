@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import copy
 import logging
 import threading
@@ -277,12 +278,19 @@ class RetryParams:
         if not self.has_target:
             return set()
 
-        if self.inner_data.get(ATTR_ENTITY_ID) == ENTITY_MATCH_ALL:
+        target = self.inner_data
+        if isinstance(raw_entity_ids := target.get(ATTR_ENTITY_ID), str):
+            # Normalize like HA's entity services, e.g. "light.a, light.b" or "ALL".
+            # Strings which entity services reject are used as-is.
+            with contextlib.suppress(vol.Invalid):
+                target = {**target, ATTR_ENTITY_ID: cv.comp_entity_ids(raw_entity_ids)}
+
+        if target.get(ATTR_ENTITY_ID) == ENTITY_MATCH_ALL:
             return self._all_entity_ids(hass)
 
         entities = async_extract_referenced_entity_ids(
             hass,
-            TargetSelection(self.inner_data),
+            TargetSelection(target),
         )
 
         entity_ids = {

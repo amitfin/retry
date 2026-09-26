@@ -189,6 +189,24 @@ async def async_call(
         )
 
 
+async def async_call_single(
+    hass: HomeAssistant,
+    action: str,
+    data: dict[str, Any],
+    *,
+    plural: bool,
+) -> None:
+    """Call a single action via "retry.action" or "retry.actions" (no suppression)."""
+    await hass.services.async_call(
+        DOMAIN,
+        ACTIONS_SERVICE if plural else ACTION_SERVICE,
+        {CONF_SEQUENCE: [{CONF_ACTION: action, CONF_SERVICE_DATA: data}]}
+        if plural
+        else {CONF_ACTION: action, **data},
+        blocking=True,
+    )
+
+
 async def test_success(hass: HomeAssistant) -> None:
     """Test success case."""
     calls = await async_setup(hass, raises=False)
@@ -295,6 +313,50 @@ async def test_selective_retry(
     assert called_entities.count(["binary_sensor.test"]) == 1
     assert called_entities.count(["binary_sensor.invalid"]) == 7
     assert ATTR_DEVICE_ID not in calls[0].data
+
+
+@pytest.mark.parametrize(
+    ("entity_id", "called_entities"),
+    [
+        (
+            "binary_sensor.test, binary_sensor.test2",
+            [["binary_sensor.test"], ["binary_sensor.test2"]],
+        ),
+        (
+            "Binary_Sensor.Test,binary_sensor.test2",
+            [["binary_sensor.test"], ["binary_sensor.test2"]],
+        ),
+        (" binary_sensor.test ", [["binary_sensor.test"]]),
+        (ENTITY_MATCH_NONE.upper(), []),
+    ],
+    ids=["comma-separated", "comma-separated-mixed-case", "padded", "none-uppercase"],
+)
+@pytest.mark.parametrize("plural", [False, True], ids=["action", "actions"])
+async def test_entity_id_string(
+    hass: HomeAssistant,
+    entity_id: str,
+    called_entities: list[list[str]],
+    plural: bool,  # noqa: FBT001
+) -> None:
+    """Test entity_id string is normalized the same way as HA does."""
+    calls = await async_setup(hass, raises=False)
+    await async_call_single(
+        hass, f"{DOMAIN}.{TEST_SERVICE}", {ATTR_ENTITY_ID: entity_id}, plural=plural
+    )
+    assert sorted(call.data[ATTR_ENTITY_ID] for call in calls) == called_entities
+
+
+@pytest.mark.parametrize("plural", [False, True], ids=["action", "actions"])
+async def test_empty_entity_id_string(
+    hass: HomeAssistant,
+    plural: bool,  # noqa: FBT001
+) -> None:
+    """Test empty entity_id string is still passed to an action without schema."""
+    calls = await async_setup(hass, raises=False)
+    await async_call_single(
+        hass, f"{DOMAIN}.{TEST_ON_ERROR_SERVICE}", {ATTR_ENTITY_ID: ""}, plural=plural
+    )
+    assert [call.data[ATTR_ENTITY_ID] for call in calls] == [""]
 
 
 async def test_ignore_target(
@@ -859,6 +921,15 @@ async def test_state_no_entity(hass: HomeAssistant) -> None:
             {
                 CONF_ACTION: "script.turn_off",
                 ATTR_EXPECTED_STATE: "on",
+                ATTR_ENTITY_ID: ENTITY_MATCH_ALL.upper(),
+            },
+            None,
+        ),
+        (
+            ACTION_SERVICE,
+            {
+                CONF_ACTION: "script.turn_off",
+                ATTR_EXPECTED_STATE: "on",
             },
             {ATTR_ENTITY_ID: ENTITY_MATCH_ALL},
         ),
@@ -875,8 +946,27 @@ async def test_state_no_entity(hass: HomeAssistant) -> None:
             },
             None,
         ),
+        (
+            ACTIONS_SERVICE,
+            {
+                CONF_SEQUENCE: [
+                    {
+                        CONF_ACTION: "script.turn_off",
+                        CONF_SERVICE_DATA: {ATTR_ENTITY_ID: ENTITY_MATCH_ALL.upper()},
+                    }
+                ],
+                ATTR_EXPECTED_STATE: "on",
+            },
+            None,
+        ),
     ],
-    ids=["action-param", "action-target", "actions"],
+    ids=[
+        "action-param",
+        "action-param-uppercase",
+        "action-target",
+        "actions",
+        "actions-param-uppercase",
+    ],
 )
 async def test_all_entities(
     hass: HomeAssistant,
