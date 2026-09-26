@@ -192,7 +192,7 @@ action:
             seconds: 20
         - action: automation.trigger
           target:
-            entity_id: automation.kitchen_evening_lights
+            entity_id: "{{ this.entity_id }}"
 ```
 
 (This example can be configured in UI mode by using `retry.actions`. YAML is not needed.)
