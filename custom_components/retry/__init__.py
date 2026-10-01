@@ -45,7 +45,7 @@ from homeassistant.helpers import script
 from homeassistant.helpers.entity_component import DATA_INSTANCES, EntityComponent
 from homeassistant.helpers.entity_platform import async_get_platforms
 from homeassistant.helpers.target import async_extract_referenced_entity_ids
-from homeassistant.helpers.template import Template, result_as_boolean
+from homeassistant.helpers.template import Template, is_complex, result_as_boolean
 
 try:
     from homeassistant.helpers.target import TargetSelection
@@ -658,12 +658,14 @@ def _wrap_actions(  # noqa: PLR0912
                 action[CONF_SERVICE_DATA][CONF_ACTION] = domain_service
                 action[CONF_SERVICE_DATA].update(copy.deepcopy(retry_params))
                 action[CONF_ACTION] = f"{DOMAIN}.{ACTION_SERVICE}"
+                inner_data = {
+                    **action[CONF_SERVICE_DATA],
+                    **action.get(CONF_TARGET, {}),
+                }
                 # Validate parameters so errors are raised as soon as possible.
-                RetryParams(
-                    hass,
-                    None,
-                    {**action[CONF_SERVICE_DATA], **action.get(CONF_TARGET, {})},
-                )
+                # Templates are rendered only when the step runs (like HA does).
+                if not is_complex(inner_data):
+                    RetryParams(hass, None, inner_data)
             case cv.SCRIPT_ACTION_REPEAT:
                 _wrap_actions(hass, action[CONF_REPEAT][CONF_SEQUENCE], retry_params)
             case cv.SCRIPT_ACTION_CHOOSE:

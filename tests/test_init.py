@@ -35,6 +35,7 @@ from homeassistant.const import (
     CONF_TARGET,
     CONF_THEN,
     CONF_VALUE_TEMPLATE,
+    CONF_VARIABLES,
     ENTITY_MATCH_ALL,
     ENTITY_MATCH_NONE,
     EVENT_CALL_SERVICE,
@@ -1643,6 +1644,57 @@ async def test_script_run_on_error_templates(
         ).async_run(run_variables={"caller": "caller value"}, context=Context())
     assert calls[-1].service == TEST_ON_ERROR_SERVICE
     assert calls[-1].data["test"] == expected
+
+
+@pytest.mark.parametrize(
+    ("template", "condition", "expected"),
+    [
+        (
+            "{% raw %}{{ step }}{% endraw %}",
+            "{% raw %}{{ step is defined }}{% endraw %}",
+            ["step value"],
+        ),
+        # Rendered by the caller before the "variables" step runs.
+        ("{{ step }}", "{{ step is defined }}", []),
+        ("{{ caller }}", "{{ caller is defined }}", ["caller value"]),
+    ],
+    ids=["wrapped", "regular", "caller"],
+)
+@pytest.mark.allowed_logs(["Template variable warning: 'step' is undefined"])
+async def test_script_run_sequence_templates(
+    hass: HomeAssistant,
+    template: str,
+    condition: str,
+    expected: list[str],
+) -> None:
+    """Test templates inside retry.actions sequence when calling via script."""
+    calls = await async_setup(hass, raises=False)
+    await script.Script(
+        hass,
+        cv.SCRIPT_SCHEMA(
+            [
+                {
+                    CONF_ACTION: f"{DOMAIN}.{ACTIONS_SERVICE}",
+                    CONF_SERVICE_DATA: {
+                        CONF_SEQUENCE: [
+                            {CONF_VARIABLES: {"step": "step value"}},
+                            {
+                                CONF_CONDITION: "template",
+                                CONF_VALUE_TEMPLATE: condition,
+                            },
+                            {
+                                CONF_ACTION: f"{DOMAIN}.{TEST_SERVICE}",
+                                CONF_SERVICE_DATA: {"test": template},
+                            },
+                        ],
+                    },
+                }
+            ]
+        ),
+        ACTIONS_SERVICE,
+        DOMAIN,
+    ).async_run(run_variables={"caller": "caller value"}, context=Context())
+    assert [call.data["test"] for call in calls] == expected
 
 
 async def test_on_error_script_schema(
