@@ -7,7 +7,7 @@ import contextlib
 import copy
 import logging
 import threading
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import voluptuous as vol
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry, ConfigEntryState
@@ -55,7 +55,7 @@ except ImportError:
 if TYPE_CHECKING:
     from homeassistant.core import Context, HomeAssistant, ServiceCall
     from homeassistant.helpers.entity import Entity
-    from homeassistant.helpers.typing import ConfigType
+    from homeassistant.helpers.typing import ConfigType, VolSchemaType
 
 from .const import (
     ACTION_SERVICE,
@@ -147,21 +147,28 @@ ACTION_SERVICE_PARAMS = vol.Schema(
     },
     extra=vol.ALLOW_EXTRA,
 )
-ACTION_SERVICE_SCHEMA = vol.All(
-    cv.has_at_most_one_key(ATTR_EXPECTED_STATE, ATTR_IGNORE_TARGET),
-    ACTION_SERVICE_PARAMS,
+# HA 2026.9+ annotates schemas with probatio types, while mypy sees voluptuous.
+ACTION_SERVICE_SCHEMA = cast(
+    "VolSchemaType",
+    vol.All(
+        cv.has_at_most_one_key(ATTR_EXPECTED_STATE, ATTR_IGNORE_TARGET),
+        ACTION_SERVICE_PARAMS,
+    ),
 )
 
-ACTIONS_SERVICE_SCHEMA = vol.All(
-    cv.has_at_most_one_key(ATTR_EXPECTED_STATE, ATTR_IGNORE_TARGET),
-    vol.Schema(
-        {
-            **SERVICE_SCHEMA_BASE_FIELDS,
-            vol.Required(CONF_SEQUENCE): cv.SCRIPT_SCHEMA,
-            # "on_error" should be passed as-is to retry.action
-            vol.Optional(ATTR_ON_ERROR): _script_schema_validate_only,
-        },
-        extra=vol.ALLOW_EXTRA,
+ACTIONS_SERVICE_SCHEMA = cast(
+    "VolSchemaType",
+    vol.All(
+        cv.has_at_most_one_key(ATTR_EXPECTED_STATE, ATTR_IGNORE_TARGET),
+        vol.Schema(
+            {
+                **SERVICE_SCHEMA_BASE_FIELDS,
+                vol.Required(CONF_SEQUENCE): cv.SCRIPT_SCHEMA,
+                # "on_error" should be passed as-is to retry.action
+                vol.Optional(ATTR_ON_ERROR): _script_schema_validate_only,
+            },
+            extra=vol.ALLOW_EXTRA,
+        ),
     ),
 )
 
