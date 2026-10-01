@@ -861,15 +861,22 @@ async def test_invalid_validation(hass: HomeAssistant) -> None:
         await async_call(hass, {ATTR_VALIDATION: "static"})
 
 
+def _assert_exclusive_error(error: vol.Invalid) -> None:
+    """Assert expected_state and ignore_target are mutually exclusive."""
+    # The wording differs between voluptuous and HA's probatio shim (HA 2026.9).
+    message = str(error)
+    assert "at most one" in message
+    assert ATTR_EXPECTED_STATE in message
+    assert ATTR_IGNORE_TARGET in message
+
+
 async def test_state_with_ignore_target(hass: HomeAssistant) -> None:
     """Test providing expected state with ignore_target option."""
     await async_setup(hass)
 
     with pytest.raises(vol.Invalid) as error:
         await async_call(hass, {ATTR_EXPECTED_STATE: "test", ATTR_IGNORE_TARGET: True})
-    assert (
-        str(error.value) == "must contain at most one of expected_state, ignore_target."
-    )
+    _assert_exclusive_error(error.value)
 
     with pytest.raises(vol.Invalid) as error:
         await async_call(
@@ -881,9 +888,7 @@ async def test_state_with_ignore_target(hass: HomeAssistant) -> None:
             },
             plural=True,
         )
-    assert (
-        str(error.value) == "must contain at most one of expected_state, ignore_target."
-    )
+    _assert_exclusive_error(error.value)
 
 
 async def test_state_no_entity(hass: HomeAssistant) -> None:
