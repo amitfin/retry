@@ -62,7 +62,7 @@ The pre-commit hooks (`prek.toml`) run lint and the full pytest suite.
 
 - Declared minimum is HA **2025.8** (`hacs.json`); dev/CI run the latest HA on Python 3.14 (`.ruff.toml` targets py314). CI does not test the minimum version.
 - To test on the minimum version: `uv venv --python-preference only-managed --python 3.13 <dir>`, then `uv pip install "pytest-homeassistant-custom-component==0.13.272" "pycares<5"` (0.13.272 pins HA 2025.8.3). `tests/conftest.py` and `tests/test_diagnostics.py` also need `from __future__ import annotations` on Python 3.13.
-- APIs that changed across versions: `Script.async_unload()` exists only from HA 2026.5 (2026.4 and older have no public way to unload an ad-hoc `Script`). `TargetSelection` is missing in 2025.8 (hence the fallback import).
+- APIs that changed across versions: `Script.async_unload()` exists only from HA 2026.5 (2026.4 and older have no public way to unload an ad-hoc `Script`, so `_async_run_script` unloads only when it's available and older versions keep leaking one `Script` per run). `TargetSelection` is missing in 2025.8 (hence the fallback import).
 - HA 2026.9 replaces `voluptuous` with the `probatio` shim at `import homeassistant`. In standalone scripts, import `homeassistant` before `voluptuous`, or schema compilation fails.
 
 ## Conventions

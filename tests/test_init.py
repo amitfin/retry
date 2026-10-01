@@ -1770,3 +1770,19 @@ async def test_device_automation(
     assert [call.data[ATTR_ENTITY_ID] for call in turn_on_calls] == [
         entity.entity_id
     ] * (2 if plural else 1)
+
+
+async def test_scripts_unloaded(hass: HomeAssistant) -> None:
+    """Test ad-hoc scripts (sequence and on_error) are unloaded after running."""
+    calls = await async_setup(hass)
+    await async_call(
+        hass,
+        {
+            CONF_SEQUENCE: BASIC_SEQUENCE_DATA,
+            ATTR_RETRIES: 1,
+            ATTR_ON_ERROR: [{CONF_ACTION: f"{DOMAIN}.{TEST_ON_ERROR_SERVICE}"}],
+        },
+        plural=True,
+    )
+    assert calls[-1].service == TEST_ON_ERROR_SERVICE
+    assert not hass.data.get(script.DATA_SCRIPTS)

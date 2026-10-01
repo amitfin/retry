@@ -612,15 +612,16 @@ class RetryAction:
                     if (
                         on_error := self._params.retry_data.get(ATTR_ON_ERROR)
                     ) is not None:
-                        await script.Script(
-                            self._hass, on_error, ACTION_SERVICE, DOMAIN
-                        ).async_run(
-                            run_variables={
+                        await _async_run_script(
+                            self._hass,
+                            on_error,
+                            ACTION_SERVICE,
+                            self._context,
+                            {
                                 key: value
                                 for key, value in self._template_variables.items()
                                 if key != ATTEMPT_VARIABLE
                             },
-                            context=self._context,
                         )
                     raise
                 await asyncio.sleep(
@@ -637,6 +638,24 @@ class RetryAction:
                 )
                 self._end_id()
                 return result
+
+
+async def _async_run_script(
+    hass: HomeAssistant,
+    sequence: list[dict[str, Any]],
+    name: str,
+    context: Context,
+    run_variables: dict[str, Any] | None = None,
+) -> None:
+    """Run an ad-hoc script and unload it afterwards."""
+    script_obj = script.Script(hass, sequence, name, DOMAIN)
+    try:
+        await script_obj.async_run(run_variables=run_variables, context=context)
+    finally:
+        # HA keeps a reference to every script until it's unloaded. HA 2026.4 and
+        # older have no way to unload a script, so the script is kept there.
+        if hasattr(script_obj, "async_unload"):
+            await script_obj.async_unload()
 
 
 def _wrap_actions(  # noqa: PLR0912
@@ -752,9 +771,7 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
             if key in SERVICE_SCHEMA_BASE_FIELDS
         }
         _wrap_actions(hass, sequence, retry_params)
-        await script.Script(hass, sequence, ACTIONS_SERVICE, DOMAIN).async_run(
-            context=service_call.context
-        )
+        await _async_run_script(hass, sequence, ACTIONS_SERVICE, service_call.context)
 
     hass.services.async_register(
         DOMAIN,
