@@ -21,6 +21,8 @@ https://github.com/user-attachments/assets/69b4db6b-80c6-4527-b088-e10b68e0f18c
 
 `retry.actions` wraps any action inside the sequence of actions with `retry.action`. `retry.action` performs the original action with a retry logic on failures. A complex sequence of actions with a nested structure and conditions is supported. `retry.actions` traverses through the steps and wraps any action step. There is no impact or changes to the rest of the steps. The detailed behavior and the list of optional parameters of `retry.action` is explained in the section below. All features and parameters available in `retry.action` are also supported by `retry.actions`, so using a YAML configuration provides no additional benefit. However, note that the parameters defined for `retry.actions` are shared across all actions in its sequence. Each inner `retry.action` inherits the same configuration. For this reason, the recommended best practice is to include only a single action inside a `retry.actions` sequence.
 
+Templates inside the sequence are rendered by the calling automation or script once, before `retry.actions` starts. Therefore, they can't use variables defined inside the sequence (e.g. by a `variables` step or `repeat.index`), and template conditions don't see the changes made by previous steps of the sequence.
+
 Note: `retry.actions` and `retry.action` are not suitable for relative state changes. For example, `homeassistant.toggle` and `fan.increase_speed` are relative actions while `light.turn_on` is an absolute action. The reason is that a relative action might change the state and only then a failure occurs. Performing it again might have an unintentional result.
 
 ## `retry.action`
@@ -187,7 +189,7 @@ action:
       on_error:
         - action: homeassistant.reload_config_entry
           data:
-            entry_id: "{{ config_entry_id(entity_id) }}"
+            entry_id: "{{ config_entry_id('light.kitchen_light') }}"
         - delay:
             seconds: 20
         - action: automation.trigger
@@ -197,7 +199,7 @@ action:
 
 (This example can be configured in UI mode by using `retry.actions`. YAML is not needed.)
 
-`entity_id`, `action`, and any other parameter provided to the inner action are provided as variables and can be used by `on_error` templates.
+Templates in `on_error` are rendered by the calling automation or script before `retry.action` starts, so they can use the caller's variables (e.g. `this` in the example above).
 
 Note that each entity is running individually when the inner action has a list of entities. In such a case `on_error` can get performed multiple times, once per each failed entity. Similarly, `retry.actions` has a sequence of actions which might include multiple actions. This can also cause `on_error` to get performed multiple times, once per each failed inner action.
 

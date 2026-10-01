@@ -1580,6 +1580,71 @@ async def test_script_run_templates(
         assert exception.value.msg == "length of value must be at least 1"
 
 
+@pytest.mark.parametrize(
+    ("template", "expected"),
+    [
+        ("{% raw %}{{ entity_id }}{% endraw %}", "binary_sensor.test"),
+        # Rendered by the caller, which doesn't have "entity_id".
+        ("{{ entity_id }}", ""),
+        ("{{ caller }}", "caller value"),
+    ],
+    ids=["wrapped", "regular", "caller"],
+)
+@pytest.mark.parametrize("plural", [False, True], ids=["action", "actions"])
+@pytest.mark.allowed_logs(
+    [
+        "Template variable warning: 'entity_id' is undefined",
+        "action: Error executing script. Unexpected error for call_service at pos 1",
+    ]
+)
+async def test_script_run_on_error_templates(
+    hass: HomeAssistant,
+    template: str,
+    expected: str,
+    plural: bool,  # noqa: FBT001
+) -> None:
+    """Test on_error templates when calling via script."""
+    calls = await async_setup(hass)
+    action = {
+        CONF_ACTION: f"{DOMAIN}.{TEST_SERVICE}",
+        CONF_SERVICE_DATA: {ATTR_ENTITY_ID: "binary_sensor.test"},
+    }
+    retry_data = {
+        ATTR_RETRIES: 1,
+        ATTR_ON_ERROR: [
+            {
+                CONF_ACTION: f"{DOMAIN}.{TEST_ON_ERROR_SERVICE}",
+                CONF_SERVICE_DATA: {"test": template},
+            }
+        ],
+    }
+    with suppress(RetryTestMockError):
+        await script.Script(
+            hass,
+            cv.SCRIPT_SCHEMA(
+                [
+                    {
+                        CONF_ACTION: f"{DOMAIN}.{ACTIONS_SERVICE}",
+                        CONF_SERVICE_DATA: {CONF_SEQUENCE: [action], **retry_data},
+                    }
+                    if plural
+                    else {
+                        CONF_ACTION: f"{DOMAIN}.{ACTION_SERVICE}",
+                        CONF_SERVICE_DATA: {
+                            CONF_ACTION: action[CONF_ACTION],
+                            **action[CONF_SERVICE_DATA],
+                            **retry_data,
+                        },
+                    }
+                ]
+            ),
+            ACTION_SERVICE,
+            DOMAIN,
+        ).async_run(run_variables={"caller": "caller value"}, context=Context())
+    assert calls[-1].service == TEST_ON_ERROR_SERVICE
+    assert calls[-1].data["test"] == expected
+
+
 async def test_on_error_script_schema(
     hass: HomeAssistant,
 ) -> None:
