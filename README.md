@@ -205,12 +205,17 @@ Note that each entity is running individually when the inner action has a list o
 
 Many actions support a list of entities either by providing an explicit list in the `entity_id` parameter or by [targeting areas and devices](https://www.home-assistant.io/docs/scripts/service-calls/#targeting-areas-and-devices). It's also possible to specify a [group](https://www.home-assistant.io/integrations/group) entity. By default, there is a separate retry loop per entity to isolate failures. Group entities are expanded, recursively. However, there are cases where the inner action should get the target parameters without modifications. When this parameter is set to true, there is no try to resolve, expand and isolate the entities. The original target parameters are passed to the inner action as provided.
 
+**This parameter must be set for actions that don't act on each target entity.** The splitting is done for any action with a target parameter (`entity_id`, `device_id`, `area_id`, `floor_id` or `label_id`), since it's not possible to know how the inner action uses its target. Without this parameter, such actions are performed once per resolved entity, with `entity_id` instead of the original target. Examples:
+- `homeassistant.reload_config_entry` with a `device_id` reloads the config entry once per entity of the device.
+- Device-level integration actions (e.g. setting a device's configuration parameter) never get the `device_id`, and they aren't performed at all when the device has no matching entities.
+- Actions where `entity_id` is a regular parameter (e.g. `logbook.log` and `recorder.purge_entities`) fail when the entity isn't available or doesn't exist as an entity object.
+
 There are multiple implications for using this option:
 1. There is no validation of entities' availability.
 2. The parameter `expected_state` can't be used.
-3. `entity_id` is not provided to template expressions.
+3. `entity_id` is not explicitly provided to template expressions. It exists only if it was provided to the inner action, and then it's as provided (e.g. a list).
 4. There is a single retry loop, i.e. no failure isolation between different entities.
-5. The `retry_id` is the action name, similar to actions without `entity_id`.
+5. The `retry_id` is the action name, similar to actions without `entity_id`. Therefore, concurrent calls of the same action with different targets cancel each other. Set an explicit [`retry_id`](#retry_id-parameter-optional) per target (e.g. `retry_id: reload_kitchen_hub`) if such calls can overlap.
 
 It's recommended to use the `validation` parameter when using this option.
 

@@ -65,7 +65,7 @@
         },
         "ignore_target": {
           "name": "Ignore Target",
-          "description": "When set to true, the action does not try to resolve, expand and isolate the entities. The original target parameters are passed to the inner action as provided."
+          "description": "When set to true, the action does not try to resolve, expand and isolate the entities. The original target parameters are passed to the inner action as provided. Required for actions which do not act on each target entity (e.g. device-level actions)."
         },
         "repair": {
           "name": "Issue Repair Ticket",
@@ -115,7 +115,7 @@
         },
         "ignore_target": {
           "name": "Ignore Target",
-          "description": "When set to true, the action does not try to resolve, expand and isolate the entities. The original target parameters are passed to the inner action as provided."
+          "description": "When set to true, the action does not try to resolve, expand and isolate the entities. The original target parameters are passed to the inner action as provided. Required for actions which do not act on each target entity (e.g. device-level actions)."
         },
         "repair": {
           "name": "Issue Repair Ticket",
