@@ -54,6 +54,7 @@ from homeassistant.exceptions import (
     ServiceValidationError,
 )
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers import label_registry as lr
@@ -63,6 +64,7 @@ from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     MockUser,
     async_capture_events,
+    async_mock_service,
 )
 
 from custom_components.retry.const import (
@@ -1720,3 +1722,51 @@ async def test_on_error_script_schema(
     ]
     assert len(service_data) == 1
     assert service_data[0][ATTR_ON_ERROR][0] == delay_step
+
+
+@pytest.mark.parametrize("plural", [False, True], ids=["action", "actions"])
+async def test_device_automation(
+    hass: HomeAssistant,
+    plural: bool,  # noqa: FBT001
+) -> None:
+    """Test device actions and conditions (entity referenced by registry ID)."""
+    await async_setup(hass)
+    device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=hass.config_entries.async_entries(DOMAIN)[0].entry_id,
+        identifiers={(DOMAIN, "device")},
+    )
+    entity = er.async_get(hass).async_get_or_create(
+        "light", DOMAIN, "light", device_id=device.id
+    )
+    hass.states.async_set(entity.entity_id, "on")
+    turn_on_calls = async_mock_service(hass, "light", "turn_on")
+    device_steps = [
+        {
+            "condition": "device",
+            "device_id": device.id,
+            "domain": "light",
+            "entity_id": entity.id,
+            "type": "is_on",
+        },
+        {
+            "device_id": device.id,
+            "domain": "light",
+            "entity_id": entity.id,
+            "type": "turn_on",
+        },
+    ]
+    await async_call(
+        hass,
+        {
+            # retry.actions runs the device steps also as part of its sequence.
+            **(
+                {CONF_SEQUENCE: [*device_steps, *BASIC_SEQUENCE_DATA]} if plural else {}
+            ),
+            ATTR_RETRIES: 1,
+            ATTR_ON_ERROR: device_steps,
+        },
+        plural=plural,
+    )
+    assert [call.data[ATTR_ENTITY_ID] for call in turn_on_calls] == [
+        entity.entity_id
+    ] * (2 if plural else 1)

@@ -706,7 +706,16 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
 
     async def async_action(service_call: ServiceCall) -> Any:
         """Perform action with retries."""
-        params = RetryParams(hass, get_config_entry(), service_call.data)
+        data: dict[str, Any] = service_call.data
+        if (on_error := data.get(ATTR_ON_ERROR)) is not None:
+            # Full validation, like automations (e.g. device actions).
+            data = {
+                **data,
+                ATTR_ON_ERROR: await script.async_validate_actions_config(
+                    hass, on_error
+                ),
+            }
+        params = RetryParams(hass, get_config_entry(), data)
 
         results = await asyncio.gather(
             *[
@@ -733,7 +742,10 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
 
     async def async_actions(service_call: ServiceCall) -> None:
         """Perform actions and retry failed actions."""
-        sequence = service_call.data[CONF_SEQUENCE].copy()
+        # Full validation, like automations (e.g. device actions).
+        sequence = await script.async_validate_actions_config(
+            hass, service_call.data[CONF_SEQUENCE]
+        )
         retry_params: dict[str, Any] = {
             key: service_call.data[key]
             for key in service_call.data
