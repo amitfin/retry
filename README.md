@@ -25,6 +25,8 @@ Templates inside the sequence are rendered by the calling automation or script o
 
 Note: `retry.actions` and `retry.action` are not suitable for relative state changes. For example, `homeassistant.toggle` and `fan.increase_speed` are relative actions while `light.turn_on` is an absolute action. The reason is that a relative action might change the state and only then a failure occurs. Performing it again might have an unintentional result.
 
+Note: device actions and scene steps (e.g. `scene: scene.evening`) are performed without retries. Use the `scene.turn_on` action to activate a scene with retries.
+
 ## `retry.action`
 
 This action wraps an inner action with retries on failures. It can be useful to mitigate temporary issues of connectivity or invalid device states.
