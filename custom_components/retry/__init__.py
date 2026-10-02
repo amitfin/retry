@@ -87,10 +87,7 @@ DEFAULT_RETRIES = 7
 DEFAULT_STATE_GRACE = 0.2
 GROUP_DOMAIN = "group"
 RETURN_RESPONSE = "return_response"
-# Pylance reports HA's VolDictType alias as not iterable.
-ENTITY_SERVICE_FIELDS = {
-    str(key) for key in cast("dict[Any, Any]", cv.ENTITY_SERVICE_FIELDS)
-}
+ENTITY_SERVICE_FIELDS = {str(key) for key in cv.ENTITY_SERVICE_FIELDS}
 
 _NOT_SET = object()  # A parameter which isn't provided (None is a valid value).
 
