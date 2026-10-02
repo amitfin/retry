@@ -26,8 +26,8 @@ README.md is the user-facing spec for every parameter. Keep it in sync with the 
 ## Commands
 
 ```bash
-scripts/setup            # install pytest-homeassistant-custom-component (pre-releases allowed), ruff, mypy, prek; install hooks
-scripts/lint             # ruff format + ruff check --fix + mypy --strict custom_components/retry
+scripts/setup            # install pytest-homeassistant-custom-component (pre-releases allowed), ruff, mypy, pyright, prek; install hooks
+scripts/lint             # ruff format + ruff check --fix + mypy --strict custom_components/retry + pyright (everything)
 scripts/lint --no-fix    # what CI runs
 pytest                   # pytest.ini adds --cov ... --cov-fail-under=100 (100% line coverage is REQUIRED)
 pytest tests/test_init.py -k retry_id -o addopts=""   # quick targeted run without the coverage gate
@@ -67,7 +67,7 @@ The pre-commit hooks (`prek.toml`) run lint and the full pytest suite.
 
 ## Conventions
 
-- ruff with `select = ["ALL"]` (see `.ruff.toml`) and `mypy --strict`. Docstrings on everything. Match the existing style of `noqa` comments for FBT and PLR rules.
+- ruff with `select = ["ALL"]` (see `.ruff.toml`) and `mypy --strict` (product code). pyright (`standard`, see `pyrightconfig.json`) checks the product and the tests; the same file configures Pylance in the editor. Docstrings on everything. Match the existing style of `noqa` comments for FBT and PLR rules.
 - Adding or changing a parameter means updating `const.py`, the schema in `__init__.py`, `services.yaml` (both `action` and `actions`), `strings.json` **and** `translations/en.json`, `README.md`, and tests. The other translations (`he`, `pt`, `sk`) are community-maintained and partly incomplete.
 - Spell-checking runs on everything (cspell). Add new words to `.cspell.json`.
 - Releases: publishing a GitHub release runs `release.yml`, which writes the tag into `manifest.json` `version` (it's `1.0.0` in git) and uploads `retry.zip`.

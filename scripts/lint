@@ -12,3 +12,4 @@ else
   ruff check . --fix
 fi
 mypy --strict custom_components/retry
+pyright

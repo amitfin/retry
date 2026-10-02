@@ -1,0 +1,4 @@
+{
+  "include": ["custom_components", "tests"],
+  "typeCheckingMode": "standard"
+}

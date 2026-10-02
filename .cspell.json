@@ -37,6 +37,7 @@
     "pycache",
     "pycares",
     "pylance",
+    "pyrightconfig",
     "pytest",
     "PYTHONPATH",
     "pyupgrade",
