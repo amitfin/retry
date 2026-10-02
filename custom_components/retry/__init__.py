@@ -117,17 +117,18 @@ def _fix_template_tokens(value: str) -> str:
     return value
 
 
-def _backoff_parameter(value: Any | None) -> str | None:
+def _backoff_parameter(value: Any) -> str:
     """Check backoff parameter."""
     value_str = cv.string(value)
     vol.Length(min=1)(cv.template(_fix_template_tokens(value_str)).template)
     return value_str
 
 
-def _validation_parameter(value: Any | None) -> str | None:
+def _validation_parameter(value: Any) -> str:
     """Check validation parameter."""
-    cv.dynamic_template(_fix_template_tokens(cv.string(value)))
-    return value
+    value_str = cv.string(value)
+    cv.dynamic_template(_fix_template_tokens(value_str))
+    return value_str
 
 
 def _script_schema_validate_only(value: Any) -> Any:
