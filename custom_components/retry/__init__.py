@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import copy
+import hashlib
 import logging
 import threading
 from typing import TYPE_CHECKING, Any, cast
@@ -535,11 +536,13 @@ class RetryAction:
 
     def _repair(self) -> None:
         """Create a repair ticket."""
-        ir.async_delete_issue(self._hass, DOMAIN, str(self))
+        # A short ID, which is the same for identical actions (de-dup).
+        issue_id = hashlib.sha256(str(self).encode()).hexdigest()
+        ir.async_delete_issue(self._hass, DOMAIN, issue_id)
         ir.async_create_issue(
             self._hass,
             DOMAIN,
-            str(self),
+            issue_id,
             # Kept until the user marks it as resolved (HA's ConfirmRepairFlow).
             is_fixable=True,
             is_persistent=True,

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import hashlib
 from asyncio import Event, Semaphore
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any, cast
@@ -290,7 +291,10 @@ async def test_failure(
     assert len(repairs) == 1
     assert repairs[0].data["action"] == "create"
     assert repairs[0].data["domain"] == DOMAIN
-    assert repairs[0].data["issue_id"] == f"{DOMAIN}.{TEST_SERVICE}()"
+    assert (
+        repairs[0].data["issue_id"]
+        == hashlib.sha256(f"{DOMAIN}.{TEST_SERVICE}()".encode()).hexdigest()
+    )
 
 
 async def test_entity_unavailable(
@@ -1099,7 +1103,7 @@ async def test_repair_resolved_by_user(
     (_, issue_id), issue = next(iter(issue_registry.issues.items()))
     assert issue.is_persistent
     assert issue.translation_placeholders == {
-        "action": issue_id,
+        "action": f"{DOMAIN}.{TEST_SERVICE}()",
         "retries": "1",
     }
 
