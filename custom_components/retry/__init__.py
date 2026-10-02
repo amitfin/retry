@@ -395,7 +395,10 @@ class RetryAction:
                 raise InvalidStateError(message)
         else:
             ent_obj = None
-        if (state_delay := self._params.retry_data[ATTR_STATE_DELAY]) > 0:
+        if (state_delay := self._params.retry_data[ATTR_STATE_DELAY]) > 0 and (
+            ATTR_EXPECTED_STATE in self._params.retry_data
+            or ATTR_VALIDATION in self._params.retry_data
+        ):
             await asyncio.sleep(state_delay)
         if not self._check_state(ent_obj) or not self._check_validation():
             await asyncio.sleep(self._params.retry_data[ATTR_STATE_GRACE])

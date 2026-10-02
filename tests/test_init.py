@@ -461,6 +461,18 @@ async def test_entity_wrong_state(  # noqa: PLR0913, PLR0917
     assert wait_times.count(grace or 0.2) == 7
 
 
+async def test_state_delay_without_checks(
+    hass: HomeAssistant,
+    sleep: AsyncMock,
+) -> None:
+    """Test state delay is ignored without expected_state and validation."""
+    await async_setup(hass, raises=False)
+    await async_call(
+        hass, {ATTR_ENTITY_ID: "binary_sensor.test", ATTR_STATE_DELAY: 1.2}
+    )
+    assert 1.2 not in [x.args[0] for x in sleep.await_args_list]
+
+
 async def test_state_delay(
     hass: HomeAssistant,
     caplog: pytest.LogCaptureFixture,
