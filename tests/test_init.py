@@ -1110,7 +1110,7 @@ async def test_repair_resolved_by_user(
     flow_manager = repairs_flow_manager(hass)
     assert flow_manager
     flow = await flow_manager.async_init(DOMAIN, data={"issue_id": issue_id})
-    assert flow["step_id"] == "confirm"
+    assert flow.get("step_id") == "confirm"
     await flow_manager.async_configure(flow["flow_id"], {})
     assert not issue_registry.issues
 
