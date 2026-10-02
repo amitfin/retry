@@ -761,6 +761,31 @@ async def test_multi_entities_retry_id(
     assert len(calls) == 14  # = 7 + 7
 
 
+async def test_multi_entities_running_together(hass: HomeAssistant) -> None:
+    """Test loops of the same call share their retry ID while running together."""
+    event = Event()
+    called = Semaphore(0)
+    calls = await async_setup(
+        hass, raises=False, action_block=event, action_signal=called
+    )
+    task = hass.async_create_task(
+        async_call(
+            hass,
+            {
+                ATTR_ENTITY_ID: ["binary_sensor.test", "binary_sensor.test2"],
+                ATTR_RETRY_ID: "id",
+            },
+        )
+    )
+    for _ in range(2):
+        await called.acquire()
+    assert retry_module._running_retries["id"][1] == 2  # noqa: SLF001
+    event.set()
+    await task
+    assert len(calls) == 2
+    assert not retry_module._running_retries  # noqa: SLF001
+
+
 async def test_on_error(
     hass: HomeAssistant,
 ) -> None:
@@ -1533,6 +1558,18 @@ async def test_on_error_raises(
         )
     assert len(calls) == 1
     assert f"Action {DOMAIN}.not_existing not found" in caplog.text
+
+
+async def test_retry_id_taken_when_running(hass: HomeAssistant) -> None:
+    """Test creating a retry loop doesn't take its retry ID before it runs."""
+    await async_setup(hass)
+    params = retry_module.RetryParams(
+        hass,
+        hass.config_entries.async_entries(DOMAIN)[0],
+        retry_module.ACTION_SERVICE_SCHEMA({CONF_ACTION: f"{DOMAIN}.{TEST_SERVICE}"}),
+    )
+    retry_module.RetryAction(hass, params, Context())
+    assert not retry_module._running_retries  # noqa: SLF001
 
 
 async def test_cancel_releases_retry_id(hass: HomeAssistant) -> None:

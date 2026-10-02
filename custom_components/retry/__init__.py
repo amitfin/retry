@@ -384,7 +384,6 @@ class RetryAction:
         )
         self._str_cache: str | None = None
         self._validation_error: TemplateError | None = None
-        self._start_id()
 
     def _get_template_variables(self) -> dict[str, Any]:
         """Return template variables."""
@@ -608,7 +607,8 @@ class RetryAction:
         )
 
     async def async_retry(self) -> Any:
-        """Perform the attempts and release the retry ID in any case."""
+        """Perform the attempts, while owning the retry ID."""
+        self._start_id()
         try:
             return await self._async_attempts()
         finally:
@@ -780,11 +780,13 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
             }
         params = RetryParams(hass, get_config_entry(), data)
 
+        # All loops are created first: if one fails, none of them runs.
+        retry_actions = [
+            RetryAction(hass, params, service_call.context, entity_id)
+            for entity_id in (params.entities if params.has_target else [None])
+        ]
         results = await asyncio.gather(
-            *[
-                RetryAction(hass, params, service_call.context, entity_id).async_retry()
-                for entity_id in (params.entities if params.has_target else [None])
-            ],
+            *[retry_action.async_retry() for retry_action in retry_actions],
             return_exceptions=True,
         )
 
