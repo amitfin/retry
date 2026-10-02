@@ -881,6 +881,31 @@ async def test_group_platform_entity_unavailable(
     assert f"{entity} is not available" in caplog.text
 
 
+async def test_cyclic_group_platform(
+    hass: HomeAssistant,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test groups which contain each other."""
+    await async_setup(hass, raises=False)
+    assert await async_setup_component(
+        hass,
+        "light",
+        {
+            "light": [
+                {CONF_NAME: "a", CONF_PLATFORM: "group", CONF_ENTITIES: ["light.b"]},
+                {
+                    CONF_NAME: "b",
+                    CONF_PLATFORM: "group",
+                    CONF_ENTITIES: ["light.a", "light.invalid"],
+                },
+            ]
+        },
+    )
+    await hass.async_block_till_done()
+    await async_call(hass, {ATTR_ENTITY_ID: "light.a"})
+    assert "light.invalid is not available" in caplog.text
+
+
 async def test_template(hass: HomeAssistant) -> None:
     """Test retry_service with template."""
     calls = await async_setup(hass, raises=False)

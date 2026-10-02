@@ -255,8 +255,14 @@ class RetryParams:
             return False
         return self.inner_data.keys() & ENTITY_SERVICE_FIELDS != set()
 
-    def _expand_group(self, hass: HomeAssistant, entity_id: str) -> set[str]:
+    def _expand_group(
+        self, hass: HomeAssistant, entity_id: str, visited: set[str] | None = None
+    ) -> set[str]:
         """Return group member ids (when a group)."""
+        visited = visited if visited is not None else set()
+        if entity_id in visited:
+            return set()  # Groups which contain each other.
+        visited.add(entity_id)
         entity_ids = set()
         entity_obj = _get_entity(hass, entity_id)
         if (
@@ -267,7 +273,7 @@ class RetryParams:
             for member_id in getattr(entity_obj, "extra_state_attributes", {}).get(
                 ATTR_ENTITY_ID, []
             ):
-                entity_ids.update(self._expand_group(hass, member_id))
+                entity_ids.update(self._expand_group(hass, member_id, visited))
         else:
             entity_ids.add(entity_id)
         return entity_ids
