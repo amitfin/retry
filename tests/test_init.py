@@ -6,7 +6,7 @@ import asyncio
 import datetime
 from asyncio import Event, Semaphore
 from contextlib import suppress
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import AsyncMock, Mock
 
 import homeassistant.util.dt as dt_util
@@ -87,6 +87,7 @@ from custom_components.retry.const import (
 
 if TYPE_CHECKING:
     from freezegun.api import FrozenDateTimeFactory
+    from homeassistant.helpers.typing import VolSchemaType
 
 TEST_SERVICE = "test_service"
 TEST_ON_ERROR_SERVICE = "test_on_error_service"
@@ -149,11 +150,15 @@ async def async_setup(  # noqa: PLR0913, PLR0917
             domain,
             TEST_SERVICE,
             async_service,
-            vol.Schema(
-                {
-                    **cv.TARGET_SERVICE_FIELDS,
-                    vol.Optional("test"): vol.Any(str, [str]),
-                },
+            # HA 2026.9+ annotates schemas with probatio types.
+            cast(
+                "VolSchemaType",
+                vol.Schema(
+                    {
+                        **cv.TARGET_SERVICE_FIELDS,
+                        vol.Optional("test"): vol.Any(str, [str]),
+                    },
+                ),
             ),
             supports_response=SupportsResponse.ONLY
             if action_response
