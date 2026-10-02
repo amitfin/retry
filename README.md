@@ -243,7 +243,7 @@ It's possible to disable the cancellation logic by setting `retry_id` to an empt
 
 ### Error Handling: Logging, Exceptions, and Repair
 
-Each inner action failure is logged. On the **final** failure (when the maximum number of attempts is reached), the action issues a repair ticket and propagates the exception to the caller.  
+Each inner action failure is logged. On the **final** failure (when the maximum number of attempts is reached), the action issues a repair ticket and propagates the exception to the caller. The repair ticket is kept, also across restarts, until it's marked as resolved in the [repairs dashboard](https://my.home-assistant.io/redirect/repairs/).  
 An exception is also raised when a retry loop is canceled due to a duplicate `retry_id`.  
 When used inside automations or scripts, any propagated exception will halt execution of subsequent steps unless [continuing-on-error](https://www.home-assistant.io/docs/scripts/#continuing-on-error) is enabled.
 

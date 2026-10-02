@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock, Mock
 import homeassistant.util.dt as dt_util
 import pytest
 import voluptuous as vol
+from homeassistant.components.repairs import repairs_flow_manager
 from homeassistant.config_entries import ConfigEntryDisabler
 from homeassistant.const import (
     ATTR_DEVICE_ID,
@@ -1083,6 +1084,31 @@ async def test_identical_repair(
         "create",
     ]
     assert len(ir.async_get(hass).issues) == 1
+
+
+@pytest.mark.allowed_logs(["zlib_ng and isal are not available"])
+async def test_repair_resolved_by_user(
+    hass: HomeAssistant,
+) -> None:
+    """Test the repair ticket is persistent, and the user can mark it resolved."""
+    assert await async_setup_component(hass, "repairs", {})
+    await async_setup(hass)
+    await async_call(hass, {ATTR_RETRIES: 1})
+    issue_registry = ir.async_get(hass)
+    assert len(issue_registry.issues) == 1
+    (_, issue_id), issue = next(iter(issue_registry.issues.items()))
+    assert issue.is_persistent
+    assert issue.translation_placeholders == {
+        "action": issue_id,
+        "retries": "1",
+    }
+
+    flow_manager = repairs_flow_manager(hass)
+    assert flow_manager
+    flow = await flow_manager.async_init(DOMAIN, data={"issue_id": issue_id})
+    assert flow["step_id"] == "confirm"
+    await flow_manager.async_configure(flow["flow_id"], {})
+    assert not issue_registry.issues
 
 
 async def test_action_without_config_entry(hass: HomeAssistant) -> None:

@@ -540,13 +540,15 @@ class RetryAction:
             self._hass,
             DOMAIN,
             str(self),
-            is_fixable=False,
+            # Kept until the user marks it as resolved (HA's ConfirmRepairFlow).
+            is_fixable=True,
+            is_persistent=True,
             learn_more_url="https://github.com/amitfin/retry#retryaction",
             severity=ir.IssueSeverity.ERROR,
             translation_key="failure",
             translation_placeholders={
                 "action": str(self),
-                "retries": self._params.retry_data[ATTR_RETRIES],
+                "retries": str(self._params.retry_data[ATTR_RETRIES]),
             },
         )
 
