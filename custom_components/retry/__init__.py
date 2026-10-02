@@ -20,6 +20,7 @@ from homeassistant.const import (
     CONF_CHOOSE,
     CONF_DEFAULT,
     CONF_ELSE,
+    CONF_ENABLED,
     CONF_PARALLEL,
     CONF_REPEAT,
     CONF_SEQUENCE,
@@ -687,6 +688,8 @@ def _wrap_actions(  # noqa: PLR0912
 ) -> None:
     """Warp any action with retry."""
     for action in sequence:
+        if action.get(CONF_ENABLED) is False:
+            continue  # Never performed (a template is checked when it runs).
         action_type = cv.determine_script_action(action)
         match action_type:
             case cv.SCRIPT_ACTION_CALL_SERVICE:
@@ -707,8 +710,11 @@ def _wrap_actions(  # noqa: PLR0912
                 }
                 # Validate parameters so errors are raised as soon as possible.
                 # Templates are rendered only when the step runs (like HA does).
+                # A missing action fails only if its step runs (like HA does),
+                # e.g. in a branch which isn't taken.
                 if not is_complex(inner_data):
-                    RetryParams(hass, None, inner_data)
+                    with contextlib.suppress(ServiceNotFound):
+                        RetryParams(hass, None, inner_data)
             case cv.SCRIPT_ACTION_REPEAT:
                 _wrap_actions(hass, action[CONF_REPEAT][CONF_SEQUENCE], retry_params)
             case cv.SCRIPT_ACTION_CHOOSE:

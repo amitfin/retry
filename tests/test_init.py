@@ -1587,6 +1587,37 @@ async def test_actions_multi_calls_single_retry_id(
     assert len(calls) == 10  # = 10 * 1
 
 
+@pytest.mark.parametrize(
+    "step",
+    [
+        {CONF_ACTION: "not_loaded.action", "enabled": False},
+        {
+            CONF_IF: [{CONF_CONDITION: "template", CONF_VALUE_TEMPLATE: "{{ True }}"}],
+            CONF_THEN: [{CONF_ACTION: "not_loaded.action"}],
+            "enabled": False,
+        },
+        {
+            CONF_IF: [{CONF_CONDITION: "template", CONF_VALUE_TEMPLATE: "{{ False }}"}],
+            CONF_THEN: [{CONF_ACTION: "not_loaded.action"}],
+        },
+    ],
+    ids=["disabled action", "disabled block", "branch not taken"],
+)
+async def test_actions_missing_action_not_performed(
+    hass: HomeAssistant,
+    step: dict[str, Any],
+) -> None:
+    """Test a missing action in a step which isn't performed."""
+    calls = await async_setup(hass, raises=False)
+    await hass.services.async_call(
+        DOMAIN,
+        ACTIONS_SERVICE,
+        {CONF_SEQUENCE: [step, *BASIC_SEQUENCE_DATA]},
+        blocking=True,
+    )
+    assert len(calls) == 1
+
+
 async def test_actions_inner_service_validation(
     hass: HomeAssistant,
 ) -> None:
