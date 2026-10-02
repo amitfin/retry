@@ -23,7 +23,7 @@
             "fix_flow": {
                 "step": {
                     "confirm": {
-                        "description": "`{action}` failed after {retries} retries. Check the log for additional information.\n\nPress **Submit** to mark this issue as resolved."
+                        "description": "`{action}` failed after {retries} attempts. Check the log for additional information.\n\nPress **Submit** to mark this issue as resolved."
                     }
                 }
             }
