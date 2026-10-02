@@ -906,11 +906,7 @@ async def test_invalid_validation(hass: HomeAssistant) -> None:
 
 def _assert_exclusive_error(error: vol.Invalid) -> None:
     """Assert expected_state and ignore_target are mutually exclusive."""
-    # The wording differs between voluptuous and HA's probatio shim (HA 2026.9).
-    message = str(error)
-    assert "at most one" in message
-    assert ATTR_EXPECTED_STATE in message
-    assert ATTR_IGNORE_TARGET in message
+    assert str(error) == "expected_state can't be used with ignore_target"
 
 
 async def test_state_with_ignore_target(hass: HomeAssistant) -> None:
@@ -932,6 +928,27 @@ async def test_state_with_ignore_target(hass: HomeAssistant) -> None:
             plural=True,
         )
     _assert_exclusive_error(error.value)
+
+
+@pytest.mark.parametrize("plural", [False, True], ids=["action", "actions"])
+async def test_state_with_ignore_target_false(
+    hass: HomeAssistant,
+    plural: bool,  # noqa: FBT001
+) -> None:
+    """Test providing expected state with ignore_target set to false."""
+    calls = await async_setup(hass, raises=False)
+    action = f"{DOMAIN}.{TEST_SERVICE}"
+    target = {ATTR_ENTITY_ID: "binary_sensor.test"}
+    retry_data = {ATTR_EXPECTED_STATE: "on", ATTR_IGNORE_TARGET: False}
+    await hass.services.async_call(
+        DOMAIN,
+        ACTIONS_SERVICE if plural else ACTION_SERVICE,
+        {CONF_SEQUENCE: [{CONF_ACTION: action, CONF_TARGET: target}], **retry_data}
+        if plural
+        else {CONF_ACTION: action, **target, **retry_data},
+        blocking=True,
+    )
+    assert not calls  # The state is already as expected.
 
 
 async def test_state_no_entity(hass: HomeAssistant) -> None:

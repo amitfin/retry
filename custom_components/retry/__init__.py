@@ -134,6 +134,14 @@ def _script_schema_validate_only(value: Any) -> Any:
     return value
 
 
+def _expected_state_without_ignore_target(value: dict[str, Any]) -> dict[str, Any]:
+    """Check expected_state isn't used together with ignore_target (if true)."""
+    if ATTR_EXPECTED_STATE in value and value.get(ATTR_IGNORE_TARGET):
+        message = f"{ATTR_EXPECTED_STATE} can't be used with {ATTR_IGNORE_TARGET}"
+        raise vol.Invalid(message)
+    return value
+
+
 SERVICE_SCHEMA_BASE_FIELDS = {
     vol.Required(ATTR_RETRIES, default=DEFAULT_RETRIES): cv.positive_int,
     vol.Required(ATTR_BACKOFF, default=DEFAULT_BACKOFF): _backoff_parameter,
@@ -156,16 +164,12 @@ ACTION_SERVICE_PARAMS = vol.Schema(
 # HA 2026.9+ annotates schemas with probatio types, while mypy sees voluptuous.
 ACTION_SERVICE_SCHEMA = cast(
     "VolSchemaType",
-    vol.All(
-        cv.has_at_most_one_key(ATTR_EXPECTED_STATE, ATTR_IGNORE_TARGET),
-        ACTION_SERVICE_PARAMS,
-    ),
+    vol.All(ACTION_SERVICE_PARAMS, _expected_state_without_ignore_target),
 )
 
 ACTIONS_SERVICE_SCHEMA = cast(
     "VolSchemaType",
     vol.All(
-        cv.has_at_most_one_key(ATTR_EXPECTED_STATE, ATTR_IGNORE_TARGET),
         vol.Schema(
             {
                 **SERVICE_SCHEMA_BASE_FIELDS,
@@ -175,6 +179,7 @@ ACTIONS_SERVICE_SCHEMA = cast(
             },
             extra=vol.ALLOW_EXTRA,
         ),
+        _expected_state_without_ignore_target,
     ),
 )
 
