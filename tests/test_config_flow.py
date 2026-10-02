@@ -50,6 +50,16 @@ async def test_already_setup(hass: HomeAssistant) -> None:
     assert result.get("reason") == "single_instance_allowed"
 
 
+async def test_import_already_setup(hass: HomeAssistant) -> None:
+    """Test import is aborted if already setup."""
+    MockConfigEntry(domain=DOMAIN, data={}).add_to_hass(hass)
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_IMPORT}
+    )
+    assert result.get("type") == FlowResultType.ABORT
+    assert result.get("reason") == "single_instance_allowed"
+
+
 async def test_import(hass: HomeAssistant) -> None:
     """Test import from configuration.yaml."""
     result = await hass.config_entries.flow.async_init(
