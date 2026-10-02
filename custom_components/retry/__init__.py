@@ -34,6 +34,7 @@ from homeassistant.exceptions import (
     InvalidStateError,
     ServiceNotFound,
     ServiceValidationError,
+    TemplateError,
 )
 from homeassistant.helpers import (
     config_validation as cv,
@@ -362,6 +363,7 @@ class RetryAction:
             ATTR_RETRY_ID, self._entity_id or self._action
         )
         self._str_cache: str | None = None
+        self._validation_error: TemplateError | None = None
         self._start_id()
 
     def _get_template_variables(self) -> dict[str, Any]:
@@ -394,6 +396,8 @@ class RetryAction:
                 message = (
                     f'"{self._params.retry_data[ATTR_VALIDATION].template}" is False'
                 )
+                if self._validation_error:
+                    message += f" ({self._validation_error})"
                 raise InvalidStateError(message)
 
     def _check_state(self, entity: Entity | None) -> bool:
@@ -414,11 +418,17 @@ class RetryAction:
         """Check if the validation statement is true."""
         if ATTR_VALIDATION not in self._params.retry_data:
             return True
-        return result_as_boolean(
-            self._params.retry_data[ATTR_VALIDATION].async_render(
-                variables=self._get_template_variables(),
+        self._validation_error = None
+        try:
+            return result_as_boolean(
+                self._params.retry_data[ATTR_VALIDATION].async_render(
+                    variables=self._get_template_variables(),
+                )
             )
-        )
+        except TemplateError as error:
+            # E.g. an attribute which doesn't exist yet. It's not satisfied.
+            self._validation_error = error
+            return False
 
     def _initial_check(self) -> bool:
         """Check if the state is already as expected and/or the validation passes."""

@@ -135,7 +135,7 @@ target:
   entity_id: light.kitchen
 ```
 
-The boolean expression is rendered after each inner action attempt. If the value is False, the attempt is considered a failure and the loop of retries continues.
+The boolean expression is rendered after each inner action attempt. If the value is False, the attempt is considered a failure and the loop of retries continues. A template which raises an error (e.g. comparing an attribute which doesn't exist) is considered False.
 
 The `validation` is also checked before the first attempt. If it passes, the action is not performed even once. It's possible to disable the initial check in the [integration's configuration dialog](https://my.home-assistant.io/redirect/integration/?domain=retry) which ensures the action gets performed at least once.
 

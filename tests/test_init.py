@@ -563,6 +563,35 @@ async def test_validation_with_attempt(
     assert len(calls) == count
 
 
+async def test_validation_template_error_initial_check(
+    hass: HomeAssistant,
+) -> None:
+    """Test a validation template error before the first attempt."""
+    calls = await async_setup(hass, raises=False)
+    # Raises a template error in the 1st attempt, then passes.
+    await async_call(hass, {ATTR_VALIDATION: "[[ attempt > 0 or None > 1 ]]"})
+    assert len(calls) == 1
+
+
+async def test_validation_template_error(
+    hass: HomeAssistant,
+) -> None:
+    """Test a validation template which always raises an error."""
+    calls = await async_setup(hass, raises=False)
+    with pytest.raises(InvalidStateError) as error:
+        await async_call_single(
+            hass,
+            f"{DOMAIN}.{TEST_SERVICE}",
+            {ATTR_VALIDATION: "[[ None > 1 ]]", ATTR_RETRIES: 2},
+            plural=False,
+        )
+    assert len(calls) == 2
+    assert str(error.value) == (
+        '"{{ None > 1 }}" is False (TypeError: '
+        "'>' not supported between instances of 'NoneType' and 'int')"
+    )
+
+
 async def test_retry_id_cancellation(
     hass: HomeAssistant,
     caplog: pytest.LogCaptureFixture,
