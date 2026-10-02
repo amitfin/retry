@@ -27,6 +27,8 @@ Note: `retry.actions` and `retry.action` are not suitable for relative state cha
 
 Note: device actions and scene steps (e.g. `scene: scene.evening`) are performed without retries. Use the `scene.turn_on` action to activate a scene with retries.
 
+Note: the sequence runs as a separate script. Therefore, a `stop` action or a failed condition ends only the sequence, and the calling automation or script continues with its next step. A `stop` with `error: true` doesn't fail the caller.
+
 ## `retry.action`
 
 This action wraps an inner action with retries on failures. It can be useful to mitigate temporary issues of connectivity or invalid device states.
