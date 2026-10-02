@@ -214,6 +214,8 @@ Many actions support a list of entities either by providing an explicit list in 
 - Device-level integration actions (e.g. setting a device's configuration parameter) never get the `device_id`, and they aren't performed at all when the device has no matching entities.
 - Actions where `entity_id` is a regular parameter (e.g. `logbook.log` and `recorder.purge_entities`) fail when the entity isn't available or doesn't exist as an entity object.
 
+A related case is `homeassistant.turn_on`, `homeassistant.turn_off` and `homeassistant.toggle` with an area, device, floor or label target. Natively, these actions skip the target's entities whose domain doesn't support them (e.g. sensors). Retry calls the action separately for each entity of the target, including such entities. Therefore, HA logs a warning for them on each attempt, and `expected_state` can't be satisfied. Use the domain's action instead (e.g. `light.turn_off`), or set this parameter.
+
 There are multiple implications for using this option:
 1. There is no validation of entities' availability.
 2. The parameter `expected_state` can't be used.
