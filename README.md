@@ -66,7 +66,7 @@ The `action` parameter is the only mandatory parameter. It contains the name of 
 
 #### `retries` parameter (optional)
 
-Controls the amount of retries. The default value is 7. For example:
+Controls the maximum amount of attempts (at least 1). The default value is 7. For example:
 
 ```
 action: retry.action

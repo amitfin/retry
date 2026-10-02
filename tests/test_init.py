@@ -964,6 +964,25 @@ async def test_malformed_action(hass: HomeAssistant, action: str) -> None:
     assert error.value.msg == f"Service {action} does not match format <domain>.<name>"
 
 
+@pytest.mark.parametrize("plural", [False, True], ids=["action", "actions"])
+async def test_zero_retries(
+    hass: HomeAssistant,
+    plural: bool,  # noqa: FBT001
+) -> None:
+    """Test retries must be at least 1."""
+    calls = await async_setup(hass)
+    with pytest.raises(vol.Invalid) as error:
+        await async_call(
+            hass,
+            {ATTR_RETRIES: 0, CONF_SEQUENCE: BASIC_SEQUENCE_DATA}
+            if plural
+            else {ATTR_RETRIES: 0},
+            plural=plural,
+        )
+    assert error.value.msg == "value must be at least 1"
+    assert not calls
+
+
 async def test_invalid_service(hass: HomeAssistant) -> None:
     """Test invalid service."""
     await async_setup(hass)

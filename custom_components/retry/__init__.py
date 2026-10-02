@@ -146,7 +146,9 @@ def _expected_state_without_ignore_target(value: dict[str, Any]) -> dict[str, An
 
 
 SERVICE_SCHEMA_BASE_FIELDS = {
-    vol.Required(ATTR_RETRIES, default=DEFAULT_RETRIES): cv.positive_int,
+    vol.Required(ATTR_RETRIES, default=DEFAULT_RETRIES): vol.All(
+        cv.positive_int, vol.Range(min=1)
+    ),
     vol.Required(ATTR_BACKOFF, default=DEFAULT_BACKOFF): _backoff_parameter,
     vol.Optional(ATTR_EXPECTED_STATE): vol.All(cv.ensure_list, [_template_parameter]),
     vol.Optional(ATTR_VALIDATION): _validation_parameter,
