@@ -157,7 +157,7 @@ SERVICE_SCHEMA_BASE_FIELDS = {
 ACTION_SERVICE_PARAMS = vol.Schema(
     {
         **SERVICE_SCHEMA_BASE_FIELDS,
-        vol.Required(CONF_ACTION): _template_parameter,
+        vol.Required(CONF_ACTION): vol.All(_template_parameter, cv.service),
     },
     extra=vol.ALLOW_EXTRA,
 )

@@ -881,6 +881,17 @@ async def test_template(hass: HomeAssistant) -> None:
     assert len(calls) == 1
 
 
+@pytest.mark.parametrize("action", ["input_boolean_turn_on", "a.b.c"])
+async def test_malformed_action(hass: HomeAssistant, action: str) -> None:
+    """Test a malformed action name."""
+    await async_setup(hass)
+    with pytest.raises(vol.Invalid) as error:
+        await hass.services.async_call(
+            DOMAIN, ACTION_SERVICE, {CONF_ACTION: action}, blocking=True
+        )
+    assert error.value.msg == f"Service {action} does not match format <domain>.<name>"
+
+
 async def test_invalid_service(hass: HomeAssistant) -> None:
     """Test invalid service."""
     await async_setup(hass)
