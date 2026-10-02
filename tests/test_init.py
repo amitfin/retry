@@ -678,6 +678,16 @@ async def test_different_retry_ids(
         assert f'{DOMAIN}.{TEST_SERVICE}()[{ATTR_RETRY_ID}="{i}"]' in caplog.text
 
 
+async def test_retry_id_add(
+    hass: HomeAssistant,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test an explicit retry_id with the value "add" is logged."""
+    await async_setup(hass)
+    await async_call(hass, {ATTR_RETRY_ID: "add", ATTR_RETRIES: 1})
+    assert f'{DOMAIN}.{TEST_SERVICE}()[{ATTR_RETRY_ID}="add"]' in caplog.text
+
+
 async def test_default_retry_id_is_entity_id(
     hass: HomeAssistant,
 ) -> None:

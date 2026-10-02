@@ -92,6 +92,8 @@ ENTITY_SERVICE_FIELDS = {
     str(key) for key in cast("dict[Any, Any]", cv.ENTITY_SERVICE_FIELDS)
 }
 
+_NOT_SET = object()  # A parameter which isn't provided (None is a valid value).
+
 _running_retries: dict[str, tuple[str, int]] = {}
 _running_retries_write_lock = threading.Lock()
 
@@ -527,8 +529,8 @@ class RetryAction:
             ),
             (
                 ATTR_RETRY_ID,
-                self._params.retry_data.get(ATTR_RETRY_ID),
-                None if ATTR_RETRY_ID not in self._params.retry_data else "add",
+                self._params.retry_data.get(ATTR_RETRY_ID, _NOT_SET),
+                _NOT_SET,
             ),
         ):
             if value != default:
