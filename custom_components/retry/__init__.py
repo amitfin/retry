@@ -540,7 +540,7 @@ class RetryAction:
             str_value += f"[{', '.join(retry_params)}]"
         return str_value
 
-    def _log(self, level: int, prefix: str, stack_info: bool = False) -> None:  # noqa: FBT001, FBT002
+    def _log(self, level: int, prefix: str, exc_info: bool = False) -> None:  # noqa: FBT001, FBT002
         """Log entry."""
         LOGGER.log(
             level,
@@ -549,7 +549,7 @@ class RetryAction:
             self._attempt,
             self._params.retry_data[ATTR_RETRIES],
             str(self),
-            exc_info=stack_info,
+            exc_info=exc_info,
         )
 
     def _repair(self) -> None:
@@ -642,7 +642,7 @@ class RetryAction:
                     if self._attempt < self._params.retry_data[ATTR_RETRIES]
                     else logging.ERROR,
                     "Failed",
-                    stack_info=True,
+                    exc_info=True,
                 )
                 if self._attempt >= self._params.retry_data[ATTR_RETRIES]:
                     issue_repair = self._params.retry_data.get(ATTR_REPAIR)
