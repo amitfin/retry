@@ -358,11 +358,15 @@ class RetryAction:
             ATTEMPT_VARIABLE: 0,
             **self._inner_data,
         }
-        cv.positive_float(
-            self._params.retry_data[ATTR_BACKOFF].async_render(
-                variables=self._template_variables
+        # Rendered (and validated) in advance: the wait after each failed attempt.
+        self._backoffs = [
+            cv.positive_float(
+                self._params.retry_data[ATTR_BACKOFF].async_render(
+                    variables={**self._template_variables, ATTEMPT_VARIABLE: attempt}
+                )
             )
-        )
+            for attempt in range(self._params.retry_data[ATTR_RETRIES] - 1)
+        ]
         self._retry_id = params.retry_data.get(
             ATTR_RETRY_ID, self._entity_id or self._action
         )
@@ -589,6 +593,13 @@ class RetryAction:
         )
 
     async def async_retry(self) -> Any:
+        """Perform the attempts and release the retry ID in any case."""
+        try:
+            return await self._async_attempts()
+        finally:
+            self._end_id()
+
+    async def _async_attempts(self) -> Any:
         """Loop of attempts."""
         result = None
         while True:
@@ -626,35 +637,30 @@ class RetryAction:
                         )
                     if issue_repair:
                         self._repair()
-                    self._end_id()
                     if (
                         on_error := self._params.retry_data.get(ATTR_ON_ERROR)
                     ) is not None:
-                        await _async_run_script(
-                            self._hass,
-                            on_error,
-                            ACTION_SERVICE,
-                            self._context,
-                            {
-                                key: value
-                                for key, value in self._template_variables.items()
-                                if key != ATTEMPT_VARIABLE
-                            },
-                        )
+                        # The script logs its own errors. The original error is
+                        # the one which is raised.
+                        with contextlib.suppress(Exception):
+                            await _async_run_script(
+                                self._hass,
+                                on_error,
+                                ACTION_SERVICE,
+                                self._context,
+                                {
+                                    key: value
+                                    for key, value in self._template_variables.items()
+                                    if key != ATTEMPT_VARIABLE
+                                },
+                            )
                     raise
-                await asyncio.sleep(
-                    float(
-                        self._params.retry_data[ATTR_BACKOFF].async_render(
-                            variables=self._get_template_variables()
-                        )
-                    )
-                )
+                await asyncio.sleep(self._backoffs[self._attempt - 1])
                 self._attempt += 1
             else:
                 self._log(
                     logging.DEBUG if self._attempt == 1 else logging.INFO, "Succeeded"
                 )
-                self._end_id()
                 return result
 
 

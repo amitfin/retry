@@ -81,6 +81,8 @@ The amount of seconds to wait between attempts. It's expressed in a special temp
 
 Note that there is no delay before the initial attempt, so the `backoff` parameter is used only after the 1st failure.
 
+The template is rendered for all attempts when the action starts, so an invalid value (e.g. an index which is out of range of a list) fails the action before the 1st attempt. Therefore, it shouldn't depend on states or time.
+
 The default value is `"[[ 2 ** attempt ]]"`, which implements an exponential backoff policy:
 - Delay intervals between failures: `[1, 2, 4, 8, 16, 32]`. Each interval is twice the duration of the preceding one.
 - Cumulative execution offsets: `[0, 1, 3, 7, 15, 31, 63]`. These values represent the absolute time offsets at which each successive inner action is performed.

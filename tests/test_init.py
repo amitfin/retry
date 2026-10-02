@@ -69,6 +69,7 @@ from pytest_homeassistant_custom_component.common import (
     async_mock_service,
 )
 
+import custom_components.retry as retry_module
 from custom_components.retry.const import (
     ACTION_SERVICE,
     ACTIONS_SERVICE,
@@ -1410,6 +1411,77 @@ async def test_backoff_rendered_value(
         with pytest.raises(vol.MultipleInvalid) as exception:
             await async_call
         assert exception.value.msg == error
+
+
+@pytest.mark.parametrize(
+    ("retries", "valid"),
+    [(4, True), (5, False)],
+    ids=["in range", "out of range"],
+)
+@pytest.mark.allowed_logs(["Template variable warning: list object has no element"])
+async def test_backoff_rendered_in_advance(
+    hass: HomeAssistant,
+    sleep: AsyncMock,
+    retries: int,
+    valid: bool,  # noqa: FBT001
+) -> None:
+    """Test backoff is rendered for all attempts before the 1st attempt."""
+    calls = await async_setup(hass)
+    async_call = hass.services.async_call(
+        DOMAIN,
+        ACTION_SERVICE,
+        {
+            CONF_ACTION: f"{DOMAIN}.{TEST_SERVICE}",
+            ATTR_BACKOFF: "[[ [1, 5, 30][attempt] ]]",
+            ATTR_RETRIES: retries,
+        },
+        blocking=True,
+    )
+    if valid:
+        with pytest.raises(RetryTestMockError):
+            await async_call
+        assert len(calls) == retries
+        # Filter HA's own "sleep(0)" calls.
+        assert [x.args[0] for x in sleep.await_args_list if x.args[0]] == [1, 5, 30]
+    else:
+        with pytest.raises(vol.Invalid):
+            await async_call
+        assert not calls
+
+
+@pytest.mark.allowed_logs(["action: Error executing script."])
+async def test_on_error_raises(
+    hass: HomeAssistant,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test the original error is raised when on_error raises too."""
+    calls = await async_setup(hass)
+    with pytest.raises(RetryTestMockError):
+        await async_call_single(
+            hass,
+            f"{DOMAIN}.{TEST_SERVICE}",
+            {
+                ATTR_RETRIES: 1,
+                ATTR_ON_ERROR: [{CONF_ACTION: f"{DOMAIN}.not_existing"}],
+            },
+            plural=False,
+        )
+    assert len(calls) == 1
+    assert f"Action {DOMAIN}.not_existing not found" in caplog.text
+
+
+async def test_cancel_releases_retry_id(hass: HomeAssistant) -> None:
+    """Test the retry ID is released when the call is cancelled."""
+    event = Event()
+    called = Semaphore(0)
+    await async_setup(hass, action_block=event, action_signal=called)
+    task = hass.async_create_task(async_call(hass))
+    await called.acquire()
+    assert retry_module._running_retries  # noqa: SLF001
+    task.cancel()
+    with suppress(asyncio.CancelledError):
+        await task
+    assert not retry_module._running_retries  # noqa: SLF001
 
 
 async def test_actions_propagating_successful_validation(
