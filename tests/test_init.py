@@ -1783,7 +1783,7 @@ async def test_nested_actions(
 ) -> None:
     """Test nested actions of retry.actions."""
     await async_setup(hass)
-    with pytest.raises(IntegrationError):
+    with pytest.raises(ServiceValidationError) as error:
         await hass.services.async_call(
             DOMAIN,
             ACTIONS_SERVICE,
@@ -1797,6 +1797,7 @@ async def test_nested_actions(
             },
             blocking=True,
         )
+    assert str(error.value) == "Nested retry.actions are disallowed"
 
 
 async def test_call_in_actions(
@@ -1804,13 +1805,14 @@ async def test_call_in_actions(
 ) -> None:
     """Test retry.action inside retry.actions."""
     await async_setup(hass)
-    with pytest.raises(IntegrationError):
+    with pytest.raises(ServiceValidationError) as error:
         await hass.services.async_call(
             DOMAIN,
             ACTIONS_SERVICE,
             {CONF_SEQUENCE: [{CONF_ACTION: f"{DOMAIN}.{ACTION_SERVICE}"}]},
             blocking=True,
         )
+    assert str(error.value) == "retry.action inside retry.actions is disallowed"
 
 
 async def test_event_context(

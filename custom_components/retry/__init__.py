@@ -715,10 +715,10 @@ def _wrap_actions(  # noqa: PLR0912
                 domain_service = action[CONF_ACTION]
                 if domain_service == f"{DOMAIN}.{ACTIONS_SERVICE}":
                     message = "Nested retry.actions are disallowed"
-                    raise IntegrationError(message)
+                    raise ServiceValidationError(message)
                 if domain_service == f"{DOMAIN}.{ACTION_SERVICE}":
                     message = "retry.action inside retry.actions is disallowed"
-                    raise IntegrationError(message)
+                    raise ServiceValidationError(message)
                 action[CONF_SERVICE_DATA] = action.get(CONF_SERVICE_DATA, {})
                 action[CONF_SERVICE_DATA][CONF_ACTION] = domain_service
                 action[CONF_SERVICE_DATA].update(copy.deepcopy(retry_params))
