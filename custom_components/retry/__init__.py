@@ -791,7 +791,8 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
         )
 
         if error := next(
-            (result for result in results if isinstance(result, Exception)), None
+            (result for result in results if isinstance(result, BaseException)),
+            None,
         ):
             raise error
 

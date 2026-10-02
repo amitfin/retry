@@ -1560,6 +1560,21 @@ async def test_on_error_raises(
     assert f"Action {DOMAIN}.not_existing not found" in caplog.text
 
 
+async def test_inner_action_cancelled(hass: HomeAssistant) -> None:
+    """Test a CancelledError raised by the inner action is propagated."""
+    await async_setup(hass)
+
+    async def cancelled_service(_: ServiceCall) -> None:
+        """Raise CancelledError."""
+        raise asyncio.CancelledError
+
+    hass.services.async_register(DOMAIN, "cancelled", cancelled_service)
+    with pytest.raises(asyncio.CancelledError):
+        await hass.services.async_call(
+            DOMAIN, ACTION_SERVICE, {CONF_ACTION: f"{DOMAIN}.cancelled"}, blocking=True
+        )
+
+
 async def test_retry_id_taken_when_running(hass: HomeAssistant) -> None:
     """Test creating a retry loop doesn't take its retry ID before it runs."""
     await async_setup(hass)
