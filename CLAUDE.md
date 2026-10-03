@@ -18,7 +18,7 @@ README.md is the user-facing spec for every parameter. Keep it in sync with the 
 | `custom_components/retry/__init__.py` | Almost all logic: schemas, `RetryParams` (parse/validate, target resolution), `RetryAction` (per-entity retry loop), `_wrap_actions` (retry.actions rewriting), service registration in `async_setup` |
 | `custom_components/retry/config_flow.py` | Single-instance config flow + options flow (`disable_initial_check`, `disable_repair`) |
 | `custom_components/retry/const.py` | Constants / parameter names |
-| `custom_components/retry/diagnostics.py` | Returns `{}` |
+| `custom_components/retry/diagnostics.py` | Returns the options |
 | `services.yaml`, `strings.json`, `translations/*.json`, `icons.json` | Action UI metadata. `translations/en.json` mirrors `strings.json` with the `[%key:…%]` references expanded |
 | `tests/test_init.py` | Nearly all behavior tests (~90 cases) |
 | `config/configuration.yaml` | Dev HA instance config for `scripts/develop` |

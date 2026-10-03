@@ -7,7 +7,7 @@ import pytest
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.retry.const import DOMAIN
+from custom_components.retry.const import CONF_DISABLE_REPAIR, DOMAIN
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -20,7 +20,7 @@ async def test_diagnostics(
     hass_client: ClientSessionGenerator,
 ) -> None:
     """Test diagnostics."""
-    config_entry = MockConfigEntry(domain=DOMAIN)
+    config_entry = MockConfigEntry(domain=DOMAIN, options={CONF_DISABLE_REPAIR: True})
     config_entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(config_entry.entry_id)
     assert await async_setup_component(hass, "diagnostics", {})
@@ -31,7 +31,9 @@ async def test_diagnostics(
         f"/api/diagnostics/config_entry/{config_entry.entry_id}"
     )
     assert diagnostics.status == HTTPStatus.OK
-    assert (await diagnostics.json())["data"] == {}
+    assert (await diagnostics.json())["data"] == {
+        "options": {CONF_DISABLE_REPAIR: True}
+    }
 
     assert await hass.config_entries.async_unload(config_entry.entry_id)
     await hass.async_block_till_done()

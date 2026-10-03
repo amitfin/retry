@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 async def async_get_config_entry_diagnostics(
-    _: HomeAssistant, _entry: ConfigEntry
+    _: HomeAssistant, entry: ConfigEntry
 ) -> dict[str, Any]:
     """Return diagnostics for a config entry."""
-    return {}
+    return {"options": dict(entry.options)}
