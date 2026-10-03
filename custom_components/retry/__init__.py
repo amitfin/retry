@@ -217,8 +217,9 @@ ACTIONS_SERVICE_SCHEMA = cast(
                 vol.Required(CONF_SEQUENCE): cv.SCRIPT_SCHEMA,
                 # "on_error" should be passed as-is to retry.action
                 vol.Optional(ATTR_ON_ERROR): _script_schema_validate_only,
+                # The frontend stores data here (like HA's own schemas).
+                vol.Remove("metadata"): dict,
             },
-            extra=vol.ALLOW_EXTRA,
         ),
         _expected_state_without_ignore_target,
     ),

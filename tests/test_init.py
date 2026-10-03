@@ -190,7 +190,8 @@ async def async_call(
 ) -> Any:
     """Call a service via the retry service."""
     data = data or {}
-    data[CONF_ACTION] = f"{DOMAIN}.{TEST_SERVICE}"
+    if not plural:
+        data[CONF_ACTION] = f"{DOMAIN}.{TEST_SERVICE}"
     with suppress(RetryTestMockError, InvalidStateError):
         return await hass.services.async_call(
             DOMAIN,
@@ -2057,6 +2058,32 @@ async def test_actions_legacy_step_syntax(
             blocking=True,
         )
     assert [dict(call.data) for call in calls] == expected
+
+
+async def test_actions_unknown_parameter(hass: HomeAssistant) -> None:
+    """Test retry.actions rejects an unknown parameter (e.g. a typo)."""
+    calls = await async_setup(hass)
+    with pytest.raises(vol.Invalid) as error:
+        await hass.services.async_call(
+            DOMAIN,
+            ACTIONS_SERVICE,
+            {CONF_SEQUENCE: BASIC_SEQUENCE_DATA, "retires": 1},
+            blocking=True,
+        )
+    assert error.value.path == ["retires"]
+    assert not calls
+
+
+async def test_actions_metadata(hass: HomeAssistant) -> None:
+    """Test retry.actions accepts the frontend's metadata (like HA's schemas)."""
+    calls = await async_setup(hass, raises=False)
+    await hass.services.async_call(
+        DOMAIN,
+        ACTIONS_SERVICE,
+        {CONF_SEQUENCE: BASIC_SEQUENCE_DATA, "metadata": {}},
+        blocking=True,
+    )
+    assert len(calls) == 1
 
 
 async def test_actions_inner_service_validation(
