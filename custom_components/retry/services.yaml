@@ -1,4 +1,5 @@
 action:
+  target:
   fields:
     action:
       example: homeassistant.turn_on
