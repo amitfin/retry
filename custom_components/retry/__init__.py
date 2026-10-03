@@ -7,7 +7,6 @@ import contextlib
 import copy
 import hashlib
 import logging
-import threading
 from typing import TYPE_CHECKING, Any, cast
 
 import jinja2
@@ -97,7 +96,6 @@ ENTITY_SERVICE_FIELDS = {str(key) for key in cv.ENTITY_SERVICE_FIELDS}
 _NOT_SET = object()  # A parameter which isn't provided (None is a valid value).
 
 _running_retries: dict[str, tuple[str, int]] = {}
-_running_retries_write_lock = threading.Lock()
 
 
 def _template_parameter(value: Any) -> str:
@@ -636,22 +634,22 @@ class RetryAction:
         """Add or override self as the retry ID running job."""
         if not self._retry_id:
             return
-        with _running_retries_write_lock:
-            self._set_id(
-                1 if not self._check_id() else _running_retries[self._retry_id][1] + 1
-            )
+        # No lock is needed: there's no await between the read and the write, so
+        # nothing else runs in between on the event loop (also in _end_id).
+        self._set_id(
+            1 if not self._check_id() else _running_retries[self._retry_id][1] + 1
+        )
 
     def _end_id(self) -> None:
         """Remove self from being the retry ID running job."""
         if not self._retry_id:
             return
-        with _running_retries_write_lock:
-            if self._check_id():
-                count = _running_retries[self._retry_id][1] - 1
-                if not count:
-                    del _running_retries[self._retry_id]
-                else:
-                    self._set_id(count)
+        if self._check_id():
+            count = _running_retries[self._retry_id][1] - 1
+            if not count:
+                del _running_retries[self._retry_id]
+            else:
+                self._set_id(count)
 
     def _set_id(self, count: int) -> None:
         """Set the retry_id entry with a counter."""
