@@ -2014,6 +2014,51 @@ async def test_actions_direct_call_templates(
     assert calls[0].data.get("test") == ("x" if CONF_SERVICE_DATA in step else None)
 
 
+@pytest.mark.parametrize(
+    ("step", "retry_data", "expected"),
+    [
+        (
+            {"service_template": f"{{{{ '{DOMAIN}.{TEST_SERVICE}' }}}}"},
+            {},
+            [{}],
+        ),
+        (
+            {
+                CONF_ACTION: f"{DOMAIN}.{TEST_SERVICE}",
+                ATTR_ENTITY_ID: "binary_sensor.test",
+            },
+            {ATTR_EXPECTED_STATE: "off", ATTR_RETRIES: 1},
+            [{ATTR_ENTITY_ID: ["binary_sensor.test"]}],
+        ),
+        (
+            {
+                CONF_ACTION: f"{DOMAIN}.{TEST_SERVICE}",
+                CONF_TARGET: "{{ {'entity_id': 'binary_sensor.test'} }}",
+            },
+            {},
+            [{ATTR_ENTITY_ID: ["binary_sensor.test"]}],
+        ),
+    ],
+    ids=["service_template", "step entity_id", "target template"],
+)
+async def test_actions_legacy_step_syntax(
+    hass: HomeAssistant,
+    step: dict[str, Any],
+    retry_data: dict[str, Any],
+    expected: list[dict[str, Any]],
+) -> None:
+    """Test step syntax which HA scripts accept (legacy, or a templated target)."""
+    calls = await async_setup(hass, raises=False)
+    with suppress(InvalidStateError):
+        await hass.services.async_call(
+            DOMAIN,
+            ACTIONS_SERVICE,
+            {CONF_SEQUENCE: [step], **retry_data},
+            blocking=True,
+        )
+    assert [dict(call.data) for call in calls] == expected
+
+
 async def test_actions_inner_service_validation(
     hass: HomeAssistant,
 ) -> None:

@@ -27,6 +27,7 @@ from homeassistant.const import (
     CONF_SEQUENCE,
     CONF_SERVICE_DATA,
     CONF_SERVICE_DATA_TEMPLATE,
+    CONF_SERVICE_TEMPLATE,
     CONF_TARGET,
     CONF_THEN,
     ENTITY_MATCH_ALL,
@@ -787,7 +788,11 @@ def _wrap_actions(  # noqa: PLR0912
         action_type = cv.determine_script_action(action)
         match action_type:
             case cv.SCRIPT_ACTION_CALL_SERVICE:
-                domain_service = action[CONF_ACTION]
+                domain_service = (
+                    action.pop(CONF_SERVICE_TEMPLATE)  # Legacy syntax.
+                    if CONF_SERVICE_TEMPLATE in action
+                    else action[CONF_ACTION]
+                )
                 if domain_service == f"{DOMAIN}.{ACTIONS_SERVICE}":
                     message = "Nested retry.actions are disallowed"
                     raise ServiceValidationError(message)
@@ -803,15 +808,22 @@ def _wrap_actions(  # noqa: PLR0912
                     **({ATTR_INNER_DATA: step_data} if step_data else {}),
                 }
                 action[CONF_ACTION] = f"{DOMAIN}.{ACTION_SERVICE}"
+                target = action.get(CONF_TARGET, {})
                 call_data = {
                     **action[CONF_SERVICE_DATA],
-                    **action.get(CONF_TARGET, {}),
+                    **(target if isinstance(target, dict) else {}),
+                    # Legacy syntax (outside of the target).
+                    **(
+                        {ATTR_ENTITY_ID: action[ATTR_ENTITY_ID]}
+                        if ATTR_ENTITY_ID in action
+                        else {}
+                    ),
                 }
                 # Validate parameters so errors are raised as soon as possible.
                 # Templates are rendered only when the step runs (like HA does).
                 # A missing action fails only if its step runs (like HA does),
                 # e.g. in a branch which isn't taken.
-                if not is_complex(call_data):
+                if isinstance(target, dict) and not is_complex(call_data):
                     with contextlib.suppress(ServiceNotFound):
                         RetryParams(hass, None, call_data)
             case cv.SCRIPT_ACTION_REPEAT:
