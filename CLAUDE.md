@@ -7,7 +7,7 @@ Guidance for Claude Code sessions in this repository.
 `retry` is a Home Assistant custom integration (distributed via HACS, domain `retry`) that adds two actions:
 
 - `retry.action`: the engine. It calls one inner action (`action: light.turn_on`, …) and retries it on failure with a templated backoff. Optionally it validates the result (`expected_state`, `validation`) and runs `on_error` after the final failure.
-- `retry.actions`: the UI-friendly wrapper. It walks a script `sequence`, rewrites every `call_service` step into a `retry.action` call carrying the shared retry parameters, and runs the result as an ad-hoc `script.Script`.
+- `retry.actions`: the UI-friendly wrapper. It walks a script `sequence`, rewrites every `call_service` step into a `retry.action` call carrying the shared retry parameters (the step's own data goes into `inner_data`, so it can't collide with retry's parameter names), and runs the result as an ad-hoc `script.Script`.
 
 README.md is the user-facing spec for every parameter. Keep it in sync with the code.
 

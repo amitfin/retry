@@ -51,7 +51,7 @@ target:
   entity_id: light.kitchen
 ```
 
-It's possible to add additional parameters to the `data` section. The extra parameters will be passed to the inner action.
+It's possible to add additional parameters to the `data` section. The extra parameters will be passed to the inner action. They can also be provided inside [`inner_data`](#inner_data-parameter-optional).
 
 The inner action will get performed again if one of the following happens:
 
@@ -63,6 +63,22 @@ Here is the list of parameters to control the behavior of `retry.action ` (direc
 #### `action` parameter (mandatory)
 
 The `action` parameter is the only mandatory parameter. It contains the name of the inner action. It supports templates.
+
+#### `inner_data` parameter (optional)
+
+The parameters of the inner action can also be provided inside `inner_data`, instead of next to the retry parameters. This is needed for a parameter which has the same name as a retry parameter (e.g. `action`), and can be used for any other parameter as well. For example:
+
+```
+action: retry.action
+data:
+  action: motioneye.action
+  inner_data:
+    action: snapshot
+target:
+  entity_id: camera.front_door
+```
+
+A parameter can't be provided both inside and outside of `inner_data`. The parameters are also available as variables to the templates of the other parameters (e.g. `validation`), except that the retry variables (e.g. `action` and `attempt`) take precedence. Note that `retry.actions` passes the data of the inner actions this way, so they can use any parameter.
 
 #### `retries` parameter (optional)
 

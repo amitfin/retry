@@ -30,6 +30,7 @@
     "levelname",
     "levelno",
     "mccabe",
+    "motioneye",
     "mypy",
     "noqa",
     "prek",

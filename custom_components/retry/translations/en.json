@@ -38,6 +38,10 @@
                     "name": "Action",
                     "description": "The action to retry on failure."
                 },
+                "inner_data": {
+                    "name": "Inner Data",
+                    "description": "Parameters of the inner action, e.g. a parameter which has the same name as a retry parameter (like \"action\")."
+                },
                 "retries": {
                     "name": "Retries",
                     "description": "Maximum amount of attempts (default is 7)."

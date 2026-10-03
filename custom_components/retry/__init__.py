@@ -26,6 +26,7 @@ from homeassistant.const import (
     CONF_REPEAT,
     CONF_SEQUENCE,
     CONF_SERVICE_DATA,
+    CONF_SERVICE_DATA_TEMPLATE,
     CONF_TARGET,
     CONF_THEN,
     ENTITY_MATCH_ALL,
@@ -69,6 +70,7 @@ from .const import (
     ATTR_BACKOFF,
     ATTR_EXPECTED_STATE,
     ATTR_IGNORE_TARGET,
+    ATTR_INNER_DATA,
     ATTR_ON_ERROR,
     ATTR_REPAIR,
     ATTR_RETRIES,
@@ -195,6 +197,7 @@ ACTION_SERVICE_PARAMS = vol.Schema(
     {
         **SERVICE_SCHEMA_BASE_FIELDS,
         vol.Required(CONF_ACTION): vol.All(_template_parameter, cv.service),
+        vol.Optional(ATTR_INNER_DATA): dict,
     },
     extra=vol.ALLOW_EXTRA,
 )
@@ -284,6 +287,15 @@ class RetryParams:
             for key, value in data.items()
             if key not in ACTION_SERVICE_PARAMS.schema
         }
+        # inner_data allows parameters which collide with retry's own parameters.
+        nested_data = data.get(ATTR_INNER_DATA, {})
+        if duplicates := inner_data.keys() & nested_data.keys():
+            message = (
+                f"{', '.join(sorted(duplicates))} provided both in "
+                f"{ATTR_INNER_DATA} and outside of it"
+            )
+            raise ServiceValidationError(message)
+        inner_data.update(nested_data)
         domain_services = hass.services.async_services_for_domain(
             self.retry_data[ATTR_DOMAIN]
         )
@@ -408,9 +420,10 @@ class RetryAction:
         self._context = context
         self._attempt = 1
         self._template_variables = {
+            **self._inner_data,
+            # Retry's own variables take precedence over the inner action's data.
             CONF_ACTION: self._action,
             ATTEMPT_VARIABLE: 0,
-            **self._inner_data,
         }
         # Rendered (and validated) in advance: the wait after each failed attempt.
         self._backoffs = [
@@ -741,6 +754,29 @@ async def _async_run_script(
             await script_obj.async_unload()
 
 
+def _step_data(action: dict[str, Any]) -> Any:
+    """Remove and return a step's data, merged like HA does (the target wins)."""
+    data = action.get(CONF_SERVICE_DATA)
+    data_template = action.get(CONF_SERVICE_DATA_TEMPLATE)
+    if data is not None and data_template is not None:
+        if not isinstance(data, dict) or not isinstance(data_template, dict):
+            # A template of the whole data can be merged only once it's rendered,
+            # so data_template stays a parameter of the step (rare legacy syntax).
+            return action.pop(CONF_SERVICE_DATA)
+        merged: Any = {**data, **data_template}
+    else:
+        merged = data if data is not None else data_template
+    action.pop(CONF_SERVICE_DATA, None)
+    action.pop(CONF_SERVICE_DATA_TEMPLATE, None)
+    if isinstance(merged, dict):
+        target = action.get(CONF_TARGET)
+        target_keys = set(target) if isinstance(target, dict) else set()
+        if ATTR_ENTITY_ID in action:  # Legacy syntax (outside of the target).
+            target_keys.add(ATTR_ENTITY_ID)
+        merged = {key: value for key, value in merged.items() if key not in target_keys}
+    return merged
+
+
 def _wrap_actions(  # noqa: PLR0912
     hass: HomeAssistant, sequence: list[dict[str, Any]], retry_params: dict[str, Any]
 ) -> None:
@@ -758,11 +794,16 @@ def _wrap_actions(  # noqa: PLR0912
                 if domain_service == f"{DOMAIN}.{ACTION_SERVICE}":
                     message = "retry.action inside retry.actions is disallowed"
                     raise ServiceValidationError(message)
-                action[CONF_SERVICE_DATA] = action.get(CONF_SERVICE_DATA, {})
-                action[CONF_SERVICE_DATA][CONF_ACTION] = domain_service
-                action[CONF_SERVICE_DATA].update(copy.deepcopy(retry_params))
+                # The step's data is passed separately, so it can't collide with
+                # the retry parameters (e.g. a field named "action").
+                step_data = _step_data(action)
+                action[CONF_SERVICE_DATA] = {
+                    CONF_ACTION: domain_service,
+                    **copy.deepcopy(retry_params),
+                    **({ATTR_INNER_DATA: step_data} if step_data else {}),
+                }
                 action[CONF_ACTION] = f"{DOMAIN}.{ACTION_SERVICE}"
-                inner_data = {
+                call_data = {
                     **action[CONF_SERVICE_DATA],
                     **action.get(CONF_TARGET, {}),
                 }
@@ -770,9 +811,9 @@ def _wrap_actions(  # noqa: PLR0912
                 # Templates are rendered only when the step runs (like HA does).
                 # A missing action fails only if its step runs (like HA does),
                 # e.g. in a branch which isn't taken.
-                if not is_complex(inner_data):
+                if not is_complex(call_data):
                     with contextlib.suppress(ServiceNotFound):
-                        RetryParams(hass, None, inner_data)
+                        RetryParams(hass, None, call_data)
             case cv.SCRIPT_ACTION_REPEAT:
                 _wrap_actions(hass, action[CONF_REPEAT][CONF_SEQUENCE], retry_params)
             case cv.SCRIPT_ACTION_CHOOSE:

@@ -77,6 +77,7 @@ from custom_components.retry.const import (
     ATTR_BACKOFF,
     ATTR_EXPECTED_STATE,
     ATTR_IGNORE_TARGET,
+    ATTR_INNER_DATA,
     ATTR_ON_ERROR,
     ATTR_REPAIR,
     ATTR_RETRIES,
@@ -1007,6 +1008,142 @@ async def test_zero_retries(
         )
     assert error.value.msg == "value must be at least 1"
     assert not calls
+
+
+async def test_inner_data(hass: HomeAssistant) -> None:
+    """Test inner_data with a field which collides with a retry parameter."""
+    calls = await async_setup(hass)
+    await hass.services.async_call(
+        DOMAIN,
+        ACTION_SERVICE,
+        {
+            CONF_ACTION: f"{DOMAIN}.{TEST_ON_ERROR_SERVICE}",
+            ATTR_INNER_DATA: {CONF_ACTION: "inner", "test": "nested"},
+            "other": "flat",
+        },
+        blocking=True,
+    )
+    assert len(calls) == 1
+    assert calls[0].data == {CONF_ACTION: "inner", "test": "nested", "other": "flat"}
+
+
+async def test_inner_data_duplicate(hass: HomeAssistant) -> None:
+    """Test a field provided both in inner_data and outside of it."""
+    calls = await async_setup(hass)
+    with pytest.raises(ServiceValidationError) as error:
+        await hass.services.async_call(
+            DOMAIN,
+            ACTION_SERVICE,
+            {
+                CONF_ACTION: f"{DOMAIN}.{TEST_ON_ERROR_SERVICE}",
+                ATTR_INNER_DATA: {"test": "nested"},
+                "test": "flat",
+            },
+            blocking=True,
+        )
+    assert str(error.value) == "test provided both in inner_data and outside of it"
+    assert not calls
+
+
+async def test_inner_data_template_variables(hass: HomeAssistant) -> None:
+    """Test retry's variables take precedence over the inner action's data."""
+    calls = await async_setup(hass)
+    await hass.services.async_call(
+        DOMAIN,
+        ACTION_SERVICE,
+        {
+            CONF_ACTION: f"{DOMAIN}.{TEST_ON_ERROR_SERVICE}",
+            ATTR_INNER_DATA: {CONF_ACTION: "inner", "test": "nested"},
+            ATTR_VALIDATION: (
+                f"[[ action == '{DOMAIN}.{TEST_ON_ERROR_SERVICE}' "
+                "and test == 'nested' ]]"
+            ),
+        },
+        blocking=True,
+    )
+    assert not calls  # The validation already passes.
+
+
+async def test_actions_step_with_action_field(hass: HomeAssistant) -> None:
+    """Test a retry.actions step whose data has a field named "action"."""
+    calls = await async_setup(hass)
+    await hass.services.async_call(
+        DOMAIN,
+        ACTIONS_SERVICE,
+        {
+            CONF_SEQUENCE: [
+                {
+                    CONF_ACTION: f"{DOMAIN}.{TEST_ON_ERROR_SERVICE}",
+                    CONF_SERVICE_DATA: {CONF_ACTION: "inner", ATTR_RETRIES: "inner"},
+                }
+            ],
+            ATTR_RETRIES: 1,
+        },
+        blocking=True,
+    )
+    assert len(calls) == 1
+    assert calls[0].data == {CONF_ACTION: "inner", ATTR_RETRIES: "inner"}
+
+
+@pytest.mark.parametrize(
+    ("step", "expected"),
+    [
+        (
+            {"data_template": {CONF_ACTION: "inner"}},
+            {CONF_ACTION: "inner"},
+        ),
+        (
+            {
+                CONF_SERVICE_DATA: {"test": "data", "other": "data"},
+                "data_template": {"test": "data_template"},
+            },
+            {"test": "data_template", "other": "data"},
+        ),
+        (
+            {
+                CONF_TARGET: {ATTR_ENTITY_ID: "binary_sensor.test"},
+                CONF_SERVICE_DATA: {ATTR_ENTITY_ID: "binary_sensor.test2", "test": "a"},
+            },
+            {ATTR_ENTITY_ID: "binary_sensor.test", "test": "a"},
+        ),
+        (
+            {
+                ATTR_ENTITY_ID: "binary_sensor.test",
+                CONF_SERVICE_DATA: {ATTR_ENTITY_ID: "binary_sensor.test2", "test": "a"},
+            },
+            {ATTR_ENTITY_ID: "binary_sensor.test", "test": "a"},
+        ),
+        (
+            {
+                CONF_SERVICE_DATA: "{{ {'test': 'data'} }}",
+                "data_template": {"other": "data_template"},
+            },
+            {"test": "data", "other": "data_template"},
+        ),
+    ],
+    ids=[
+        "data_template",
+        "data and data_template",
+        "target wins",
+        "legacy entity_id wins",
+        "data template and data_template",
+    ],
+)
+async def test_actions_step_data(
+    hass: HomeAssistant,
+    step: dict[str, Any],
+    expected: dict[str, Any],
+) -> None:
+    """Test a retry.actions step's data is merged like HA does."""
+    calls = await async_setup(hass)
+    await hass.services.async_call(
+        DOMAIN,
+        ACTIONS_SERVICE,
+        {CONF_SEQUENCE: [{CONF_ACTION: f"{DOMAIN}.{TEST_ON_ERROR_SERVICE}", **step}]},
+        blocking=True,
+    )
+    assert len(calls) == 1
+    assert calls[0].data == expected
 
 
 async def test_invalid_service(hass: HomeAssistant) -> None:

@@ -5,6 +5,10 @@ action:
       required: true
       selector:
         text:
+    inner_data:
+      example: '{"action": "snapshot"}'
+      selector:
+        object:
     retries:
       example: 5
       selector:
