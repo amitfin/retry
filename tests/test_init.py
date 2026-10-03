@@ -2367,6 +2367,37 @@ async def test_script_run_sequence_templates(
     assert [call.data["test"] for call in calls] == expected
 
 
+@pytest.mark.parametrize(
+    "step",
+    [
+        {"stop": "Stopped"},
+        {"stop": "Stopped", "error": True},
+        {CONF_CONDITION: "template", CONF_VALUE_TEMPLATE: "{{ False }}"},
+    ],
+    ids=["stop", "stop with error", "failed condition"],
+)
+async def test_actions_stop(hass: HomeAssistant, step: dict[str, Any]) -> None:
+    """Test stopping the sequence ends only retry.actions (not the caller)."""
+    calls = await async_setup(hass, raises=False)
+    await script.Script(
+        hass,
+        cv.SCRIPT_SCHEMA(
+            [
+                {
+                    CONF_ACTION: f"{DOMAIN}.{ACTIONS_SERVICE}",
+                    CONF_SERVICE_DATA: {
+                        CONF_SEQUENCE: [step, *BASIC_SEQUENCE_DATA],
+                    },
+                },
+                {CONF_ACTION: f"{DOMAIN}.{TEST_ON_ERROR_SERVICE}"},
+            ]
+        ),
+        ACTIONS_SERVICE,
+        DOMAIN,
+    ).async_run(context=Context())
+    assert [call.service for call in calls] == [TEST_ON_ERROR_SERVICE]
+
+
 async def test_on_error_script_schema(
     hass: HomeAssistant,
 ) -> None:
