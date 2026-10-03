@@ -257,7 +257,9 @@ An action cancels a previous running action with the same retry ID. This paramet
 
 An example of the cancellation scenario might be when turning off a light while the turn on retry loop of the same light is still running due to failures or light's transition time. The turn on retry loop will be getting canceled by the turn off action since both share the same `retry_id` by default (the entity ID).
 
-Note that each entity is running individually when the inner action has a list of entities. Therefore, they have a different default `retry_id`. However, an explicit `retry_id` is shared for all entities of the same action. Nevertheless, retry loops created by the same action (`retry.action` or `retry.actions`) are not canceling each other even when they share the same `retry_id`.
+The cancellation takes effect when the canceled loop starts its next attempt (an attempt in progress isn't interrupted). The canceled action then raises an error, so the rest of its automation or script doesn't run (unless the step has [`continue_on_error: true`](https://www.home-assistant.io/docs/scripts/#continuing-on-error)).
+
+Note that each entity is running individually when the inner action has a list of entities. Therefore, they have a different default `retry_id`. However, an explicit `retry_id` is shared for all entities of the same action. Nevertheless, retry loops of the same run of an automation or script (they share the same context) don't cancel each other, even when they share the same `retry_id`. For example, two steps with `retry_id: kitchen` in a `parallel` block of an automation don't cancel each other.
 
 It's possible to disable the cancellation logic by setting `retry_id` to an empty string (`retry_id: ""`) or null (`retry_id: null`). In such a case, the action doesn't cancel any other running action and will not be canceled by any other future action. Note that it's not possible to set `retry_id` to an empty string or null via the "UI Mode" but instead the "YAML Mode" in the UI should be used.
 
