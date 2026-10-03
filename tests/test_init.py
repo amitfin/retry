@@ -8,7 +8,7 @@ import hashlib
 from asyncio import Event, Semaphore
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any, cast
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, PropertyMock, patch
 
 import homeassistant.util.dt as dt_util
 import pytest
@@ -61,6 +61,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers import label_registry as lr
 from homeassistant.helpers import script
+from homeassistant.helpers.entity_component import DATA_INSTANCES
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -459,6 +460,31 @@ async def test_entity_wrong_state(  # noqa: PLR0913, PLR0917
         assert f'"{validation}" is False' in caplog.text
     wait_times = [x.args[0] for x in sleep.await_args_list]
     assert wait_times.count(grace or 0.2) == 7
+
+
+async def test_state_none(
+    hass: HomeAssistant,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test an entity's state of None, which the state machine shows as unknown."""
+    calls = await async_setup(hass, raises=False)
+    entity = hass.data[DATA_INSTANCES]["binary_sensor"].get_entity("binary_sensor.test")
+    with patch.object(type(entity), "state", new_callable=PropertyMock) as state:
+        state.return_value = None
+        await async_call(
+            hass, {ATTR_ENTITY_ID: "binary_sensor.test", ATTR_EXPECTED_STATE: "unknown"}
+        )
+        assert not calls  # The state is already as expected.
+        await async_call(
+            hass,
+            {
+                ATTR_ENTITY_ID: "binary_sensor.test",
+                ATTR_EXPECTED_STATE: "on",
+                ATTR_RETRIES: 1,
+            },
+        )
+    assert len(calls) == 1
+    assert 'binary_sensor.test state is "unknown"' in caplog.text
 
 
 async def test_state_delay_without_checks(

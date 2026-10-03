@@ -28,6 +28,7 @@ from homeassistant.const import (
     CONF_TARGET,
     CONF_THEN,
     ENTITY_MATCH_ALL,
+    STATE_UNKNOWN,
 )
 from homeassistant.core import DOMAIN as HA_DOMAIN
 from homeassistant.core import SupportsResponse
@@ -189,6 +190,11 @@ ACTIONS_SERVICE_SCHEMA = cast(
 def _get_entity_component(hass: HomeAssistant, domain: str) -> EntityComponent | None:
     """Get entity component object."""
     return hass.data.get(DATA_INSTANCES, {}).get(domain)
+
+
+def _entity_state(entity: Entity) -> Any:
+    """Return the entity's state as the state machine shows it (None is unknown)."""
+    return STATE_UNKNOWN if entity.state is None else entity.state
 
 
 def _get_entity(hass: HomeAssistant, entity_id: str) -> Entity | None:
@@ -410,8 +416,9 @@ class RetryAction:
         if not self._check_state(ent_obj) or not self._check_validation():
             await asyncio.sleep(self._params.retry_data[ATTR_STATE_GRACE])
             if not self._check_state(ent_obj):
+                state = _entity_state(ent_obj) if ent_obj else None
                 message = (
-                    f'{self._entity_id} state is "{getattr(ent_obj, "state", "None")}" '
+                    f'{self._entity_id} state is "{state}" '
                     "but expecting one of "
                     f'"{self._params.retry_data[ATTR_EXPECTED_STATE]}"'
                 )
@@ -428,11 +435,12 @@ class RetryAction:
         """Check if the entity's state is expected."""
         if not entity or ATTR_EXPECTED_STATE not in self._params.retry_data:
             return True
+        state = _entity_state(entity)
         for expected in self._params.retry_data[ATTR_EXPECTED_STATE]:
-            if entity.state == expected:
+            if state == expected:
                 return True
             try:
-                if entity.state is not None and float(entity.state) == float(expected):
+                if float(state) == float(expected):
                     return True
             except ValueError:
                 pass
