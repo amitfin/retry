@@ -273,8 +273,7 @@ When used inside automations or scripts, any propagated exception will halt exec
 
 On success, `retry.action` (but not `retry.actions`) returns the inner action’s [response data](https://www.home-assistant.io/docs/scripts/perform-actions/#use-templates-to-handle-response-data).
 
-**Note:** When targeting multiple entities, each entity runs independently, and there is **no guarantee** which loop’s response is returned.  
-To avoid this ambiguity, it is recommended to use the `ignore_target` option when providing a list of entities. This forces a single retry loop whose response will be used.
+**Note:** When an action is performed per entity, the responses of the entities are merged. Entity actions (e.g. `weather.get_forecasts`) return a response keyed by the entity ID, so the merged response is identical to the response of a single call (except that group entities are expanded, so the response has the entity IDs of the members). For other actions, keys of different entities might overwrite each other. In such a case, use the `ignore_target` option, which forces a single retry loop whose response will be used.
 
 ## Install
 

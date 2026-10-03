@@ -894,7 +894,13 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
         ):
             raise error
 
-        return next((result for result in results if result is not None), {})
+        # Entity actions key the response by entity ID, so the responses of the
+        # per-entity loops merge into the response of a single call.
+        response: dict[str, Any] = {}
+        for result in results:
+            if isinstance(result, dict):
+                response.update(result)
+        return response
 
     hass.services.async_register(
         DOMAIN,

@@ -46,6 +46,7 @@ from homeassistant.core import (
     Context,
     HomeAssistant,
     ServiceCall,
+    ServiceResponse,
     SupportsResponse,
     callback,
 )
@@ -255,7 +256,37 @@ async def test_action_response(hass: HomeAssistant) -> None:
             blocking=True,
             return_response=True,
         )
-    ) is response
+    ) == response
+
+
+async def test_action_response_per_entity(hass: HomeAssistant) -> None:
+    """Test the responses of the entities are merged (keyed by entity ID)."""
+    await async_setup(hass)
+
+    async def response_service(call: ServiceCall) -> ServiceResponse:
+        """Return a response keyed by entity ID, like entity actions."""
+        return {entity_id: {"id": entity_id} for entity_id in call.data[ATTR_ENTITY_ID]}
+
+    hass.services.async_register(
+        DOMAIN,
+        "response",
+        response_service,
+        cast("VolSchemaType", vol.Schema(cv.TARGET_SERVICE_FIELDS)),
+        supports_response=SupportsResponse.ONLY,
+    )
+    assert await hass.services.async_call(
+        DOMAIN,
+        ACTION_SERVICE,
+        {
+            CONF_ACTION: f"{DOMAIN}.response",
+            ATTR_ENTITY_ID: ["binary_sensor.test", "binary_sensor.test2"],
+        },
+        blocking=True,
+        return_response=True,
+    ) == {
+        "binary_sensor.test": {"id": "binary_sensor.test"},
+        "binary_sensor.test2": {"id": "binary_sensor.test2"},
+    }
 
 
 async def test_actions_exception(hass: HomeAssistant) -> None:
