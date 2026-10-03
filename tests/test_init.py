@@ -1764,6 +1764,30 @@ async def test_actions_missing_action_not_performed(
     assert len(calls) == 1
 
 
+@pytest.mark.parametrize(
+    "step",
+    [
+        {CONF_ACTION: f"{{{{ '{DOMAIN}.{TEST_SERVICE}' }}}}"},
+        {
+            CONF_ACTION: f"{DOMAIN}.{TEST_SERVICE}",
+            CONF_SERVICE_DATA: {"test": "{{ 'x' }}"},
+        },
+    ],
+    ids=["templated action", "templated data"],
+)
+async def test_actions_direct_call_templates(
+    hass: HomeAssistant,
+    step: dict[str, Any],
+) -> None:
+    """Test templates in retry.actions called directly (not rendered by a caller)."""
+    calls = await async_setup(hass, raises=False)
+    await hass.services.async_call(
+        DOMAIN, ACTIONS_SERVICE, {CONF_SEQUENCE: [step]}, blocking=True
+    )
+    assert len(calls) == 1
+    assert calls[0].data.get("test") == ("x" if CONF_SERVICE_DATA in step else None)
+
+
 async def test_actions_inner_service_validation(
     hass: HomeAssistant,
 ) -> None:
