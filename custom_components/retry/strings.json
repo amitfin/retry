@@ -40,7 +40,7 @@
         },
         "inner_data": {
           "name": "Inner Data",
-          "description": "Parameters of the inner action, e.g. a parameter which has the same name as a retry parameter (like \"action\")."
+          "description": "Parameters of the inner action. Needed to prevent a name collision with a retry parameter (like \"action\")."
         },
         "retries": {
           "name": "Retries",

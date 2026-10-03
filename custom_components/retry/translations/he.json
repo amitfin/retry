@@ -1,12 +1,9 @@
 {
-    "title": "\u05e0\u05e1\u05d4\u0020\u05e9\u05d5\u05d1",
+    "title": "נסה שוב",
     "config": {
-        "abort": {
-            "single_instance_allowed": "\u05ea\u05e6\u05d5\u05e8\u05ea\u05d5 \u05db\u05d1\u05e8 \u05e0\u05e7\u05d1\u05e2\u05d4. \u05e8\u05e7 \u05ea\u05e6\u05d5\u05e8\u05d4 \u05d0\u05d7\u05ea \u05d0\u05e4\u05e9\u05e8\u05d9\u05ea."
-        },
         "step": {
             "user": {
-                "description": "\u05d4\u05d0\u05dd\u0020\u05dc\u05d4\u05ea\u05d7\u05d9\u05dc\u0020\u05d1\u05d4\u05d2\u05d3\u05e8\u05d4\u003f"
+                "description": "האם להתחיל בהגדרה?"
             }
         }
     },
@@ -14,116 +11,126 @@
         "step": {
             "init": {
                 "data": {
-                    "disable_initial_check": "\u05d4\u05e9\u05d1\u05ea\u05ea\u0020\u05d1\u05d3\u05d9\u05e7\u05d4\u0020\u05e8\u05d0\u05e9\u05d5\u05e0\u05d9\u05ea",
-                    "disable_repair": "\u05d4\u05e9\u05d1\u05ea\u05ea\u0020\u05db\u05e8\u05d8\u05d9\u05e1\u05d9\u05d5\u05ea\u0020\u05ea\u05d9\u05e7\u05d5\u05e0\u05d9\u05dd"
+                    "disable_initial_check": "השבתת בדיקה ראשונית",
+                    "disable_repair": "השבתת כרטיסיות תיקונים"
                 }
             }
         }
     },
     "issues": {
         "failure": {
-            "title": "\u05db\u05d9\u05e9\u05dc\u05d5\u05df\u0020\u05d1\u05e7\u05e8\u05d9\u05d0\u05d4\u0020\u05dc\u05e9\u05d9\u05e8\u05d5\u05ea",
-            "description": "`{action}` \u05e0\u05db\u05e9\u05dc\u0020\u05d0\u05d7\u05e8\u05d9 {retries} \u05e0\u05d9\u05e1\u05d9\u05d5\u05e0\u05d5\u05ea. \u05d1\u05d3\u05d5\u05e7\u0020\u05d0\u05ea\u0020\u05d4\u05d9\u05d5\u05de\u05df\u0020\u05dc\u05de\u05d9\u05d3\u05e2\u0020\u05e0\u05d5\u05e1\u05e3\u002e"
+            "title": "כישלון בקריאה לשירות",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "description": "`{action}` נכשל אחרי {retries} ניסיונות. בדוק את היומן למידע נוסף.\n\nלחץ **שלח** כדי לסמן את הבעיה כפתורה."
+                    }
+                }
+            }
         }
     },
     "services": {
         "action": {
-            "name": "\u05e4\u05e2\u05d5\u05dc\u05d4",
-            "description": "\u05d4\u05e4\u05e2\u05d5\u05dc\u05d4\u0020\u05ea\u05d1\u05d5\u05e6\u05e2\u0020\u05e9\u05d5\u05d1\u0020\u05d1\u05de\u05e7\u05e8\u05d4\u0020\u05e9\u05dc\u0020\u05db\u05d9\u05e9\u05dc\u05d5\u05df",
+            "name": "פעולה",
+            "description": "הפעולה תבוצע שוב במקרה של כישלון",
             "fields": {
                 "action": {
-                    "name": "\u05e4\u05e2\u05d5\u05dc\u05d4",
-                    "description": "\u05d4\u05e4\u05e2\u05d5\u05dc\u05d4\u0020\u05e9\u05ea\u05d1\u05d5\u05e6\u05e2\u0020\u05e9\u05d5\u05d1\u0020\u05d1\u05de\u05e7\u05e8\u05d4\u0020\u05e9\u05dc\u0020\u05db\u05d9\u05e9\u05dc\u05d5\u05df"
+                    "name": "פעולה",
+                    "description": "הפעולה שתבוצע שוב במקרה של כישלון"
+                },
+                "inner_data": {
+                    "name": "נתונים פנימיים",
+                    "description": "פרמטרים של הפעולה הפנימית. נדרש כדי למנוע התנגשות שמות עם פרמטר של פעולה זו (כמו \"action\")."
                 },
                 "retries": {
-                    "name": "\u05e0\u05d9\u05e1\u05d9\u05d5\u05e0\u05d5\u05ea",
-                    "description": "\u05db\u05de\u05d5\u05ea\u0020\u05d4\u05e0\u05d9\u05e1\u05d9\u05d5\u05e0\u05d5\u05ea\u0020\u05d4\u05de\u05d9\u05e8\u05d1\u05d9\u05ea\u0020\u0028\u05d1\u05e8\u05d9\u05e8\u05ea\u0020\u05d4\u05de\u05d7\u05d3\u05dc\u0020\u05d4\u05d9\u05d0\u0020\u0037\u0029\u002e"
+                    "name": "ניסיונות",
+                    "description": "כמות הניסיונות המירבית (ברירת המחדל היא 7)."
                 },
                 "backoff": {
-                    "name": "\u05e0\u05e1\u05d9\u05d2\u05d4",
-                    "description": "\u05ea\u05d1\u05e0\u05d9\u05ea\u0020\u05de\u05d9\u05d5\u05d7\u05d3\u05ea\u0020\u05e2\u05dd\u0020\u05e1\u05d5\u05d2\u05e8\u05d9\u05d9\u05dd\u0020\u05de\u05e8\u05d5\u05d1\u05e2\u05d9\u05dd\u0020\u05d1\u05de\u05e7\u05d5\u05dd\u0020\u05de\u05e1\u05d5\u05dc\u05e1\u05dc\u05d9\u05dd\u0020\u05dc\u05d4\u05d2\u05d3\u05e8\u05ea\u0020\u05de\u05e1\u05e4\u05e8\u0020\u05e9\u05e0\u05d9\u05d5\u05ea\u0020\u05d4\u05e9\u05d4\u05d9\u05d9\u05d4\u0020\u05d1\u05d9\u05df\u0020\u05e0\u05d9\u05e1\u05d9\u05d5\u05e0\u05d5\u05ea\u002e"
+                    "name": "נסיגה",
+                    "description": "תבנית מיוחדת עם סוגריים מרובעים במקום מסולסלים להגדרת מספר שניות השהייה בין ניסיונות."
                 },
                 "expected_state": {
-                    "name": "\u05d4\u05de\u05e6\u05d1\u0020\u05d4\u05de\u05e6\u05d5\u05e4\u05d4",
-                    "description": "\u05d4\u05de\u05e6\u05d1\u0020\u05d4\u05de\u05e6\u05d5\u05e4\u05d4\u0020\u05e9\u05dc\u0020\u05d4\u05d9\u05e9\u05d5\u05d9\u05d5\u05ea\u0020\u05dc\u05d0\u05d7\u05e8\u0020\u05d4\u05e4\u05e2\u05d5\u05dc\u05d4\u002e"
+                    "name": "המצב המצופה",
+                    "description": "המצב המצופה של הישויות לאחר הפעולה."
                 },
                 "validation": {
-                    "name": "\u05d0\u05d9\u05de\u05d5\u05ea",
-                    "description": "\u05ea\u05d1\u05e0\u05d9\u05ea\u0020\u05de\u05d9\u05d5\u05d7\u05d3\u05ea\u0020\u05e2\u05dd\u0020\u05e1\u05d5\u05d2\u05e8\u05d9\u05d9\u05dd\u0020\u05de\u05e8\u05d5\u05d1\u05e2\u05d9\u05dd\u0020\u05d1\u05de\u05e7\u05d5\u05dd\u0020\u05de\u05e1\u05d5\u05dc\u05e1\u05dc\u05d9\u05dd\u0020\u05dc\u05d0\u05de\u05d5\u05ea\u0020\u05d4\u05e6\u05dc\u05d7\u05d4\u002e"
+                    "name": "אימות",
+                    "description": "תבנית מיוחדת עם סוגריים מרובעים במקום מסולסלים לאמות הצלחה."
                 },
                 "state_delay": {
-                    "name": "\u05ea\u05e7\u05d5\u05e4\u05ea\u0020\u05d4\u05de\u05ea\u05e0\u05d4\u0020\u05dc\u05de\u05e6\u05d1",
-                    "description": "\u05ea\u05e7\u05d5\u05e4\u05ea\u0020\u05d4\u05de\u05ea\u05e0\u05d4\u0020\u0028\u05e9\u05e0\u05d9\u05d5\u05ea\u0029\u0020\u05dc\u05d1\u05d3\u05d9\u05e7\u05d4\u0020\u05d4\u05e8\u05d0\u05e9\u05d5\u05e0\u05d9\u05ea\u0020\u05e9\u05dc\u0020\u05d4\u05de\u05e6\u05d1\u0020\u05d4\u05de\u05e6\u05d5\u05e4\u05d4\u0020\u05d5\u05dc\u05d0\u05d9\u05de\u05d5\u05ea\u0020\u0028\u05d1\u05e8\u05d9\u05e8\u05ea\u0020\u05de\u05d7\u05d3\u05dc\u0020\u0030\u0029\u002e"
+                    "name": "תקופת המתנה למצב",
+                    "description": "תקופת המתנה (שניות) לבדיקה הראשונית של המצב המצופה ולאימות (ברירת מחדל 0)."
                 },
                 "state_grace": {
-                    "name": "\u05ea\u05e7\u05d5\u05e4\u05ea\u0020\u05d4\u05d7\u05e1\u05d3\u0020\u05dc\u05de\u05e6\u05d1",
-                    "description": "\u05ea\u05e7\u05d5\u05e4\u05ea\u0020\u05d4\u05d7\u05e1\u05d3\u0020\u0028\u05e9\u05e0\u05d9\u05d5\u05ea\u0029\u0020\u05dc\u05d1\u05d3\u05d9\u05e7\u05d4\u0020\u05d4\u05e1\u05d5\u05e4\u05d9\u05ea\u0020\u05e9\u05dc\u0020\u05d4\u05de\u05e6\u05d1\u0020\u05d4\u05de\u05e6\u05d5\u05e4\u05d4\u0020\u05d5\u05dc\u05d0\u05d9\u05de\u05d5\u05ea\u0020\u0028\u05d1\u05e8\u05d9\u05e8\u05ea\u0020\u05de\u05d7\u05d3\u05dc\u0020\u0030\u002e\u0032\u0029\u002e"
+                    "name": "תקופת החסד למצב",
+                    "description": "תקופת החסד (שניות) לבדיקה הסופית של המצב המצופה ולאימות (ברירת מחדל 0.2)."
                 },
                 "on_error": {
-                    "name": "\u0020\u05dc\u05d0\u05d7\u05e8\u0020\u05e9\u05d2\u05d9\u05d0\u05d4",
-                    "description": "\u05e8\u05e6\u05e3\u0020\u05e4\u05e2\u05d5\u05dc\u05d5\u05ea\u0020\u05dc\u05d4\u05e8\u05e6\u05d4\u0020\u05d0\u05dd\u0020\u05db\u05dc\u0020\u05d4\u05e0\u05e1\u05d9\u05d5\u05e0\u05d5\u05ea\u0020\u05e0\u05db\u05e9\u05dc\u05d5\u002e"
+                    "name": " לאחר שגיאה",
+                    "description": "רצף פעולות להרצה אם כל הנסיונות נכשלו."
                 },
                 "ignore_target": {
-                    "name": "\u05d4\u05ea\u05e2\u05dc\u05dd\u0020\u05de\u05d4\u05de\u05d8\u05e8\u05d4",
-                    "description": "\u05db\u05d0\u05e9\u05e8\u0020\u05de\u05d5\u05e4\u05e2\u05dc\u002c\u0020\u05d0\u05d9\u05df\u0020\u05e0\u05d9\u05e1\u05d9\u05d5\u05df\u0020\u05dc\u05e4\u05e2\u05e0\u05d7\u002c\u0020\u05dc\u05d4\u05e8\u05d7\u05d9\u05d1\u0020\u05d5\u05dc\u05d1\u05d5\u05d3\u05d3\u0020\u05d0\u05ea\u0020\u05d4\u05d9\u05e9\u05d5\u05d9\u05d5\u05ea\u002e\u0020\u05d4\u05e4\u05e8\u05de\u05d8\u05e8\u05d9\u05dd\u0020\u05d4\u05de\u05e7\u05d5\u05e8\u05d9\u05d9\u05dd\u0020\u05e9\u05dc\u0020\u05d4\u05de\u05d8\u05e8\u05d4\u0020\u05de\u05d5\u05e2\u05d1\u05e8\u05d9\u05dd\u0020\u05dc\u05e4\u05e2\u05d5\u05dc\u05d4\u0020\u05d4\u05e4\u05e0\u05d9\u05de\u05d9\u05ea\u0020\u05db\u05de\u05d5\u0020\u05e9\u05d4\u05dd\u002e"
+                    "name": "התעלם מהמטרה",
+                    "description": "כאשר מופעל, אין ניסיון לפענח, להרחיב ולבודד את הישויות. הפרמטרים המקוריים של המטרה מועברים לפעולה הפנימית כמו שהם."
                 },
                 "repair": {
-                    "name": "\u05d4\u05e0\u05e4\u05e7\u0020\u05db\u05e8\u05d8\u05d9\u05e1\u0020\u05ea\u05d9\u05e7\u05d5\u05df",
-                    "description": "\u05e9\u05dc\u05d9\u05d8\u05d4\u0020\u05e2\u05dc\u0020\u05d4\u05e0\u05e4\u05e7\u05ea\u0020\u05db\u05e8\u05d8\u05d9\u05e1\u05d9\u0020\u05ea\u05d9\u05e7\u05d5\u05df\u0020\u05d1\u05de\u05e7\u05e8\u05d4\u0020\u05e9\u05dc\u0020\u05db\u05e9\u05dc\u002e"
+                    "name": "הנפק כרטיס תיקון",
+                    "description": "שליטה על הנפקת כרטיסי תיקון במקרה של כשל."
                 },
                 "retry_id": {
-                    "name": "\u05de\u05d6\u05d4\u05d4\u0020\u05dc\u05e0\u05d9\u05e1\u05d9\u05d5\u05e0\u05d5\u05ea",
-                    "description": "\u05e7\u05e8\u05d9\u05d0\u05d4\u0020\u05d7\u05d3\u05e9\u05d4\u0020\u05de\u05d1\u05d8\u05dc\u05ea\u0020\u05e7\u05e8\u05d9\u05d0\u05d4\u0020\u05d9\u05e9\u05e0\u05d4\u0020\u05e2\u05dd\u0020\u05d0\u05d5\u05ea\u05d5\u0020\u05de\u05d6\u05d4\u05d4\u0020\u0028\u05d1\u05e8\u05d9\u05e8\u05ea\u0020\u05d4\u05de\u05d7\u05d3\u05dc\u0020\u05d4\u05d9\u05d0\u0020\u05de\u05d6\u05d4\u05d4\u0020\u05d4\u05d9\u05e9\u05d5\u05ea\u0029\u002e"
+                    "name": "מזהה לניסיונות",
+                    "description": "קריאה חדשה מבטלת קריאה ישנה עם אותו מזהה (ברירת המחדל היא מזהה הישות)."
                 }
             }
         },
         "actions": {
-            "name": "\u05e4\u05e2\u05d5\u05dc\u05d5\u05ea",
-            "description": "\u05d1\u05e6\u05e2\u0020\u05e8\u05e6\u05e3\u0020\u05e4\u05e2\u05d5\u05dc\u05d5\u05ea\u0020\u05e2\u05dd\u0020\u05e0\u05d9\u05e1\u05d9\u05d5\u05e0\u05d5\u05ea\u0020\u05d7\u05d5\u05d6\u05e8\u05d9\u05dd\u0020\u05e2\u05dc\u0020\u05db\u05e9\u05dc\u05d9\u05dd\u002e",
+            "name": "פעולות",
+            "description": "בצע רצף פעולות עם ניסיונות חוזרים על כשלים.",
             "fields": {
                 "sequence": {
-                    "name": "\u05e4\u05e2\u05d5\u05dc\u05d5\u05ea",
-                    "description": "\u05e8\u05e6\u05e3\u0020\u05e4\u05e2\u05d5\u05dc\u05d5\u05ea\u002e"
+                    "name": "פעולות",
+                    "description": "רצף פעולות."
                 },
                 "retries": {
-                    "name": "\u05e0\u05d9\u05e1\u05d9\u05d5\u05e0\u05d5\u05ea",
-                    "description": "\u05db\u05de\u05d5\u05ea\u0020\u05d4\u05e0\u05d9\u05e1\u05d9\u05d5\u05e0\u05d5\u05ea\u0020\u05d4\u05de\u05d9\u05e8\u05d1\u05d9\u05ea\u0020\u0028\u05d1\u05e8\u05d9\u05e8\u05ea\u0020\u05d4\u05de\u05d7\u05d3\u05dc\u0020\u05d4\u05d9\u05d0\u0020\u0037\u0029\u002e"
+                    "name": "ניסיונות",
+                    "description": "כמות הניסיונות המירבית (ברירת המחדל היא 7)."
                 },
                 "backoff": {
-                    "name": "\u05e0\u05e1\u05d9\u05d2\u05d4",
-                    "description": "\u05ea\u05d1\u05e0\u05d9\u05ea\u0020\u05de\u05d9\u05d5\u05d7\u05d3\u05ea\u0020\u05e2\u05dd\u0020\u05e1\u05d5\u05d2\u05e8\u05d9\u05d9\u05dd\u0020\u05de\u05e8\u05d5\u05d1\u05e2\u05d9\u05dd\u0020\u05d1\u05de\u05e7\u05d5\u05dd\u0020\u05de\u05e1\u05d5\u05dc\u05e1\u05dc\u05d9\u05dd\u0020\u05dc\u05d4\u05d2\u05d3\u05e8\u05ea\u0020\u05de\u05e1\u05e4\u05e8\u0020\u05e9\u05e0\u05d9\u05d5\u05ea\u0020\u05d4\u05e9\u05d4\u05d9\u05d9\u05d4\u0020\u05d1\u05d9\u05df\u0020\u05e0\u05d9\u05e1\u05d9\u05d5\u05e0\u05d5\u05ea\u002e"
+                    "name": "נסיגה",
+                    "description": "תבנית מיוחדת עם סוגריים מרובעים במקום מסולסלים להגדרת מספר שניות השהייה בין ניסיונות."
                 },
                 "expected_state": {
-                    "name": "\u05d4\u05de\u05e6\u05d1\u0020\u05d4\u05de\u05e6\u05d5\u05e4\u05d4",
-                    "description": "\u05d4\u05de\u05e6\u05d1\u0020\u05d4\u05de\u05e6\u05d5\u05e4\u05d4\u0020\u05e9\u05dc\u0020\u05d4\u05d9\u05e9\u05d5\u05d9\u05d5\u05ea\u0020\u05dc\u05d0\u05d7\u05e8\u0020\u05db\u05dc\u0020\u05e4\u05e2\u05d5\u05dc\u05d4\u002e"
+                    "name": "המצב המצופה",
+                    "description": "המצב המצופה של הישויות לאחר כל פעולה."
                 },
                 "validation": {
-                    "name": "\u05d0\u05d9\u05de\u05d5\u05ea",
-                    "description": "\u05ea\u05d1\u05e0\u05d9\u05ea\u0020\u05de\u05d9\u05d5\u05d7\u05d3\u05ea\u0020\u05e2\u05dd\u0020\u05e1\u05d5\u05d2\u05e8\u05d9\u05d9\u05dd\u0020\u05de\u05e8\u05d5\u05d1\u05e2\u05d9\u05dd\u0020\u05d1\u05de\u05e7\u05d5\u05dd\u0020\u05de\u05e1\u05d5\u05dc\u05e1\u05dc\u05d9\u05dd\u0020\u05dc\u05d0\u05de\u05d5\u05ea\u0020\u05d4\u05e6\u05dc\u05d7\u05d4\u002e"
+                    "name": "אימות",
+                    "description": "תבנית מיוחדת עם סוגריים מרובעים במקום מסולסלים לאמות הצלחה."
                 },
                 "state_delay": {
-                    "name": "\u05ea\u05e7\u05d5\u05e4\u05ea\u0020\u05d4\u05de\u05ea\u05e0\u05d4\u0020\u05dc\u05de\u05e6\u05d1",
-                    "description": "\u05ea\u05e7\u05d5\u05e4\u05ea\u0020\u05d4\u05de\u05ea\u05e0\u05d4\u0020\u0028\u05e9\u05e0\u05d9\u05d5\u05ea\u0029\u0020\u05dc\u05d1\u05d3\u05d9\u05e7\u05d4\u0020\u05d4\u05e8\u05d0\u05e9\u05d5\u05e0\u05d9\u05ea\u0020\u05e9\u05dc\u0020\u05d4\u05de\u05e6\u05d1\u0020\u05d4\u05de\u05e6\u05d5\u05e4\u05d4\u0020\u05d5\u05dc\u05d0\u05d9\u05de\u05d5\u05ea\u0020\u0028\u05d1\u05e8\u05d9\u05e8\u05ea\u0020\u05de\u05d7\u05d3\u05dc\u0020\u0030\u0029\u002e"
+                    "name": "תקופת המתנה למצב",
+                    "description": "תקופת המתנה (שניות) לבדיקה הראשונית של המצב המצופה ולאימות (ברירת מחדל 0)."
                 },
                 "state_grace": {
-                    "name": "\u05ea\u05e7\u05d5\u05e4\u05ea\u0020\u05d4\u05d7\u05e1\u05d3\u0020\u05dc\u05de\u05e6\u05d1",
-                    "description": "\u05ea\u05e7\u05d5\u05e4\u05ea\u0020\u05d4\u05d7\u05e1\u05d3\u0020\u0028\u05e9\u05e0\u05d9\u05d5\u05ea\u0029\u0020\u05dc\u05d1\u05d3\u05d9\u05e7\u05d4\u0020\u05d4\u05e1\u05d5\u05e4\u05d9\u05ea\u0020\u05e9\u05dc\u0020\u05d4\u05de\u05e6\u05d1\u0020\u05d4\u05de\u05e6\u05d5\u05e4\u05d4\u0020\u05d5\u05dc\u05d0\u05d9\u05de\u05d5\u05ea\u0020\u0028\u05d1\u05e8\u05d9\u05e8\u05ea\u0020\u05de\u05d7\u05d3\u05dc\u0020\u0030\u002e\u0032\u0029\u002e"
+                    "name": "תקופת החסד למצב",
+                    "description": "תקופת החסד (שניות) לבדיקה הסופית של המצב המצופה ולאימות (ברירת מחדל 0.2)."
                 },
                 "on_error": {
-                    "name": "\u0020\u05dc\u05d0\u05d7\u05e8\u0020\u05e9\u05d2\u05d9\u05d0\u05d4",
-                    "description": "\u05e8\u05e6\u05e3\u0020\u05e4\u05e2\u05d5\u05dc\u05d5\u05ea\u0020\u05dc\u05d4\u05e8\u05e6\u05d4\u0020\u05d0\u05dd\u0020\u05db\u05dc\u0020\u05d4\u05e0\u05e1\u05d9\u05d5\u05e0\u05d5\u05ea\u0020\u05e0\u05db\u05e9\u05dc\u05d5\u002e"
+                    "name": " לאחר שגיאה",
+                    "description": "רצף פעולות להרצה אם כל הנסיונות נכשלו."
                 },
                 "ignore_target": {
-                    "name": "\u05d4\u05ea\u05e2\u05dc\u05dd\u0020\u05de\u05d4\u05de\u05d8\u05e8\u05d4",
-                    "description": "\u05db\u05d0\u05e9\u05e8\u0020\u05de\u05d5\u05e4\u05e2\u05dc\u002c\u0020\u05d0\u05d9\u05df\u0020\u05e0\u05d9\u05e1\u05d9\u05d5\u05df\u0020\u05dc\u05e4\u05e2\u05e0\u05d7\u002c\u0020\u05dc\u05d4\u05e8\u05d7\u05d9\u05d1\u0020\u05d5\u05dc\u05d1\u05d5\u05d3\u05d3\u0020\u05d0\u05ea\u0020\u05d4\u05d9\u05e9\u05d5\u05d9\u05d5\u05ea\u002e\u0020\u05d4\u05e4\u05e8\u05de\u05d8\u05e8\u05d9\u05dd\u0020\u05d4\u05de\u05e7\u05d5\u05e8\u05d9\u05d9\u05dd\u0020\u05e9\u05dc\u0020\u05d4\u05de\u05d8\u05e8\u05d4\u0020\u05de\u05d5\u05e2\u05d1\u05e8\u05d9\u05dd\u0020\u05dc\u05e4\u05e2\u05d5\u05dc\u05d4\u0020\u05d4\u05e4\u05e0\u05d9\u05de\u05d9\u05ea\u0020\u05db\u05de\u05d5\u0020\u05e9\u05d4\u05dd\u002e"
+                    "name": "התעלם מהמטרה",
+                    "description": "כאשר מופעל, אין ניסיון לפענח, להרחיב ולבודד את הישויות. הפרמטרים המקוריים של המטרה מועברים לפעולה הפנימית כמו שהם."
                 },
                 "repair": {
-                    "name": "\u05d4\u05e0\u05e4\u05e7\u0020\u05db\u05e8\u05d8\u05d9\u05e1\u0020\u05ea\u05d9\u05e7\u05d5\u05df",
-                    "description": "\u05e9\u05dc\u05d9\u05d8\u05d4\u0020\u05e2\u05dc\u0020\u05d4\u05e0\u05e4\u05e7\u05ea\u0020\u05db\u05e8\u05d8\u05d9\u05e1\u05d9\u0020\u05ea\u05d9\u05e7\u05d5\u05df\u0020\u05d1\u05de\u05e7\u05e8\u05d4\u0020\u05e9\u05dc\u0020\u05db\u05e9\u05dc\u002e"
+                    "name": "הנפק כרטיס תיקון",
+                    "description": "שליטה על הנפקת כרטיסי תיקון במקרה של כשל."
                 },
                 "retry_id": {
-                    "name": "\u05de\u05d6\u05d4\u05d4\u0020\u05dc\u05e0\u05d9\u05e1\u05d9\u05d5\u05e0\u05d5\u05ea",
-                    "description": "\u05e7\u05e8\u05d9\u05d0\u05d4\u0020\u05d7\u05d3\u05e9\u05d4\u0020\u05de\u05d1\u05d8\u05dc\u05ea\u0020\u05e7\u05e8\u05d9\u05d0\u05d4\u0020\u05d9\u05e9\u05e0\u05d4\u0020\u05e2\u05dd\u0020\u05d0\u05d5\u05ea\u05d5\u0020\u05de\u05d6\u05d4\u05d4\u0020\u0028\u05d1\u05e8\u05d9\u05e8\u05ea\u0020\u05d4\u05de\u05d7\u05d3\u05dc\u0020\u05d4\u05d9\u05d0\u0020\u05de\u05d6\u05d4\u05d4\u0020\u05d4\u05d9\u05e9\u05d5\u05ea\u0029\u002e"
+                    "name": "מזהה לניסיונות",
+                    "description": "קריאה חדשה מבטלת קריאה ישנה עם אותו מזהה (ברירת המחדל היא מזהה הישות)."
                 }
             }
         }

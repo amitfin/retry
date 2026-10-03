@@ -1,9 +1,6 @@
 {
     "title": "Skúsiť znova",
     "config": {
-        "abort": {
-            "single_instance_allowed": "Už je nakonfigurovaný. Je možná len jedna konfigurácia."
-        },
         "step": {
             "user": {
                 "description": "Chcete spustiť nastavenie?"
@@ -22,7 +19,13 @@
     "issues": {
         "failure": {
             "title": "Zlyhanie akcie",
-            "description": "`{action}` zlyhané po {retries} pokusoch. Ďalšie informácie nájdete v denníku."
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "description": "`{action}` zlyhané po {retries} pokusoch. Ďalšie informácie nájdete v denníku."
+                    }
+                }
+            }
         }
     },
     "services": {
