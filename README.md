@@ -159,7 +159,7 @@ The boolean expression is rendered after each inner action attempt. If the value
 
 The `validation` is also checked before the first attempt. If it passes, the action is not performed even once. It's possible to disable the initial check in the [integration's configuration dialog](https://my.home-assistant.io/redirect/integration/?domain=retry) which ensures the action gets performed at least once.
 
-Note: `validation: "[[ states(entity_id) == 'on' ]]"` has an identical logic and impact as setting `expected_state: "on"`. Therefore, `expected_state` is simpler and preferable.
+Note: `validation: "[[ states(entity_id) == 'on' ]]"` is similar to setting `expected_state: "on"` (`expected_state` also matches numbers, e.g. `"50"` matches `50.0`). Therefore, `expected_state` is simpler and preferable.
 
 #### `state_delay` parameter (optional)
 
