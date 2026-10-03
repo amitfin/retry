@@ -51,3 +51,24 @@ jobs:
 
       - name: Run
         run: pytest
+
+  test-minimum:
+    name: Tests (minimum Home Assistant version)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      # 0.13.272 pins Home Assistant 2025.8.3, the minimum in hacs.json.
+      # pycares 5 is incompatible with the aiodns version of that release.
+      - name: Install requirements
+        run: python3 -m pip install "pytest-homeassistant-custom-component==0.13.272" "pycares<5"
+
+      # Coverage is checked by the "Tests" job (some code runs only on newer versions).
+      - name: Run
+        run: pytest --no-cov

@@ -58,12 +58,12 @@ The pre-commit hooks (`prek.toml`) run lint and the full pytest suite.
 - The autouse `sleep` fixture patches `asyncio.sleep` **globally**: `custom_components.retry.asyncio` *is* the asyncio module. Backoffs therefore take no time, and `sleep.await_args_list` also records HA-internal sleeps.
 - `tests/conftest.py` fails any test that logs WARNING or above, unless the message starts with an allow-listed prefix. Use `@pytest.mark.allowed_logs(["prefix", ...])` for expected warnings.
 - Coverage must stay at 100% (`.coveragerc` excludes `if TYPE_CHECKING:` and `except ImportError:`).
-- The tests currently rely on Python 3.14 lazy annotations (see "Compatibility").
+- Tests must also pass on the minimum HA version (see "Compatibility"): use `from __future__ import annotations` in test files, and make assertions on behavior which differs between versions conditional (e.g. `hasattr(script.Script, "async_unload")`).
 
 ## Compatibility
 
-- Declared minimum is HA **2025.8** (`hacs.json`); dev/CI run the latest HA on Python 3.14 (`.ruff.toml` targets py314). CI does not test the minimum version.
-- To test on the minimum version: `uv venv --python-preference only-managed --python 3.13 <dir>`, then `uv pip install "pytest-homeassistant-custom-component==0.13.272" "pycares<5"` (0.13.272 pins HA 2025.8.3). `tests/conftest.py` and `tests/test_diagnostics.py` also need `from __future__ import annotations` on Python 3.13.
+- Declared minimum is HA **2025.8** (`hacs.json`); dev and CI run the latest HA on Python 3.14 (`.ruff.toml` targets py314). CI (`validate.yml`, "Tests (minimum Home Assistant version)") also runs the tests on the minimum, without the coverage gate, since some code runs only on newer versions.
+- To test on the minimum version: `uv venv --python-preference only-managed --python 3.13 <dir>`, then `uv pip install "pytest-homeassistant-custom-component==0.13.272" "pycares<5"` (0.13.272 pins HA 2025.8.3), and run `pytest --no-cov`. Raising the minimum means updating `hacs.json`, this pin and the CI job.
 - APIs that changed across versions: `Script.async_unload()` exists only from HA 2026.5 (2026.4 and older have no public way to unload an ad-hoc `Script`, so `_async_run_script` unloads only when it's available and older versions keep leaking one `Script` per run). `TargetSelection` is missing in 2025.8 (hence the fallback import).
 - HA 2026.9 replaces `voluptuous` with the `probatio` shim at `import homeassistant`. In standalone scripts, import `homeassistant` before `voluptuous`, or schema compilation fails.
 

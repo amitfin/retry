@@ -1,5 +1,7 @@
 """Tests for the diagnostics data."""
 
+from __future__ import annotations
+
 from http import HTTPStatus
 from typing import TYPE_CHECKING
 
