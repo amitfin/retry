@@ -52,6 +52,19 @@ The pre-commit hooks (`prek.toml`) run lint and the full pytest suite.
 - **Repairs** are created on the final failure. The issue id is the SHA-256 of `str(RetryAction)`, which includes the inner action data, so identical actions share a ticket. The readable string is the `action` placeholder. They're persistent and fixable: "fixing" is HA's default `ConfirmRepairFlow` (used since retry has no `repairs.py`), so the user acknowledges the ticket with Submit, which deletes it. They're deliberately never deleted automatically, e.g. on a later success: a ticket reports that an action failed even after all retries (e.g. a flaky device or wireless link), which stays relevant after the next run succeeds.
 - `TargetSelection` is imported with a fallback to `TargetSelectorData`. Older HA (e.g. 2025.8) only has the latter, which is deprecated in current HA and breaks in 2026.12.
 
+## Rejected on purpose
+
+Decisions from a code review (2026-10), so they aren't proposed again. The bigger ones (automatic per-entity splitting, permanent exceptions, `[[ ]]` beyond `backoff`/`validation`, clearing repairs on success) are explained in the notes above.
+
+- **Filtering `homeassistant.turn_on/off/toggle` indirect targets to supporting domains:** correct only for those three actions; for `reload_config_entry` it would drop every entity. Documented in the README instead.
+- **Including unloaded registry entities in indirect targets:** orphaned registry entries are common and would make area-wide calls fail. Like HA, indirect targets cover loaded entities only (documented).
+- **Restricting `event` steps in `retry.actions`/`on_error` for non-admins:** non-admins can already trigger any automation with `automation.trigger`.
+- **Stopping running loops when the config entry unloads:** HA checks the entry only when an action call starts, and has no mechanism to stop calls in progress.
+- **Propagating `stop` out of `retry.actions`:** no clean way (the sequence is a separate top-level script). Documented.
+- **Patching a module-level `sleep` alias in tests:** it would change the product code for the tests, and make HA's own sleeps real.
+- **Pinning `hassfest@master`/`hacs/action@main`:** the officially documented refs; hassfest must track current HA rules.
+- **Deferred until someone needs them:** a per-attempt timeout, an opt-in retry on `ServiceNotFound`, and a `_running_retries` snapshot in diagnostics.
+
 ## Testing conventions
 
 - `tests/test_init.py::async_setup()` loads the integration plus template binary sensors (`binary_sensor.test` = on, `binary_sensor.test2` = off, labeled "Test Label"). It registers a mock `test_service` under the `retry`, `binary_sensor`, `template` and `homeassistant` domains (raises `RetryTestMockError` unless `raises=False`), plus `retry.test_on_error_service`. It returns the list of received `ServiceCall`s. `async_call()` calls `retry.action` (or `retry.actions` with `plural=True`) and suppresses the expected errors.

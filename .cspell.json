@@ -24,6 +24,7 @@
     "HACS",
     "hasattr",
     "hass",
+    "hassfest",
     "hassio",
     "homeassistant",
     "hookwrapper",
