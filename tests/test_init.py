@@ -1559,6 +1559,69 @@ async def test_backoff_rendered_value(
 
 
 @pytest.mark.parametrize(
+    ("template", "expected"),
+    [
+        ("[[ attempt ]]", "{{ attempt }}"),
+        ("[[- attempt -]]", "{{- attempt -}}"),
+        ("[# c #][% set x = 1 %][[ x ]]", "{# c #}{% set x = 1 %}{{ x }}"),
+        ("[[ [[1, 2]][0][0] ]]", "{{ [[1, 2]][0][0] }}"),
+        ("[[ x == '[[%]]' ]]", "{{ x == '[[%]]' }}"),
+        ("[% raw %][[ x ]][% endraw %]", "{% raw %}[[ x ]]{% endraw %}"),
+        ("a ]] b", "a ]] b"),
+        ("{{ x }}", "{{ x }}"),
+        ("10\n", "10\n"),
+    ],
+    ids=[
+        "variable",
+        "whitespace control",
+        "comment and block",
+        "nested list",
+        "string literal",
+        "raw",
+        "plain text",
+        "regular syntax",
+        "trailing newline",
+    ],
+)
+def test_fix_template_tokens(template: str, expected: str) -> None:
+    """Test replacing the artificial template tokens."""
+    assert retry_module._fix_template_tokens(template) == expected  # noqa: SLF001
+
+
+@pytest.mark.parametrize("parameter", [ATTR_BACKOFF, ATTR_VALIDATION])
+async def test_malformed_template(hass: HomeAssistant, parameter: str) -> None:
+    """Test a template which can't be lexed."""
+    calls = await async_setup(hass)
+    with pytest.raises(vol.Invalid) as error:
+        await hass.services.async_call(
+            DOMAIN,
+            ACTION_SERVICE,
+            {CONF_ACTION: f"{DOMAIN}.{TEST_SERVICE}", parameter: "[[ x ) ]]"},
+            blocking=True,
+        )
+    assert error.value.msg == "invalid template (unexpected ')')"
+    assert not calls
+
+
+async def test_validation_nested_brackets(hass: HomeAssistant) -> None:
+    """Test a validation template with a nested list and a string literal."""
+    calls = await async_setup(hass, raises=False)
+    await async_call(
+        hass, {ATTR_VALIDATION: "[[ [[1, 2]][0][1] == 2 and '[%' == '[' ~ '%' ]]"}
+    )
+    assert not calls  # The validation already passes.
+
+
+async def test_backoff_nested_brackets(hass: HomeAssistant, sleep: AsyncMock) -> None:
+    """Test a backoff template with a nested list."""
+    await async_setup(hass)
+    await async_call(
+        hass, {ATTR_BACKOFF: "[[ [[1, 2]][0][attempt] ]]", ATTR_RETRIES: 3}
+    )
+    assert [x.args[0] for x in sleep.await_args_list if x.args[0]] == [1, 2]
+
+
+@pytest.mark.parametrize(
     ("retries", "valid"),
     [(4, True), (5, False)],
     ids=["in range", "out of range"],

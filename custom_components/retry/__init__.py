@@ -10,6 +10,7 @@ import logging
 import threading
 from typing import TYPE_CHECKING, Any, cast
 
+import jinja2
 import voluptuous as vol
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry, ConfigEntryState
 from homeassistant.const import (
@@ -101,18 +102,51 @@ def _template_parameter(value: Any) -> str:
     return str(cv.template(value).async_render(parse_result=False))
 
 
+_ARTIFICIAL_TOKENS = {
+    "[[": "{{",
+    "]]": "}}",
+    "[%": "{%",
+    "%]": "%}",
+    "[#": "{#",
+    "#]": "#}",
+}
+# Used only for lexing templates with the artificial tokens (nothing is rendered).
+_ARTIFICIAL_TOKENS_ENV = jinja2.Environment(  # noqa: S701
+    variable_start_string="[[",
+    variable_end_string="]]",
+    block_start_string="[%",
+    block_end_string="%]",
+    comment_start_string="[#",
+    comment_end_string="#]",
+    keep_trailing_newline=True,
+)
+_DELIMITER_TOKEN_TYPES = {
+    "variable_begin",
+    "variable_end",
+    "block_begin",
+    "block_end",
+    "raw_begin",
+    "raw_end",
+    "comment_begin",
+    "comment_end",
+}
+
+
 def _fix_template_tokens(value: str) -> str:
     """Replace template's artificial tokens brackets with Jinja's valid tokens."""
-    for artificial, valid in {
-        "[[": "{{",
-        "]]": "}}",
-        "[%": "{%",
-        "%]": "%}",
-        "[#": "{#",
-        "#]": "#}",
-    }.items():
-        value = value.replace(artificial, valid)
-    return value
+    # Jinja's lexer finds the actual delimiters, so brackets inside the template
+    # (e.g. a nested list or a string literal) aren't replaced.
+    result = []
+    try:
+        for _, token_type, token in _ARTIFICIAL_TOKENS_ENV.lex(value):
+            if token_type in _DELIMITER_TOKEN_TYPES:
+                for artificial, valid in _ARTIFICIAL_TOKENS.items():
+                    token = token.replace(artificial, valid)  # noqa: PLW2901
+            result.append(token)
+    except jinja2.TemplateSyntaxError as error:
+        message = f"invalid template ({error.message})"
+        raise vol.Invalid(message) from error
+    return "".join(result)
 
 
 def _backoff_parameter(value: Any) -> str:
