@@ -50,13 +50,11 @@ from homeassistant.helpers import (
 from homeassistant.helpers import script
 from homeassistant.helpers.entity_component import DATA_INSTANCES, EntityComponent
 from homeassistant.helpers.entity_platform import async_get_platforms
-from homeassistant.helpers.target import async_extract_referenced_entity_ids
+from homeassistant.helpers.target import (
+    TargetSelection,
+    async_extract_referenced_entity_ids,
+)
 from homeassistant.helpers.template import Template, is_complex, result_as_boolean
-
-try:
-    from homeassistant.helpers.target import TargetSelection
-except ImportError:
-    from homeassistant.helpers.target import TargetSelectorData as TargetSelection
 
 if TYPE_CHECKING:
     from homeassistant.core import Context, HomeAssistant, ServiceCall

@@ -50,7 +50,6 @@ The pre-commit hooks (`prek.toml`) run lint and the full pytest suite.
 - **`retry_id`** (default: entity_id, else the action name) lives in the module-global `_running_retries: {retry_id: (context.id, count)}`. A newer call with a different `Context` takes ownership. The older loop notices at its next attempt boundary and raises `IntegrationError`. Loops sharing a context (e.g. several entities of one call) share the counter. `async_retry` releases the ID in a `finally`, so cancellation and errors on the failure path (e.g. `on_error`) don't leave a stale entry.
 - **The backoff is rendered in advance** (`RetryAction._backoffs`), for all attempts, when the action starts. It can therefore fail only before the 1st attempt, and must not depend on states or time.
 - **Repairs** are created on the final failure. The issue id is the SHA-256 of `str(RetryAction)`, which includes the inner action data, so identical actions share a ticket. The readable string is the `action` placeholder. They're persistent and fixable: "fixing" is HA's default `ConfirmRepairFlow` (used since retry has no `repairs.py`), so the user acknowledges the ticket with Submit, which deletes it. They're deliberately never deleted automatically, e.g. on a later success: a ticket reports that an action failed even after all retries (e.g. a flaky device or wireless link), which stays relevant after the next run succeeds.
-- `TargetSelection` is imported with a fallback to `TargetSelectorData`. Older HA (e.g. 2025.8) only has the latter, which is deprecated in current HA and breaks in 2026.12.
 
 ## Rejected on purpose
 
@@ -75,8 +74,8 @@ Decisions from a code review (2026-10), so they aren't proposed again. The bigge
 
 ## Compatibility
 
-- Declared minimum is HA **2025.8** (`hacs.json`); dev and CI run the latest HA on Python 3.14 (`.ruff.toml` targets py314). CI (`validate.yml`, "Tests (minimum Home Assistant version)") also runs the tests on the minimum, without the coverage gate, since some code runs only on newer versions.
-- To test on the minimum version: `uv venv --python-preference only-managed --python 3.13 <dir>`, then `uv pip install "pytest-homeassistant-custom-component==0.13.272" "pycares<5"` (0.13.272 pins HA 2025.8.3), and run `pytest --no-cov`. Raising the minimum means updating `hacs.json`, this pin and the CI job.
+- Declared minimum is HA **2026.1** (`hacs.json`); dev and CI run the latest HA on Python 3.14 (`.ruff.toml` targets py314). CI (`validate.yml`, "Tests (minimum Home Assistant version)") also runs the tests on the minimum, without the coverage gate, since some code runs only on newer versions.
+- To test on the minimum version: `uv venv --python-preference only-managed --python 3.13 <dir>`, then `uv pip install "pytest-homeassistant-custom-component==0.13.308" "pycares<5"` (0.13.308 pins HA 2026.1.3), and run `pytest --no-cov`. Raising the minimum means updating `hacs.json`, this pin and the CI job.
 - APIs that changed across versions: `Script.async_unload()` exists only from HA 2026.5 (2026.4 and older have no public way to unload an ad-hoc `Script`, so `_async_run_script` unloads only when it's available and older versions keep leaking one `Script` per run). `TargetSelection` is missing in 2025.8 (hence the fallback import).
 - HA 2026.9 replaces `voluptuous` with the `probatio` shim at `import homeassistant`. In standalone scripts, import `homeassistant` before `voluptuous`, or schema compilation fails.
 
