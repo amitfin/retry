@@ -27,6 +27,7 @@ from homeassistant.const import (
     CONF_DEFAULT,
     CONF_ELSE,
     CONF_ENTITIES,
+    CONF_EXCLUDE,
     CONF_IF,
     CONF_NAME,
     CONF_PARALLEL,
@@ -62,6 +63,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers import label_registry as lr
 from homeassistant.helpers import script
+from homeassistant.helpers import target as target_helper
 from homeassistant.helpers.entity_component import DATA_INSTANCES
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import (
@@ -98,6 +100,10 @@ if TYPE_CHECKING:
 TEST_SERVICE = "test_service"
 TEST_ON_ERROR_SERVICE = "test_on_error_service"
 BASIC_SEQUENCE_DATA = [{CONF_ACTION: f"{DOMAIN}.{TEST_SERVICE}"}]
+requires_exclude = pytest.mark.skipif(
+    not hasattr(target_helper, "async_extract_excluded_entity_ids"),
+    reason="A target has an exclude block from HA 2026.11",
+)
 
 
 class RetryTestMockError(Exception):
@@ -1357,6 +1363,119 @@ async def test_all_entities(
             f"[Failed]: attempt 7/7: script.turn_off(entity_id=script.test{i})"
             "[expected_state=on]"
         ) in caplog.text
+
+
+@requires_exclude
+@pytest.mark.parametrize(
+    ("target", "expected"),
+    [
+        (
+            {
+                ATTR_ENTITY_ID: ENTITY_MATCH_ALL,
+                CONF_EXCLUDE: {ATTR_ENTITY_ID: "binary_sensor.test2"},
+            },
+            ["binary_sensor.test"],
+        ),
+        (
+            {
+                ATTR_ENTITY_ID: ENTITY_MATCH_ALL,
+                CONF_EXCLUDE: {ATTR_LABEL_ID: "Test Label"},
+            },
+            ["binary_sensor.test2"],
+        ),
+        (
+            {
+                ATTR_ENTITY_ID: ["binary_sensor.test", "binary_sensor.test2"],
+                CONF_EXCLUDE: {ATTR_ENTITY_ID: "binary_sensor.test2"},
+            },
+            ["binary_sensor.test"],
+        ),
+    ],
+    ids=["all-entity", "all-label", "entities"],
+)
+@pytest.mark.parametrize("plural", [False, True], ids=["action", "actions"])
+async def test_exclude(
+    hass: HomeAssistant,
+    target: dict[str, Any],
+    expected: list[str],
+    plural: bool,  # noqa: FBT001
+) -> None:
+    """Test the exclude block of a target."""
+    calls = await async_setup(hass, raises=False)
+    action = f"binary_sensor.{TEST_SERVICE}"
+    if plural:
+        await hass.services.async_call(
+            DOMAIN,
+            ACTIONS_SERVICE,
+            {CONF_SEQUENCE: [{CONF_ACTION: action, CONF_TARGET: target}]},
+            blocking=True,
+        )
+    else:
+        await hass.services.async_call(
+            DOMAIN,
+            ACTION_SERVICE,
+            {CONF_ACTION: action},
+            blocking=True,
+            target=target,
+        )
+    assert (
+        sorted(entity_id for call in calls for entity_id in call.data[ATTR_ENTITY_ID])
+        == expected
+    )
+
+
+@requires_exclude
+@pytest.mark.parametrize(
+    ("target", "expected"),
+    [
+        (
+            {ATTR_ENTITY_ID: "light.test", CONF_EXCLUDE: {ATTR_ENTITY_ID: "light.b"}},
+            {"light.a"},
+        ),
+        (
+            {
+                ATTR_ENTITY_ID: ["light.test", "light.c"],
+                CONF_EXCLUDE: {ATTR_ENTITY_ID: "light.test"},
+            },
+            {"light.c"},
+        ),
+        (
+            {
+                ATTR_ENTITY_ID: ["light.a", "light.c"],
+                CONF_EXCLUDE: {ATTR_ENTITY_ID: "light.test"},
+            },
+            {"light.c"},
+        ),
+    ],
+    ids=["member", "group", "group-members"],
+)
+async def test_exclude_group_platform(
+    hass: HomeAssistant,
+    caplog: pytest.LogCaptureFixture,
+    target: dict[str, Any],
+    expected: set[str],
+) -> None:
+    """Test excluding a member of a group platform entity, or the group itself."""
+    await async_setup(hass, raises=False)
+    assert await async_setup_component(
+        hass,
+        "light",
+        {
+            "light": [
+                {
+                    CONF_NAME: "test",
+                    CONF_PLATFORM: "group",
+                    CONF_ENTITIES: ["light.a", "light.b"],
+                }
+            ]
+        },
+    )
+    await hass.async_block_till_done()
+    await async_call(hass, target=target)
+    for entity_id in ("light.a", "light.b", "light.c"):
+        assert (f"{entity_id} is not available" in caplog.text) == (
+            entity_id in expected
+        )
 
 
 async def test_disable_repair(

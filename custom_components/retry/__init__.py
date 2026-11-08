@@ -58,6 +58,19 @@ try:
 except ImportError:
     from homeassistant.helpers.target import TargetSelectorData as TargetSelection
 
+try:
+    from homeassistant.helpers.target import async_extract_excluded_entity_ids  # type: ignore[attr-defined,unused-ignore]
+except ImportError:
+
+    def async_extract_excluded_entity_ids(
+        hass: HomeAssistant,  # noqa: ARG001
+        target_selection: TargetSelection,  # noqa: ARG001
+        expand_group: bool = True,  # noqa: ARG001, FBT001, FBT002
+    ) -> set[str]:
+        """Return no entities: HA 2026.10 and older have no exclude block."""
+        return set()
+
+
 if TYPE_CHECKING:
     from homeassistant.core import Context, HomeAssistant, ServiceCall
     from homeassistant.helpers.entity import Entity
@@ -363,13 +376,30 @@ class RetryParams:
             with contextlib.suppress(vol.Invalid):
                 target = {**target, ATTR_ENTITY_ID: cv.comp_entity_ids(raw_entity_ids)}
 
-        if target.get(ATTR_ENTITY_ID) == ENTITY_MATCH_ALL:
-            return self._all_entity_ids(hass)
-
-        entities = async_extract_referenced_entity_ids(
-            hass,
-            TargetSelection(target),
+        selection = TargetSelection(target)
+        entity_ids = (
+            self._all_entity_ids(hass)
+            if target.get(ATTR_ENTITY_ID) == ENTITY_MATCH_ALL
+            else self._referenced_entity_ids(hass, selection)
         )
+
+        # The exclude block (HA 2026.11+). HA already removes the excluded entities
+        # from the referenced ones, but not from all entities or from the members of
+        # group platform entities, which only retry expands. Excluding such a group
+        # excludes its members, like HA does for the groups it expands.
+        excluded: set[str] = async_extract_excluded_entity_ids(hass, selection)
+        excluded.update(
+            member_id
+            for entity_id in excluded.copy()
+            for member_id in self._expand_group(hass, entity_id)
+        )
+        return entity_ids - excluded
+
+    def _referenced_entity_ids(
+        self, hass: HomeAssistant, selection: TargetSelection
+    ) -> set[str]:
+        """Return the entities a target references, directly or indirectly."""
+        entities = async_extract_referenced_entity_ids(hass, selection)
 
         entity_ids = {
             entity_id
