@@ -1512,6 +1512,84 @@ async def test_exclude_only(hass: HomeAssistant) -> None:
     assert ATTR_ENTITY_ID not in calls[0].data
 
 
+@requires_exclude
+@pytest.mark.parametrize(
+    ("target", "expected"),
+    [
+        (
+            {
+                ATTR_ENTITY_ID: "binary_sensor.group",
+                CONF_EXCLUDE: {ATTR_LABEL_ID: "Test Label"},
+            },
+            ["binary_sensor.test2"],
+        ),
+        (
+            {
+                ATTR_ENTITY_ID: ENTITY_MATCH_ALL,
+                CONF_EXCLUDE: {ATTR_ENTITY_ID: "group.test"},
+            },
+            ["binary_sensor.group", "binary_sensor.test2"],
+        ),
+    ],
+    ids=["label-excludes-member", "all-old-style-group"],
+)
+async def test_exclude_group_members(
+    hass: HomeAssistant,
+    target: dict[str, Any],
+    expected: list[str],
+) -> None:
+    """Test indirectly excluded group members, and an excluded group of all."""
+    assert await async_setup_component(
+        hass, "group", {"group": {"test": {CONF_ENTITIES: ["binary_sensor.test"]}}}
+    )
+    assert await async_setup_component(
+        hass,
+        "binary_sensor",
+        {
+            "binary_sensor": [
+                {
+                    CONF_NAME: "group",
+                    CONF_PLATFORM: "group",
+                    CONF_ENTITIES: ["binary_sensor.test", "binary_sensor.test2"],
+                }
+            ]
+        },
+    )
+    calls = await async_setup(hass, raises=False)
+    await hass.async_block_till_done()
+    await hass.services.async_call(
+        DOMAIN,
+        ACTION_SERVICE,
+        {CONF_ACTION: f"binary_sensor.{TEST_SERVICE}"},
+        blocking=True,
+        target=target,
+    )
+    assert (
+        sorted(entity_id for call in calls for entity_id in call.data[ATTR_ENTITY_ID])
+        == expected
+    )
+
+
+async def test_exclude_not_target(hass: HomeAssistant) -> None:
+    """Test an exclude parameter which isn't a target (an action without schema)."""
+    calls = await async_setup(hass, raises=False)
+    data = {
+        CONF_ACTION: f"{DOMAIN}.{TEST_ON_ERROR_SERVICE}",
+        ATTR_ENTITY_ID: "binary_sensor.test",
+        CONF_EXCLUDE: "binary_sensor.test",
+    }
+    with pytest.raises(ServiceValidationError) as error:
+        await hass.services.async_call(DOMAIN, ACTION_SERVICE, data, blocking=True)
+    assert str(error.value) == (
+        "exclude must be a target (set ignore_target when it's a parameter of the "
+        "action)"
+    )
+    await hass.services.async_call(
+        DOMAIN, ACTION_SERVICE, {**data, ATTR_IGNORE_TARGET: True}, blocking=True
+    )
+    assert calls[0].data[CONF_EXCLUDE] == "binary_sensor.test"
+
+
 async def test_disable_repair(
     hass: HomeAssistant,
 ) -> None:
