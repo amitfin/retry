@@ -381,19 +381,22 @@ class RetryParams:
                 target = {**target, ATTR_ENTITY_ID: cv.comp_entity_ids(raw_entity_ids)}
 
         # The exclude block (HA 2026.11+) is resolved once, by HA. It's removed both
-        # before and after retry expands group platform entities (which HA doesn't
-        # expand): excluding such a group excludes the group entity, as in HA, and
-        # excluding a member of a targeted group excludes the member.
-        excluded: set[str] = async_extract_excluded_entity_ids(
-            hass, TargetSelection(target)
+        # before (in _referenced_entity_ids) and after retry expands group platform
+        # entities (which HA doesn't expand): excluding such a group excludes the
+        # group entity, as in HA, and excluding a member of a targeted group excludes
+        # the member.
+        excluded: set[str] = (
+            async_extract_excluded_entity_ids(hass, TargetSelection(target))
+            if CONF_EXCLUDE in target
+            else set()
         )
-        if target.get(ATTR_ENTITY_ID) == ENTITY_MATCH_ALL:
-            return self._all_entity_ids(hass) - excluded
         included = {key: value for key, value in target.items() if key != CONF_EXCLUDE}
-        return (
-            self._referenced_entity_ids(hass, TargetSelection(included), excluded)
-            - excluded
+        entity_ids = (
+            self._all_entity_ids(hass)
+            if target.get(ATTR_ENTITY_ID) == ENTITY_MATCH_ALL
+            else self._referenced_entity_ids(hass, TargetSelection(included), excluded)
         )
+        return entity_ids - excluded
 
     def _referenced_entity_ids(
         self, hass: HomeAssistant, selection: TargetSelection, excluded: set[str]

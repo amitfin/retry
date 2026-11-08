@@ -231,7 +231,7 @@ Many actions support a list of entities, either by providing an explicit list in
 
 However, there are cases where the inner action should get the target parameters without modifications. When this parameter is set to true, the target isn't resolved, expanded or split into entities. The original target parameters are passed to the inner action as provided.
 
-**This parameter must be set for actions that don't act on each target entity.** The splitting is done for any action with a target parameter (`entity_id`, `device_id`, `area_id`, `floor_id`, `label_id` or `exclude`), since it's not possible to know how the inner action uses its target. Without this parameter, such actions are performed once per resolved entity, with `entity_id` instead of the original target. Examples:
+**This parameter must be set for actions that don't act on each target entity.** The splitting is done for any action with a target parameter (`entity_id`, `device_id`, `area_id`, `floor_id` or `label_id`), since it's not possible to know how the inner action uses its target. Without this parameter, such actions are performed once per resolved entity, with `entity_id` instead of the original target. Examples:
 - `homeassistant.reload_config_entry` with a `device_id` reloads the config entry once per entity of the device.
 - Device-level integration actions (e.g. setting a device's configuration parameter) never get the `device_id`, and they aren't performed at all when the device has no matching entities.
 - Actions where `entity_id` is a regular parameter (e.g. `logbook.log` and `recorder.purge_entities`) fail when the entity isn't available or doesn't exist as an entity object.
