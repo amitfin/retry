@@ -66,6 +66,8 @@ jobs:
         with:
           python-version: "3.13"
 
+      # pytest-homeassistant exists only from Home Assistant 2026.11, so this job
+      # uses the discontinued pytest-homeassistant-custom-component.
       # 0.13.272 pins Home Assistant 2025.8.3, the minimum in hacs.json.
       # pycares 5 is incompatible with the aiodns version of that release.
       - name: Install requirements

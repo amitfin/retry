@@ -66,12 +66,21 @@ from homeassistant.helpers import script
 from homeassistant.helpers import target as target_helper
 from homeassistant.helpers.entity_component import DATA_INSTANCES
 from homeassistant.setup import async_setup_component
-from pytest_homeassistant_custom_component.common import (
-    MockConfigEntry,
-    MockUser,
-    async_capture_events,
-    async_mock_service,
-)
+
+try:
+    from pytest_homeassistant.common import (
+        MockConfigEntry,
+        MockUser,
+        async_capture_events,
+        async_mock_service,
+    )
+except ImportError:  # Home Assistant 2026.10 and older.
+    from pytest_homeassistant_custom_component.common import (  # pyright: ignore[reportMissingImports]
+        MockConfigEntry,
+        MockUser,
+        async_capture_events,
+        async_mock_service,
+    )
 
 import custom_components.retry as retry_module
 from custom_components.retry.const import (

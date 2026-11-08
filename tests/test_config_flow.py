@@ -6,7 +6,11 @@ from typing import TYPE_CHECKING
 
 from homeassistant.config_entries import SOURCE_IMPORT, SOURCE_USER
 from homeassistant.data_entry_flow import FlowResultType
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+try:
+    from pytest_homeassistant.common import MockConfigEntry
+except ImportError:  # Home Assistant 2026.10 and older.
+    from pytest_homeassistant_custom_component.common import MockConfigEntry  # pyright: ignore[reportMissingImports]
 
 from custom_components.retry.const import (
     CONF_DISABLE_INITIAL_CHECK,

@@ -7,13 +7,17 @@ from typing import TYPE_CHECKING
 
 import pytest
 from homeassistant.setup import async_setup_component
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+try:
+    from pytest_homeassistant.common import MockConfigEntry
+except ImportError:  # Home Assistant 2026.10 and older.
+    from pytest_homeassistant_custom_component.common import MockConfigEntry  # pyright: ignore[reportMissingImports]
 
 from custom_components.retry.const import CONF_DISABLE_REPAIR, DOMAIN
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
-    from pytest_homeassistant_custom_component.typing import ClientSessionGenerator
+    from pytest_homeassistant.typing import ClientSessionGenerator
 
 
 @pytest.mark.allowed_logs(["zlib_ng and isal are not available"])
