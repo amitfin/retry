@@ -1444,19 +1444,32 @@ async def test_exclude(
                 ATTR_ENTITY_ID: ["light.a", "light.c"],
                 CONF_EXCLUDE: {ATTR_ENTITY_ID: "light.test"},
             },
+            {"light.a", "light.c"},
+        ),
+        (
+            {
+                ATTR_ENTITY_ID: ["light.a", "light.c"],
+                CONF_EXCLUDE: {ATTR_ENTITY_ID: "group.test"},
+            },
             {"light.c"},
         ),
     ],
-    ids=["member", "group", "group-members"],
+    ids=["member", "group", "group-members", "old-style-group-members"],
 )
-async def test_exclude_group_platform(
+async def test_exclude_group(
     hass: HomeAssistant,
     caplog: pytest.LogCaptureFixture,
     target: dict[str, Any],
     expected: set[str],
 ) -> None:
-    """Test excluding a member of a group platform entity, or the group itself."""
+    """Test excluding a group member, or a group."""
+    # Like HA, excluding a group platform entity (light.test) excludes only the
+    # group entity, while excluding an old-style group (group.test) excludes its
+    # members.
     await async_setup(hass, raises=False)
+    assert await async_setup_component(
+        hass, "group", {"group": {"test": {CONF_ENTITIES: ["light.a"]}}}
+    )
     assert await async_setup_component(
         hass,
         "light",
@@ -1476,6 +1489,27 @@ async def test_exclude_group_platform(
         assert (f"{entity_id} is not available" in caplog.text) == (
             entity_id in expected
         )
+
+
+@requires_exclude
+async def test_exclude_only(hass: HomeAssistant) -> None:
+    """Test a target with only an exclude block, which doesn't target anything."""
+    calls = await async_setup(hass, raises=False)
+    data = {
+        CONF_ACTION: f"binary_sensor.{TEST_SERVICE}",
+        CONF_EXCLUDE: {ATTR_ENTITY_ID: "binary_sensor.test"},
+    }
+    with pytest.raises(ServiceValidationError) as error:
+        await hass.services.async_call(
+            DOMAIN,
+            ACTION_SERVICE,
+            {**data, ATTR_EXPECTED_STATE: "on"},
+            blocking=True,
+        )
+    assert str(error.value) == "expected_state parameter requires an entity"
+    await hass.services.async_call(DOMAIN, ACTION_SERVICE, data, blocking=True)
+    assert len(calls) == 1
+    assert ATTR_ENTITY_ID not in calls[0].data
 
 
 async def test_disable_repair(
