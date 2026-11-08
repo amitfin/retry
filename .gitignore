@@ -16,3 +16,6 @@ coverage.xml
 # Home Assistant configuration
 config/*
 !config/configuration.yaml
+
+# Config directory of the hass fixture (pytest-homeassistant), e.g. default blueprints
+tests/testing_config

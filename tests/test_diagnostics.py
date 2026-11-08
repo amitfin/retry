@@ -7,13 +7,13 @@ from typing import TYPE_CHECKING
 
 import pytest
 from homeassistant.setup import async_setup_component
-from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.retry.const import CONF_DISABLE_REPAIR, DOMAIN
+from tests.common import MockConfigEntry
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
-    from pytest_homeassistant_custom_component.typing import ClientSessionGenerator
+    from pytest_homeassistant.typing import ClientSessionGenerator
 
 
 @pytest.mark.allowed_logs(["zlib_ng and isal are not available"])

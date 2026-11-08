@@ -28,6 +28,7 @@
     "hassio",
     "homeassistant",
     "hookwrapper",
+    "httpx",
     "isal",
     "levelname",
     "levelno",
@@ -44,6 +45,7 @@
     "pytest",
     "PYTHONPATH",
     "pyupgrade",
+    "respx",
     "ryanluker",
     "unsub",
     "venv"
