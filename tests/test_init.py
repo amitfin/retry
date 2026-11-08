@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-import datetime
+import datetime as dt
 import hashlib
 from asyncio import Event, Semaphore
 from contextlib import suppress
@@ -899,7 +899,7 @@ async def test_validation_in_automation(
     def async_service(service_call: ServiceCall) -> None:
         """Mock service call."""
         calls.append(service_call)
-        freezer.tick(datetime.timedelta(seconds=1))
+        freezer.tick(dt.timedelta(seconds=1))
 
     hass.services.async_register(
         DOMAIN,
