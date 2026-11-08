@@ -21,6 +21,7 @@ from homeassistant.const import (
     CONF_DEFAULT,
     CONF_ELSE,
     CONF_ENABLED,
+    CONF_EXCLUDE,
     CONF_PARALLEL,
     CONF_REPEAT,
     CONF_SEQUENCE,
@@ -57,6 +58,19 @@ try:
     from homeassistant.helpers.target import TargetSelection
 except ImportError:
     from homeassistant.helpers.target import TargetSelectorData as TargetSelection
+
+try:
+    from homeassistant.helpers.target import async_extract_excluded_entity_ids  # type: ignore[attr-defined,unused-ignore]
+except ImportError:
+
+    def async_extract_excluded_entity_ids(
+        hass: HomeAssistant,  # noqa: ARG001
+        target_selection: TargetSelection,  # noqa: ARG001
+        expand_group: bool = True,  # noqa: ARG001, FBT001, FBT002
+    ) -> set[str]:
+        """Return no entities: HA 2026.10 and older have no exclude block."""
+        return set()
+
 
 if TYPE_CHECKING:
     from homeassistant.core import Context, HomeAssistant, ServiceCall
@@ -307,7 +321,10 @@ class RetryParams:
         """Check if inner action refers to entities."""
         if self.retry_data.get(ATTR_IGNORE_TARGET):
             return False
-        return self.inner_data.keys() & ENTITY_SERVICE_FIELDS != set()
+        # Like HA, an exclude block alone doesn't target anything.
+        return (
+            self.inner_data.keys() & (ENTITY_SERVICE_FIELDS - {CONF_EXCLUDE}) != set()
+        )
 
     def _expand_group(
         self, hass: HomeAssistant, entity_id: str, visited: set[str] | None = None
@@ -363,25 +380,41 @@ class RetryParams:
             with contextlib.suppress(vol.Invalid):
                 target = {**target, ATTR_ENTITY_ID: cv.comp_entity_ids(raw_entity_ids)}
 
-        if target.get(ATTR_ENTITY_ID) == ENTITY_MATCH_ALL:
-            return self._all_entity_ids(hass)
-
-        entities = async_extract_referenced_entity_ids(
-            hass,
-            TargetSelection(target),
+        # The exclude block (HA 2026.11+) is resolved once, by HA. It's removed both
+        # before (in _referenced_entity_ids) and after retry expands group platform
+        # entities (which HA doesn't expand): excluding such a group excludes the
+        # group entity, as in HA, and excluding a member of a targeted group excludes
+        # the member.
+        excluded: set[str] = (
+            async_extract_excluded_entity_ids(hass, TargetSelection(target))
+            if CONF_EXCLUDE in target
+            else set()
         )
+        included = {key: value for key, value in target.items() if key != CONF_EXCLUDE}
+        entity_ids = (
+            self._all_entity_ids(hass)
+            if target.get(ATTR_ENTITY_ID) == ENTITY_MATCH_ALL
+            else self._referenced_entity_ids(hass, TargetSelection(included), excluded)
+        )
+        return entity_ids - excluded
+
+    def _referenced_entity_ids(
+        self, hass: HomeAssistant, selection: TargetSelection, excluded: set[str]
+    ) -> set[str]:
+        """Return the entities a target references, directly or indirectly."""
+        entities = async_extract_referenced_entity_ids(hass, selection)
 
         entity_ids = {
             entity_id
-            for group_entity_id in entities.referenced
+            for group_entity_id in entities.referenced - excluded
             for entity_id in self._expand_group(hass, group_entity_id)
         }
 
-        if entities.indirectly_referenced:
+        if indirectly_referenced := entities.indirectly_referenced - excluded:
             all_entity_ids = self._all_entity_ids(hass)
             entity_ids.update(
                 entity_id
-                for group_entity_id in entities.indirectly_referenced
+                for group_entity_id in indirectly_referenced
                 for entity_id in self._expand_group(hass, group_entity_id)
                 if entity_id in all_entity_ids
                 or self.retry_data[ATTR_DOMAIN] == HA_DOMAIN  # homeassistant.turn_on
