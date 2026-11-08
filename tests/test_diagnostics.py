@@ -8,12 +8,8 @@ from typing import TYPE_CHECKING
 import pytest
 from homeassistant.setup import async_setup_component
 
-try:
-    from pytest_homeassistant.common import MockConfigEntry
-except ImportError:  # Home Assistant 2026.10 and older.
-    from pytest_homeassistant_custom_component.common import MockConfigEntry  # pyright: ignore[reportMissingImports]
-
 from custom_components.retry.const import CONF_DISABLE_REPAIR, DOMAIN
+from tests.common import MockConfigEntry
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
