@@ -1570,26 +1570,6 @@ async def test_exclude_group_members(
     )
 
 
-async def test_exclude_not_target(hass: HomeAssistant) -> None:
-    """Test an exclude parameter which isn't a target (an action without schema)."""
-    calls = await async_setup(hass, raises=False)
-    data = {
-        CONF_ACTION: f"{DOMAIN}.{TEST_ON_ERROR_SERVICE}",
-        ATTR_ENTITY_ID: "binary_sensor.test",
-        CONF_EXCLUDE: "binary_sensor.test",
-    }
-    with pytest.raises(ServiceValidationError) as error:
-        await hass.services.async_call(DOMAIN, ACTION_SERVICE, data, blocking=True)
-    assert str(error.value) == (
-        "exclude must be a target (set ignore_target when it's a parameter of the "
-        "action)"
-    )
-    await hass.services.async_call(
-        DOMAIN, ACTION_SERVICE, {**data, ATTR_IGNORE_TARGET: True}, blocking=True
-    )
-    assert calls[0].data[CONF_EXCLUDE] == "binary_sensor.test"
-
-
 async def test_disable_repair(
     hass: HomeAssistant,
 ) -> None:

@@ -380,13 +380,6 @@ class RetryParams:
             with contextlib.suppress(vol.Invalid):
                 target = {**target, ATTR_ENTITY_ID: cv.comp_entity_ids(raw_entity_ids)}
 
-        if not isinstance(target.get(CONF_EXCLUDE) or {}, dict):
-            message = (
-                f"{CONF_EXCLUDE} must be a target (set {ATTR_IGNORE_TARGET} when it's "
-                "a parameter of the action)"
-            )
-            raise ServiceValidationError(message)
-
         # The exclude block (HA 2026.11+) is resolved once, by HA. It's removed both
         # before (in _referenced_entity_ids) and after retry expands group platform
         # entities (which HA doesn't expand): excluding such a group excludes the
