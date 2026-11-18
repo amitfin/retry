@@ -283,11 +283,7 @@ Install the integration from the **Marketplace** (**Settings** > **Marketplace**
 
 [![Open your Home Assistant instance and open a repository in the Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=amitfin&repository=retry&category=integration)
 
-The Retry integration should also be added to the configuration in order to use the new custom actions. This can be done via the user interface, by using this My button:
-
-[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=retry)
-
-It's also possible to add the integration via `configuration.yaml` by adding the single line `retry:`.
+Instead of the setup flow, the integration can also be added via `configuration.yaml` by adding the single line `retry:`.
 
 ## Uninstall
 
