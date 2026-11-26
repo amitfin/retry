@@ -11,6 +11,7 @@
         "step": {
             "init": {
                 "data": {
+                    "disable_initial_check": "Zakázať počiatočnú kontrolu",
                     "disable_repair": "Zakázať lístky na opravu"
                 }
             }
@@ -36,6 +37,10 @@
                 "action": {
                     "name": "Akcie",
                     "description": "Postupnosť akcií."
+                },
+                "inner_data": {
+                    "name": "Interné údaje",
+                    "description": "Parametre vnútornej akcie. Sú potrebné na predídenie kolízii názvov s parametrom pre opakovanie (napr. \"action\")."
                 },
                 "retries": {
                     "name": "Opakovania",
@@ -64,6 +69,10 @@
                 "on_error": {
                     "name": "Pri chybe",
                     "description": "Postupnosť akcií, ktoré sa majú vykonať, ak všetky pokusy zlyhajú."
+                },
+                "ignore_target": {
+                    "name": "Ignorovať cieľ",
+                    "description": "Ak je nastavené na hodnotu true, akcia sa nepokúša o rozlíšenie, rozšírenie ani izoláciu entít. Pôvodné cieľové parametre sa odovzdávajú vnútornej akcii v nezmenenej podobe. Toto nastavenie je nevyhnutné pre akcie, ktoré nepôsobia na každú cieľovú entitu samostatne (napr. akcie na úrovni zariadenia)."
                 },
                 "repair": {
                     "name": "Tiket na opravu problému",
@@ -110,6 +119,10 @@
                 "on_error": {
                     "name": "Pri chybe",
                     "description": "Postupnosť akcií, ktoré sa majú vykonať, ak všetky pokusy zlyhajú."
+                },
+                "ignore_target": {
+                    "name": "Ignorovať cieľ",
+                    "description": "Ak je nastavené na hodnotu true, akcia sa nepokúša o rozlíšenie, rozšírenie ani izoláciu entít. Pôvodné cieľové parametre sa odovzdávajú vnútornej akcii v nezmenenej podobe. Toto nastavenie je nevyhnutné pre akcie, ktoré nepôsobia na každú cieľovú entitu samostatne (napr. akcie na úrovni zariadenia)."
                 },
                 "repair": {
                     "name": "Tiket na opravu problému",
