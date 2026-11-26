@@ -99,6 +99,7 @@ if TYPE_CHECKING:
 
 TEST_SERVICE = "test_service"
 TEST_ON_ERROR_SERVICE = "test_on_error_service"
+TEST_LABEL_ID = "test_label"
 BASIC_SEQUENCE_DATA = [{CONF_ACTION: f"{DOMAIN}.{TEST_SERVICE}"}]
 requires_exclude = pytest.mark.skipif(
     not hasattr(target_helper, "async_extract_excluded_entity_ids"),
@@ -135,9 +136,9 @@ async def async_setup(  # noqa: PLR0913, PLR0917
         },
     )
     await hass.async_block_till_done()
-    assert lr.async_get(hass).async_create("Test Label")
+    assert lr.async_get(hass).async_create("Test Label").label_id == TEST_LABEL_ID
     assert er.async_get(hass).async_update_entity(
-        "binary_sensor.test", labels={"Test Label"}
+        "binary_sensor.test", labels={TEST_LABEL_ID}
     )
     await hass.async_block_till_done()
 
@@ -456,7 +457,7 @@ async def test_label_target(hass: HomeAssistant, domain: str, match: bool) -> No
         ACTION_SERVICE,
         {CONF_ACTION: f"{domain}.{TEST_SERVICE}"},
         blocking=True,
-        target={ATTR_LABEL_ID: "Test Label"},
+        target={ATTR_LABEL_ID: TEST_LABEL_ID},
     )
     assert len(calls) == (1 if match else 0)
 
@@ -1379,7 +1380,7 @@ async def test_all_entities(
         (
             {
                 ATTR_ENTITY_ID: ENTITY_MATCH_ALL,
-                CONF_EXCLUDE: {ATTR_LABEL_ID: "Test Label"},
+                CONF_EXCLUDE: {ATTR_LABEL_ID: TEST_LABEL_ID},
             },
             ["binary_sensor.test2"],
         ),
@@ -1519,7 +1520,7 @@ async def test_exclude_only(hass: HomeAssistant) -> None:
         (
             {
                 ATTR_ENTITY_ID: "binary_sensor.group",
-                CONF_EXCLUDE: {ATTR_LABEL_ID: "Test Label"},
+                CONF_EXCLUDE: {ATTR_LABEL_ID: TEST_LABEL_ID},
             },
             ["binary_sensor.test2"],
         ),
@@ -1635,7 +1636,10 @@ async def test_repair_resolved_by_user(
 
     flow_manager = repairs_flow_manager(hass)
     assert flow_manager
-    flow = await flow_manager.async_init(DOMAIN, data={"issue_id": issue_id})
+    # HA 2026.12+ reads the issue ID from the context, older versions from the data.
+    flow = await flow_manager.async_init(
+        DOMAIN, context={"issue_id": issue_id}, data={"issue_id": issue_id}
+    )
     assert flow.get("step_id") == "confirm"
     await flow_manager.async_configure(flow["flow_id"], {})
     assert not issue_registry.issues

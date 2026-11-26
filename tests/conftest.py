@@ -74,6 +74,8 @@ def pytest_runtest_call(item: pytest.Item) -> Any:
                     "We found a custom integration retry",
                     "[Failed]: attempt",
                     "actions:",
+                    # HA's template light uses its own deprecated alias (HA 2026.12).
+                    "The deprecated alias UNDEFINED was used from template.",
                 ],
             )
         ) or (message.startswith("Executing <Task") and message.endswith(" seconds")):

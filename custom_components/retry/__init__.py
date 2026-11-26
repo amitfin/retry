@@ -57,7 +57,7 @@ from homeassistant.helpers.template import Template, is_complex, result_as_boole
 try:
     from homeassistant.helpers.target import TargetSelection
 except ImportError:
-    from homeassistant.helpers.target import TargetSelectorData as TargetSelection
+    from homeassistant.helpers.target import TargetSelectorData as TargetSelection  # type: ignore[attr-defined,no-redef,unused-ignore]
 
 try:
     from homeassistant.helpers.target import async_extract_excluded_entity_ids  # type: ignore[attr-defined,unused-ignore]
